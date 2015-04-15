@@ -5,6 +5,8 @@ import java.net.UnknownHostException;
 import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
+import uk.ac.cam.cl.dtg.teaching.pottery.controllers.ProgressController;
+import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
 
 import com.google.inject.Binder;
@@ -19,7 +21,9 @@ public class ApplicationModule implements Module {
 	@Override
 	public void configure(Binder binder) {
 		binder.bind(TasksController.class);
-//		binder.bind(ProblemController.class);
+		binder.bind(SubmissionsController.class);
+		binder.bind(ProgressController.class);
+		binder.bind(TasksController.class);
 		binder.bind(ExceptionHandler.class);
 		binder.bind(CorsResponseFilter.class);
 		binder.bind(AuthenticationPrincipalInterceptor.class);
