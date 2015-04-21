@@ -1,4 +1,4 @@
-package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
+package uk.ac.cam.cl.dtg.teaching.pottery;
 
 public class Status {
 
@@ -10,7 +10,7 @@ public class Status {
 	private String status;
 	
 	public Status() {
-		status = STATUS_PENDING;
+		status = STATUS_RECEIVED;
 	}
 
 	public synchronized String getStatus() {

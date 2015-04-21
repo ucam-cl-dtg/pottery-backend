@@ -1,6 +1,5 @@
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.controllers.Status;
 
 public class Submission {
 

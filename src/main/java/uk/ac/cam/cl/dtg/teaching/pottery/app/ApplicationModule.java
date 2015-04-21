@@ -5,6 +5,7 @@ import java.net.UnknownHostException;
 import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
+import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.ProgressController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
@@ -27,7 +28,6 @@ public class ApplicationModule implements Module {
 		binder.bind(ExceptionHandler.class);
 		binder.bind(CorsResponseFilter.class);
 		binder.bind(AuthenticationPrincipalInterceptor.class);
-//		binder.bind(TestInstanceManager.class).asEagerSingleton();
 	}
 	
 	@Provides @Singleton
@@ -40,4 +40,11 @@ public class ApplicationModule implements Module {
 		MongoClient client = new MongoClient("localhost");
 		return client.getDB("ptest");
 	}
+	
+	@Provides @Singleton
+	Store provideStore()  {
+		return new Store();
+	}
+	
+	
 }

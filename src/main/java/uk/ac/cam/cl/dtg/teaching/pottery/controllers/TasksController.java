@@ -12,6 +12,8 @@ import javax.ws.rs.Produces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.inject.Inject;
+
 import uk.ac.cam.cl.dtg.teaching.pottery.Progress;
 import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.Task;
@@ -23,22 +25,25 @@ public class TasksController {
 
 	private static final Logger log = LoggerFactory.getLogger(TasksController.class);
 	
+	@Inject
+	Store store;
+	
 	@GET
 	@Path("/")
 	public Collection<Task> listAllTasks() {
-		return Store.tasks.values();
+		return store.tasks.values();
 	}
 	
 	@POST
 	@Path("/")
 	public Progress beginTask(@FormParam("taskId") String taskId) throws TaskNotFoundException {
-		Task t = Store.tasks.get(taskId);
+		Task t = store.tasks.get(taskId);
 		if (t == null) throw new TaskNotFoundException();
 
 		Progress p = new Progress();
 		p.setTaskId(taskId);
 		p.setProgressId(UUID.randomUUID().toString());
-		Store.progress.put(p.getProgressId(), p);
+		store.progress.put(p.getProgressId(), p);
 		return p;
 	}
 }

@@ -1,4 +1,4 @@
-package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
+package uk.ac.cam.cl.dtg.teaching.pottery.exceptions;
 
 public class SubmissionNotFoundException extends Exception {
 
