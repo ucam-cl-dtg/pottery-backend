@@ -3,27 +3,19 @@ package uk.ac.cam.cl.dtg.teaching.pottery;
 
 public class Submission {
 
+	public static final String STATUS_RECEIVED = "RECEIVED";
+	public static final String STATUS_PENDING = "PENDING";
+	public static final String STATUS_TESTING = "TESTING";
+	public static final String STATUS_COMPLETE = "COMPLETE";
 	
 	private String submissionId;
-	private String progressId;
-	private Code code;
+	private String repoId;
+	private String tag;
 	private Result result;
-	private Status status;
+	private String status;
 	
 	public Submission() {
-		status = new Status();
 	}
-
-	
-	public Status getStatus() {
-		return status;
-	}
-
-
-	public void setStatus(Status status) {
-		this.status = status;
-	}
-
 
 	public String getSubmissionId() {
 		return submissionId;
@@ -33,20 +25,20 @@ public class Submission {
 		this.submissionId = submissionId;
 	}
 
-	public String getProgressId() {
-		return progressId;
+	public String getRepoId() {
+		return repoId;
 	}
 
-	public void setProgressId(String progressId) {
-		this.progressId = progressId;
+	public void setRepoId(String repoId) {
+		this.repoId = repoId;
 	}
 
-	public Code getCode() {
-		return code;
+	public String getTag() {
+		return tag;
 	}
 
-	public void setCode(Code code) {
-		this.code = code;
+	public void setTag(String tag) {
+		this.tag = tag;
 	}
 
 	public Result getResult() {
@@ -57,6 +49,12 @@ public class Submission {
 		this.result = result;
 	}
 
-	
-	
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
 }

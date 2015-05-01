@@ -22,39 +22,55 @@ $(document).ready(
 							url : "api/tasks",
 							success : function(result) {
 								reportSuccess(result);
+								$("#taskId").val(result[0].taskId);
 							},
 							error : function(xhr,textStatus,errorThrown) {
 								reportError(xhr);
 							}
 						});
 					});
+			
 
 			$("#startTaskForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
-					url: 'api/tasks',
+					url: 'api/tasks/'+$("#taskId").val(),
 					type: 'POST',
-					data: {"taskId" : $("#startTaskTaskId").val() },
 					success: function (result) {
 						reportSuccess(result);
-						$("input[name='progressId']").val(result.progressId);
+						$("#repoId").val(result.repoId);
 					},
 					error : function(xhr,textStatus,errorThrown) {
 						reportError(xhr);
 					}
 				});
 
-				return false;
+				return false;				
+			});
 
+			
+			$("#listRepo").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/repo/'+$("#repoId").val()+"/"+$("#repoTag").val(),
+					type: 'GET',
+					success: function (result) {
+						reportSuccess(result);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+
+				return false;				
 			});
 			
-			
-			$("#submitForm").submit(function(event) {
+
+			$("#updateRepo").submit(function(event) {
 				event.preventDefault();
 				var formData = new FormData($(this)[0]);
-
 				$.ajax({
-					url: 'api/progress/'+$("#submitFormProgressId").val(),
+					url: 'api/repo/'+$("#repoId").val()+"/"+$("#repoTag").val()+"/"+$("#fileName").val(),
 					type: 'POST',
 					data: formData,
 					cache: false,
@@ -62,7 +78,6 @@ $(document).ready(
 					processData: false,
 					success: function (result) {
 						reportSuccess(result);
-						$("input[name='submissionId']").val(result.submissionId);
 					},
 					error : function(xhr,textStatus,errorThrown) {
 						reportError(xhr);
@@ -70,14 +85,49 @@ $(document).ready(
 				});
 
 				return false;
+
+			});
+
+			$("#readRepo").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/repo/'+$("#repoId").val()+"/"+$("#repoTag").val()+"/"+$("#fileName").val(),
+					type: 'GET',
+					success: function (result) {
+						reportSuccess(result);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+
+				return false;				
+			});
+			
+
+
+			$("#tagRepo").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/repo/'+$("#repoId").val(),
+					type: 'POST',
+					success: function (result) {
+						reportSuccess(result);
+						$("#submissionTag").val(result.tag);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+
+				return false;				
 			});
 
 			$("#requestTestForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
-					url: 'api/submissions/' + $("#requestTestSubmissionId").val(),
+					url: 'api/submissions/'+$("#repoId").val()+'/'+$("#submissionTag").val(),
 					type: 'POST',
-					data: {},
 					success: function (result) {
 						reportSuccess(result);
 					},
@@ -85,29 +135,13 @@ $(document).ready(
 						reportError(xhr);
 					}
 				});
-				return false;
+				return false;				
 			});
-
-			$("#pollSubmissionForm").submit(function(event) {
-				event.preventDefault();
-				$.ajax({
-					url: 'api/submissions/' + $("#pollSubmissionSubmissionId").val(),
-					type: 'GET',
-					success: function (result) {
-						reportSuccess(result);
-					},
-					error : function(xhr,textStatus,errorThrown) {
-						reportError(xhr);
-					}
-				});
-				return false;
-			});
-
 
 			$("#pollStatusForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
-					url: 'api/submissions/' + $("#statusSubmissionId").val()+"/status",
+					url: 'api/submissions/'+$("#repoId").val()+'/'+$("#submissionTag").val(),
 					type: 'GET',
 					success: function (result) {
 						reportSuccess(result);
@@ -116,22 +150,10 @@ $(document).ready(
 						reportError(xhr);
 					}
 				});
-				return false;
+				return false;				
 			});
 
-			$("#getResultForm").submit(function(event) {
-				event.preventDefault();
-				$.ajax({
-					url: 'api/submissions/' + $("#getResultSubmissionId").val()+"/result",
-					type: 'GET',
-					success: function (result) {
-						reportSuccess(result);
-					},
-					error : function(xhr,textStatus,errorThrown) {
-						reportError(xhr);
-					}
-				});
-				return false;
-			});
-
+			
+			
+			
 		});

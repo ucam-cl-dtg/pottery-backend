@@ -1,5 +1,8 @@
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
+import java.util.LinkedList;
+import java.util.List;
+
 /**
  * A collection of files in a directory structure which form the submission.
  * @author acr31
@@ -7,15 +10,25 @@ package uk.ac.cam.cl.dtg.teaching.pottery;
  */
 public class Code {
 
-	private String code;
+	private List<SourceFile> sourceFiles;
 
-	public String getCode() {
-		return code;
+	public Code() {
+		super();
+		sourceFiles = new LinkedList<SourceFile>();
 	}
 
-	public void setCode(String code) {
-		this.code = code;
+	public void addSourceFile(SourceFile s) {
+		sourceFiles.add(s);
 	}
+
+	public List<SourceFile> getSourceFiles() {
+		return sourceFiles;
+	}
+
+	public void setSourceFiles(List<SourceFile> sourceFiles) {
+		this.sourceFiles = sourceFiles;
+	}
+		
 	
 	
 }

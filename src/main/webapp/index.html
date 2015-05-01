@@ -7,57 +7,65 @@
 
 <body>
 
-	<div style="float: left; width: 20em">
-		<p>Part 1: Get a list of available tasks</p>
+	<div style="float: left; width: 30em">
+		<p>TaskId: <input type="text" id="taskId"/></p>
+		<p>RepoId: <input type="text" id="repoId"/></p>
+		<p>RepoTag: <input type="text" id="repoTag" value="HEAD"/></p>
+		<p>SubmissionTag: <input type="text" id="submissionTag"/></p>
+		<hr />
+		
+		<h2>Tasks</h2>
+	
+		<p>Get a list of available tasks</p>
 		<input type="submit" value="List tasks" id="listTasksButton" /><br />
-
+		
 		<hr />
 
-		<p>Part 2: Start a task (create a progress instance)</p>
+		<h2>Repositories</h2>
+		<p>Commence on a task (create a repository)</p>
 		<form id="startTaskForm">
-			<p><input type="text" name="taskId" id="startTaskTaskId"/></p>
 			<p><input type="submit" value="Start task" /></p>
 		</form>
 
-		<p>Part 3: Submit a solution to a progress instance.</p>
-		<form id="submitForm" enctype="multipart/form-data">
-			<p>
-				<input type="text" name="progressId" value="packedLong" id="submitFormProgressId"/>
-			</p>
-			<p>
-				<input type="text" name="filePath" />
-			</p>
-			<p>
-				<input type="file" name="file" />
-			</p>
-			<input type="submit">Submit</input>
+		<p>List files in repo</p>
+		<form id="listRepo">
+			<p><input type="submit" value="List files" /></p>
+		</form>
+
+		<p>Update a file in the repo.</p>
+		<form id="updateRepo" enctype="multipart/form-data">
+			<p>Filename: <input type="text" id="fileName" name="fileName"/></p>
+			<p>Mimetype:<input type="text" name="mimeType" value="text/plain"/></p>
+			<p>File:<input type="file" name="data"/></p>
+			<input type="hidden" name="padding" value="padding"/>
+			<input type="submit"/>
+		</form>
+
+		<p>Read a file in the repo.</p>
+		<form id="readRepo">
+			<p>Filename: <input type="text" id="readFile"/></p>
+			<p>Submit: <input type="submit" value="read file"/></p>
+		</form>
+
+		<p>Create a new tag in the repo</p>
+		<form id="tagRepo">
+			<p>Submit: <input type="submit" value="tag repo"/></p>
 		</form>
 
 		<hr />
 
-		<p>Part 4: Request testing</p>
+		<h2>Testing</h2>
+
+		<p>Request testing</p>
 		<form id="requestTestForm">
-			<p><input type="text" name="submissionId" id="requestTestSubmissionId"/></p>
 			<p><input type="submit" value="Request testing" id="requestTestingButton"/></p>
 		</form> 
 		
-		<p>Part 4: Poll submission</p>
-		<form id="pollSubmissionForm">
-			<p><input type="text" name="submissionId" id="pollSubmissionSubmissionId"/></p>
-			<p><input type="submit" value="Poll submission" id="pollSubmissionButton"/></p>
-		</form> 
-		
-		<p>Part 5: Poll submission status</p>
+		<p>Poll status</p>
 		<form id="pollStatusForm">
-			<p><input type="text" name="submissionId" id="statusSubmissionId"/></p>
-			<p><input type="submit" value="Poll status" id="pollStatusButton"/></p>
+			<p><input type="submit" value="Poll status" id="pollSubmissionButton"/></p>
 		</form> 
 		
-		<p>Part 6: Request result</p>
-		<form id="getResultForm">
-			<p><input type="text" name="submissionId" id="getResultSubmissionId"/></p>
-			<p><input type="submit" value="Get result" id="getResultButton"/></p>
-		</form>
 		
 	</div>
 

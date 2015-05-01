@@ -9,6 +9,10 @@ public class Result {
 
 	private String result;
 	
+	// list of measurements
+	
+	// report where each item is possibly associated with either a submission, a file, a range of lines or a line
+	
 	
 	
 	public String getResult() {

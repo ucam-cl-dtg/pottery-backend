@@ -69,7 +69,7 @@ public class Task {
 		this.description = description;
 	}
 
-	public Task setCriteria(Criterion... criteria) {
+	public Task withCriteria(Criterion... criteria) {
 		this.criteria = new HashSet<Criterion>(Arrays.asList(criteria));
 		return this;
 	}
@@ -84,7 +84,10 @@ public class Task {
 		this.taskId = taskId;
 	}
 
-
+	public Task withTaskId(String taskId) {
+		setTaskId(taskId);
+		return this;
+	}
 	
 
 	public String getType() {
@@ -107,6 +110,11 @@ public class Task {
 		this.description = description;
 	}
 
+	public Task withDescription(String description) {
+		setDescription(description);
+		return this;
+	}
+	
 	public Set<Criterion> getCriteria() {
 		return criteria;
 	}
@@ -121,6 +129,11 @@ public class Task {
 
 	public void setSkeletonCode(Code skeletonCode) {
 		this.skeletonCode = skeletonCode;
+	}
+	
+	public Task withSkeletonCode(Code skeletonCode) {
+		setSkeletonCode(skeletonCode);
+		return this;
 	}
 
 	public Set<Binary> getTests() {
