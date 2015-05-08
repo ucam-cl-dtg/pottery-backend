@@ -1,6 +1,8 @@
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -13,27 +15,15 @@ import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 
-import com.google.common.collect.ImmutableMap;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Store {
 
 	private static final Logger log = LoggerFactory.getLogger(Store.class);
-
 	
-	
-	public Map<String,Task> tasks = ImmutableMap.of(
-			"3d0e6004-71fa-42b4-a304-d7236e0066a3",
-			new Task()
-			.withTaskId("3d0e6004-71fa-42b4-a304-d7236e0066a3")
-			.withDescription("<h1>String reverse</h1><p>The function <texttt>reverse</texttt> should take an array of characters and reverse their order storing the result in the original array.  Complete the implementation of this function.</p>")
-			.withCriteria(Criterion.CORRECTNESS,Criterion.ROBUSTNESS),
-
-			"133fd4db-905d-4b09-a37f-abb4fb463d2a",
-			new Task()
-			.withTaskId("133fd4db-905d-4b09-a37f-abb4fb463d2a")
-			.withDescription("<h1>Averages</h1><p>The function <texttt>mean</texttt> should take an array of doubles and compute their mean. Complete the implementation of this function.</p>")
-			.withCriteria(Criterion.CORRECTNESS, Criterion.ROBUSTNESS)
-			);
+	private static File STORAGE_LOCATION = new File("/local/scratch/acr31/pottery-problems");
+		
+	public Map<String,Task> tasks = new HashMap<String,Task>();
 	
 	public Map<String,Repo> repos = new ConcurrentHashMap<String,Repo>();
 	
@@ -44,8 +34,25 @@ public class Store {
 	private AtomicBoolean running = new AtomicBoolean(true);
 	
 	private Thread worker;
+
 	
 	public Store(final SourceManager repoManager) {
+		ObjectMapper o = new ObjectMapper();
+		for(File f : STORAGE_LOCATION.listFiles()) {
+			if (f.getName().startsWith(".")) continue;			
+			File taskSpecFile = new File(f,"task.json");
+			if (taskSpecFile.exists()) {
+				try {
+					Task t = o.readValue(taskSpecFile,Task.class);
+					tasks.put(t.getTaskId(), t);
+				} catch (IOException e) {
+					log.warn("Failed to load task "+taskSpecFile,e);
+				}
+			}
+			else {
+				log.warn("Failed to find task.json file for task in {}",taskSpecFile);
+			}
+		}
 		
 		worker = new Thread() {
 			@Override
@@ -85,5 +92,9 @@ public class Store {
 		log.error("STOP called");
 		running.set(false);
 		worker.interrupt();
+	}
+
+	public static File getSkeletonLocation(String taskId) {
+		return new File(new File(STORAGE_LOCATION,taskId),"skeleton");
 	}
 }

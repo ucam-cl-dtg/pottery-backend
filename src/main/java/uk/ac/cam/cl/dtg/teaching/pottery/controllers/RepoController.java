@@ -16,13 +16,17 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
-import org.jboss.resteasy.annotations.providers.multipart.PartType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.RepoTag;
+import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.Store;
+import uk.ac.cam.cl.dtg.teaching.pottery.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 
 import com.google.inject.Inject;
 
@@ -31,28 +35,8 @@ import com.google.inject.Inject;
 @Path("/repo")
 public class RepoController {
 
-	public static class FileData {
-		
-		@FormParam("mimeType")
-		private String mimeType;
-		
-		@FormParam("data")
-		@PartType("application/octet-stream")
-		private byte[] data;
-		
-		public String getMimeType() {
-			return mimeType;
-		}
-		public void setMimeType(String mimeType) {
-			this.mimeType = mimeType;
-		}
-		public byte[] getData() {
-			return data;
-		}
-		public void setData(byte[] data) {
-			this.data = data;
-		}
-	}
+	@Inject
+	Store store;
 	
 	@Inject
 	SourceManager repoManager;
@@ -79,7 +63,7 @@ public class RepoController {
 		if (!SourceManager.HEAD.equals(tag)) {
 			throw new RepoException("Can only update files at HEAD revision");
 		}
-		repoManager.updateFile(repoId,fileName,file.data);
+		repoManager.updateFile(repoId,fileName,file.getData());
 	}
 	
 	@DELETE
@@ -99,6 +83,24 @@ public class RepoController {
 	public RepoTag tag(@PathParam("repoId") String repoId) throws IOException, RepoException {
 		RepoTag r = new RepoTag();
 		r.setTag(repoManager.newTag(repoId));
+		return r;
+	}
+	
+	@POST
+	@Path("/")
+	public Repo makeRepo(@FormParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException {
+		Task t = store.tasks.get(taskId);
+		if (t == null) throw new TaskNotFoundException();
+
+		String repoId = repoManager.createRepo();
+		
+		Repo r = new Repo();
+		r.setTaskId(taskId);
+		r.setRepoId(repoId);
+		
+		repoManager.copyFiles(repoId, Store.getSkeletonLocation(taskId));
+		
+		store.repos.put(r.getRepoId(),r);
 		return r;
 	}
 	

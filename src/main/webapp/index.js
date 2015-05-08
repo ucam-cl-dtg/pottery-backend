@@ -34,8 +34,9 @@ $(document).ready(
 			$("#startTaskForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
-					url: 'api/tasks/'+$("#taskId").val(),
+					url: 'api/repo',
 					type: 'POST',
+					data : {"taskId" : $("#taskId").val() },
 					success: function (result) {
 						reportSuccess(result);
 						$("#repoId").val(result.repoId);

@@ -1,11 +1,15 @@
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +65,63 @@ public class SourceManager {
 		}
 		
 		return repoId;
+	}
+	
+	/**
+	 * Recursively copy the files from the sourceLocation to the chosen repo. Add them and commit them to the repo.
+	 * 
+	 * @param repoId
+	 * @param sourceLocation
+	 * @throws IOException
+	 * @throws RepoException 
+	 */
+	public void copyFiles(String repoId, File sourceLocation) throws IOException, RepoException {
+		List<String> copiedFiles = new LinkedList<>();
+		
+		File repoDir = new File(REPO_ROOT,repoId);
+		
+		Files.walkFileTree(sourceLocation.toPath(), new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(Path file,
+					BasicFileAttributes attrs) throws IOException {
+				
+				File originalFile = file.toFile();
+				Path localLocation = sourceLocation.toPath().relativize(file);
+				copiedFiles.add(localLocation.toString());
+				File newLocation = repoDir.toPath().resolve(localLocation).toFile();
+				File newDir = newLocation.getParentFile();
+				log.error("Copying {} to {}",originalFile, newLocation);
+
+				if (newDir.exists()) {
+					newDir.mkdirs();
+				}
+				
+				try(FileOutputStream fos = new FileOutputStream(newLocation)) {
+					try(FileInputStream fis = new FileInputStream(originalFile)) {
+						IOUtils.copy(fis, fos);
+					}
+				}
+				return FileVisitResult.CONTINUE;
+			}
+		});
+		
+		Git git = Git.open(repoDir);
+		try {
+			for(String f : copiedFiles) {
+				git.add().addFilepattern(f).call();
+			}
+			git.commit().setMessage("Copied files").call();
+		} catch (GitAPIException e) {
+			try {
+				git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
+				throw new RepoException("Failed to commit update after copying files. Rolled back",e);
+			} catch (GitAPIException e1) {
+				e1.addSuppressed(e);
+				throw new RepoException("Failed to rollback failed update",e1);
+			}
+		}
+		
+		
 	}
 	
 	

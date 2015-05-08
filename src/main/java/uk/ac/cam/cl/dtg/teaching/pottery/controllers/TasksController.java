@@ -1,6 +1,5 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
-import java.io.IOException;
 import java.util.Collection;
 
 import javax.ws.rs.GET;
@@ -12,12 +11,9 @@ import javax.ws.rs.Produces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.Task;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 
 import com.google.inject.Inject;
 
@@ -38,19 +34,23 @@ public class TasksController {
 	public Collection<Task> listAllTasks() {
 		return store.tasks.values();
 	}
-
+	
+	@POST
+	@Path("/")
+	public void createTask() {
+		
+	}
+	
 	@POST
 	@Path("/{taskId}")
-	public Repo makeRepo(@PathParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException {
-		Task t = store.tasks.get(taskId);
-		if (t == null) throw new TaskNotFoundException();
-
-		String repoId = repoManager.createRepo();
-		
-		Repo r = new Repo();
-		r.setTaskId(taskId);
-		r.setRepoId(repoId);
-		store.repos.put(r.getRepoId(),r);
-		return r;
+	public void createOrUpdateTask(@PathParam("taskId") String taskId) {
+		// could store task as a git repo
+		// special file to contain metadata
+		// another file for problem briefing
+		// skeleton code
+		// source code for tests and validator
+		// build script for tests and validator
+		// testscript of some form
+		// model answer
 	}
 }

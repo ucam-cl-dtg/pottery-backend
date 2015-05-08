@@ -1,7 +1,5 @@
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
 
 public class Task {
@@ -51,70 +49,38 @@ public class Task {
 	
 	private String type;
 	
-	private String description;
+	private String name;
 	
 	private Set<Criterion> criteria;
 	
-	private Code skeletonCode;
-	
-	private Set<Binary> tests;
+	private String image;
 	
 	public Task() {	}
-
-	
-
-	public Task(String taskId, String description) {
-		super();
-		this.taskId = taskId;
-		this.description = description;
-	}
-
-	public Task withCriteria(Criterion... criteria) {
-		this.criteria = new HashSet<Criterion>(Arrays.asList(criteria));
-		return this;
-	}
 
 	public String getTaskId() {
 		return taskId;
 	}
 
-
-
 	public void setTaskId(String taskId) {
 		this.taskId = taskId;
 	}
-
-	public Task withTaskId(String taskId) {
-		setTaskId(taskId);
-		return this;
-	}
-	
 
 	public String getType() {
 		return type;
 	}
 
-
-
 	public void setType(String type) {
 		this.type = type;
 	}
 
-
-
-	public String getDescription() {
-		return description;
+	public String getName() {
+		return name;
 	}
 
-	public void setDescription(String description) {
-		this.description = description;
+	public void setName(String name) {
+		this.name = name;
 	}
 
-	public Task withDescription(String description) {
-		setDescription(description);
-		return this;
-	}
-	
 	public Set<Criterion> getCriteria() {
 		return criteria;
 	}
@@ -123,27 +89,14 @@ public class Task {
 		this.criteria = criteria;
 	}
 
-	public Code getSkeletonCode() {
-		return skeletonCode;
+	public String getImage() {
+		return image;
 	}
 
-	public void setSkeletonCode(Code skeletonCode) {
-		this.skeletonCode = skeletonCode;
+	public void setImage(String image) {
+		this.image = image;
 	}
+
+
 	
-	public Task withSkeletonCode(Code skeletonCode) {
-		setSkeletonCode(skeletonCode);
-		return this;
-	}
-
-	public Set<Binary> getTests() {
-		return tests;
-	}
-
-	public void setTests(Set<Binary> tests) {
-		this.tests = tests;
-	}
-	
-	
-
 }
