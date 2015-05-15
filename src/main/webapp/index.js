@@ -92,7 +92,7 @@ $(document).ready(
 			$("#readRepo").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
-					url: 'api/repo/'+$("#repoId").val()+"/"+$("#repoTag").val()+"/"+$("#fileName").val(),
+					url: 'api/repo/'+$("#repoId").val()+"/"+$("#repoTag").val()+"/"+$("#readFile").val(),
 					type: 'GET',
 					success: function (result) {
 						reportSuccess(result);
