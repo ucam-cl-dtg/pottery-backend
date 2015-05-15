@@ -38,7 +38,7 @@ public class SubmissionsController {
 
 	@POST
 	@Path("/{repoId}/{tag}")
-	public void scheduleTest(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SubmissionAlreadyScheduledException, RepoException, IOException {
+	public Submission scheduleTest(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SubmissionAlreadyScheduledException, RepoException, IOException {
 		synchronized(repoManager.getMutex("repoId")) {
 			if (!store.submission.containsKey(repoId+"-"+tag)) {
 				if (repoManager.existsTag(repoId, tag)) {
@@ -48,6 +48,7 @@ public class SubmissionsController {
 					s.setStatus(Submission.STATUS_PENDING);
 					store.submission.put(repoId+"-"+tag,s);
 					store.testingQueue.add(s);
+					return s;
 				}
 				else {
 					throw new RepoException("Tag not found");
