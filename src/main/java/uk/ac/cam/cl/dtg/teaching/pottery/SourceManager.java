@@ -290,7 +290,12 @@ public class SourceManager {
 		Git git = Git.open(new File(REPO_ROOT,repoId));
 		Repository repo = git.getRepository();
 		RevWalk revWalk = new RevWalk(repo);
-		RevTree tree = getRevTree(tag, repo, revWalk); 
+		RevTree tree;
+		try {
+			tree = getRevTree(tag, repo, revWalk);
+		} catch (NoHeadInRepoException e) {
+			throw new IOException("File not found");
+		} 
 		
 		TreeWalk treeWalk = new TreeWalk(repo);
 		treeWalk.addTree(tree);
