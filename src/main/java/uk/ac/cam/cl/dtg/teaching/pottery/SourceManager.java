@@ -39,6 +39,7 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 
 public class SourceManager {
@@ -161,30 +162,43 @@ public class SourceManager {
 		Repository repo = git.getRepository();
 		RevWalk revWalk = new RevWalk(repo);
 		
-		RevTree tree = getRevTree(tag, repo, revWalk); 
-		
-		TreeWalk treeWalk = new TreeWalk(repo);
-		treeWalk.addTree(tree);
-		treeWalk.setRecursive(true);
-		List<String> result = new LinkedList<String>();
-		while(treeWalk.next()) {
-			result.add(treeWalk.getNameString());
+		List<String> result;
+		try {
+			RevTree tree = getRevTree(tag, repo, revWalk); 
+			
+			TreeWalk treeWalk = new TreeWalk(repo);
+			treeWalk.addTree(tree);
+			treeWalk.setRecursive(true);
+			result = new LinkedList<String>();
+			while(treeWalk.next()) {
+				result.add(treeWalk.getNameString());
+			}
+			revWalk.dispose();
+			return result;
+		} catch (NoHeadInRepoException e) {
+			return new LinkedList<String>();
+		} 
+		finally {
+			repo.close();
 		}
-		revWalk.dispose();
-		repo.close();
-		return result;
+		
 	}
 
 
 
 	private RevTree getRevTree(String tag, Repository repo, RevWalk revWalk)
 			throws AmbiguousObjectException, IncorrectObjectTypeException,
-			IOException, RepoException, MissingObjectException {
+			IOException, RepoException, MissingObjectException, NoHeadInRepoException {
 		RevTree tree;
 		try {
 			ObjectId tagId = repo.resolve(HEAD.equals(tag) ? Constants.HEAD : Constants.R_TAGS+tag);
 			if (tagId == null) {
-				throw new RepoException("Failed to find tag "+tag);
+				if (HEAD.equals(tag)) {
+					throw new NoHeadInRepoException("Failed to find HEAD in repo.");
+				}
+				else {
+					throw new RepoException("Failed to find tag "+tag);
+				}
 			}
 			RevCommit revCommit = revWalk.parseCommit(tagId);
 			tree = revCommit.getTree();
