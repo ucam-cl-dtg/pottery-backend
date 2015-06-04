@@ -11,9 +11,9 @@ public class Criterion {
 	private static final Map<String,String> CRITERIA = new HashMap<>();
 	static {
 		/**
-		 * Compute: The extent to which code consumes CPU compared to other possible solutions to the same requirement. 
+		 * Compute: The amount of CPU consumed by the solution. 
 		 */
-		CRITERIA.put("compute",Units.UNIT_PERCENT);
+		CRITERIA.put("compute",Units.UNITLESS);
 
 		/**
 		 * Complexity Class:	How the runtime of  the program grows as the side of the input changes.  big-O notation i.e. O(n^2).  This can be a more repeatable measurement than just measuring runtime.  For some types of question there will be a variety of solutions in different complexity classes.
@@ -108,6 +108,7 @@ public class Criterion {
 		public static final String UNIT_BYTES = "BYTES";
 		public static final String UNIT_PERCENT = "PERCENT";
 		public static final String UNIT_BOOLEAN = "BOOLEAN";
+		public static final String UNITLESS = "UNITLESS";
 	}
 
 	private String type;
