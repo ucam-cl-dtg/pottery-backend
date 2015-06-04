@@ -67,6 +67,26 @@ public class Store {
 							repoManager.cloneForTesting(s.getRepoId(), s.getTag());
 							// clone the repo with the tag and put it in a suitable container
 							// with the testing programs
+							
+							// read the name of the container needed from the test
+							// mount within it:
+							// the clone of the repo
+							// copy the compile-solution.sh script into it
+							// run compile-solution.sh [cloneDir]
+							// capture the output
+							
+							// start a new container with mounts
+							// clone of the repo
+							// the harness directory from the test							
+							// run-harness.sh [cloneDir] [harnessDir]
+							// capture the output
+							
+							// start a new container with mounts
+							// the validator directory from the test
+							// run-validator.sh [validatorDir]
+							// pipe the previous output into it
+							// capture the output
+							
 
 							Thread.sleep(5000);
 						}

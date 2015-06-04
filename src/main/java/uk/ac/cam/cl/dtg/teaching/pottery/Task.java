@@ -2,6 +2,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery;
 
 import java.util.Set;
 
+import com.wordnik.swagger.annotations.ApiModelProperty;
+
 public class Task {
 
 	/**
@@ -45,17 +47,66 @@ public class Task {
 	 */
 	public static final String TYPE_DEBUGGING = "DEBUGGING";
 	
+	@ApiModelProperty("A unique identifier for the task")
 	private String taskId;
 	
+	@ApiModelProperty("The primary skill tested by this task")
 	private String type;
 	
+	@ApiModelProperty("User readable name for the test")
 	private String name;
 	
+	@ApiModelProperty("The set of types of result that will come back from testing this task")
 	private Set<Criterion> criteria;
 	
+	@ApiModelProperty("The name of the docker image to use when testing this image")
 	private String image;
 	
+	@ApiModelProperty("Test difficulty (values to be determined)")
+	private String difficulty;
+	
+	@ApiModelProperty("The recommended time in minutes to allocate to this task")
+	private int recommendedTimeMinutes;
+	
+	@ApiModelProperty("The programming language being tested (currently only java)")
+	private String language;
+	
+	@ApiModelProperty("The problem statement as an HTML fragment")
+	private String problemStatement;
+	
 	public Task() {	}
+
+	public String getDifficulty() {
+		return difficulty;
+	}
+
+	public void setDifficulty(String difficulty) {
+		this.difficulty = difficulty;
+	}
+
+	public int getRecommendedTimeMinutes() {
+		return recommendedTimeMinutes;
+	}
+
+	public void setRecommendedTimeMinutes(int recommendedTimeMinutes) {
+		this.recommendedTimeMinutes = recommendedTimeMinutes;
+	}
+
+	public String getLanguage() {
+		return language;
+	}
+
+	public void setLanguage(String language) {
+		this.language = language;
+	}
+
+	public String getProblemStatement() {
+		return problemStatement;
+	}
+
+	public void setProblemStatement(String problemStatement) {
+		this.problemStatement = problemStatement;
+	}
 
 	public String getTaskId() {
 		return taskId;
