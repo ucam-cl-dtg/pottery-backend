@@ -8,21 +8,12 @@ public class Submission {
 	public static final String STATUS_TESTING = "TESTING";
 	public static final String STATUS_COMPLETE = "COMPLETE";
 	
-	private String submissionId;
 	private String repoId;
 	private String tag;
 	private Result result;
 	private String status;
 	
 	public Submission() {
-	}
-
-	public String getSubmissionId() {
-		return submissionId;
-	}
-
-	public void setSubmissionId(String submissionId) {
-		this.submissionId = submissionId;
 	}
 
 	public String getRepoId() {
