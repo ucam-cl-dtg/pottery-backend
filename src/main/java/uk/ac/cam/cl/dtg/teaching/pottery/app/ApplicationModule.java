@@ -23,6 +23,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.mongodb.DB;
 import com.mongodb.MongoClient;
+import com.wordnik.swagger.jaxrs.config.BeanConfig;
 
 public class ApplicationModule implements Module {
 
@@ -38,6 +39,10 @@ public class ApplicationModule implements Module {
 		binder.bind(CorsResponseFilter.class);
 		binder.bind(CorsRequestFilter.class);
 		binder.bind(AuthenticationPrincipalInterceptor.class);
+        binder.bind(com.wordnik.swagger.jaxrs.listing.ApiListingResource.class);
+        binder.bind(com.wordnik.swagger.jaxrs.listing.ApiDeclarationProvider.class);
+        binder.bind(com.wordnik.swagger.jaxrs.listing.ApiListingResourceJSON.class);
+        binder.bind(com.wordnik.swagger.jaxrs.listing.ResourceListingProvider.class);
 	}
 	
 	@Provides @Singleton
@@ -54,6 +59,11 @@ public class ApplicationModule implements Module {
 			log.error("Failed to open database",e);
 		}
 		sourceManager = new SourceManager();
+		BeanConfig beanConfig = new BeanConfig();
+		beanConfig.setVersion("1.0.0");
+		beanConfig.setBasePath("/pottery-backend/api");
+		beanConfig.setResourcePackage("uk.ac.cam.cl.dtg.teaching.pottery.controllers");
+		beanConfig.setScan(true);
 	}
 	
 	@Provides @Singleton

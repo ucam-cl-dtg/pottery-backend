@@ -16,9 +16,12 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.Task;
 
 import com.google.inject.Inject;
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
 
 @Produces("application/json")
 @Path("/tasks")
+@Api(value = "/tasks", description = "Manages the descriptions of the programming questions.",position=0)
 public class TasksController {
 
 	private static final Logger log = LoggerFactory.getLogger(TasksController.class);
@@ -31,6 +34,7 @@ public class TasksController {
 	
 	@GET
 	@Path("/")
+	@ApiOperation(value="Lists all available tasks",response=Task.class,responseContainer="List",position=0)
 	public Collection<Task> listAllTasks() {
 		return store.tasks.values();
 	}

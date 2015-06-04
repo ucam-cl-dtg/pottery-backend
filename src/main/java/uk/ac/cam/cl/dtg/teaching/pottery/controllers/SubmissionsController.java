@@ -19,9 +19,12 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledEx
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 
 import com.google.inject.Inject;
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
 
 @Produces("application/json")
 @Path("/submissions")
+@Api(value = "/submissions", description = "Manages requests for testing",position=2)
 public class SubmissionsController {
 
 	private static final Logger log = LoggerFactory.getLogger(SubmissionsController.class);	
@@ -37,6 +40,8 @@ public class SubmissionsController {
 
 	@POST
 	@Path("/{repoId}/{tag}")
+	@ApiOperation(value="Schedules a test by creating a submission",
+			notes="A submission is created from a tag in the code repository used by the candidate.",position=0)
 	public Submission scheduleTest(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SubmissionAlreadyScheduledException, RepoException, IOException {
 		synchronized(repoManager.getMutex("repoId")) {
 			if (!store.submission.containsKey(repoId+"-"+tag)) {
@@ -61,6 +66,8 @@ public class SubmissionsController {
 	
 	@GET
 	@Path("/{repoId}/{tag}")
+	@ApiOperation(value="Poll the submission information",
+		notes="Use this call to poll for the results of testing.",position=1)
 	public Submission getSubmission(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException {
 		Submission s = store.submission.get(repoId+"-"+tag);
 		if (s==null) throw new SubmissionNotFoundException();

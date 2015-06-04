@@ -29,10 +29,13 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 
 import com.google.inject.Inject;
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
 
 
 @Produces("application/json")
 @Path("/repo")
+@Api(value = "/repo", description = "Manages the candidates attempt at the task",position=1)
 public class RepoController {
 
 	@Inject
@@ -43,51 +46,10 @@ public class RepoController {
 	
 	private static final Logger log = LoggerFactory.getLogger(RepoController.class);
 
-	@GET 
-	@Path("/{repoId}/{tag}")
-	public List<String> listFiles(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws RepoException, IOException {
-		return repoManager.listFiles(repoId, tag);
-	}
-	
-	@GET
-	@Path("/{repoId}/{tag}/{fileName: .+}")
-	public Response readFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException, RepoException {
-		StreamingOutput s = repoManager.readFile(repoId, tag, fileName);
-		return Response.ok(s,MediaType.APPLICATION_OCTET_STREAM).build();
-	}
-	
-	@POST
-	@Consumes("multipart/form-data")
-	@Path("/{repoId}/{tag}/{fileName: .+}")
-	public void updateFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName, @MultipartForm FileData file) throws RepoException, IOException {
-		if (!SourceManager.HEAD.equals(tag)) {
-			throw new RepoException("Can only update files at HEAD revision");
-		}
-		repoManager.updateFile(repoId,fileName,file.getData());
-	}
-	
-	@DELETE
-	@Path("/{repoId}/{tag}/{fileName: .+}")
-	public void deleteFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException {
-		throw new IOException("Unimplemented");
-	}
-	
-	@POST
-	@Path("/{repoId}/restore/{tag}")
-	public void restore(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws IOException {
-		throw new IOException("Unimplemented");
-	}
-	
-	@POST
-	@Path("/{repoId}")
-	public RepoTag tag(@PathParam("repoId") String repoId) throws IOException, RepoException {
-		RepoTag r = new RepoTag();
-		r.setTag(repoManager.newTag(repoId));
-		return r;
-	}
-	
 	@POST
 	@Path("/")
+	@ApiOperation(value="Start a new repository",
+		notes="Starts a new repository for solving the specified task",position=0)
 	public Repo makeRepo(@FormParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException {
 		Task t = store.tasks.get(taskId);
 		if (t == null) throw new TaskNotFoundException();
@@ -104,4 +66,59 @@ public class RepoController {
 		return r;
 	}
 	
+	@GET 
+	@Path("/{repoId}/{tag}")
+	@ApiOperation(value="List all the files in the repository",response=String.class,responseContainer="List",position=1)
+	public List<String> listFiles(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws RepoException, IOException {
+		return repoManager.listFiles(repoId, tag);
+	}
+	
+	@GET
+	@Path("/{repoId}/{tag}/{fileName: .+}")
+	@Produces("application/octet-stream")
+	@ApiOperation(value="Read a file from the repository",
+			notes="Returns the file contents directly",position=2)
+	public Response readFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException, RepoException {
+		StreamingOutput s = repoManager.readFile(repoId, tag, fileName);
+		return Response.ok(s,MediaType.APPLICATION_OCTET_STREAM).build();
+	}
+	
+	@POST
+	@Consumes("multipart/form-data")
+	@Path("/{repoId}/{tag}/{fileName: .+}")
+	@ApiOperation(value="Update a file in the repository",
+			notes="The new contents of the file should be submitted as a multipart form request",position=3)
+	public Response updateFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName, @MultipartForm FileData file) throws RepoException, IOException {
+		if (!SourceManager.HEAD.equals(tag)) {
+			throw new RepoException("Can only update files at HEAD revision");
+		}
+		repoManager.updateFile(repoId,fileName,file.getData());
+		return Response.ok().build();
+	}
+	
+	@DELETE
+	@Path("/{repoId}/{tag}/{fileName: .+}")
+	@ApiOperation(value="Delete a file from the repository (UNIMPLEMENTED)",position=4)
+	public void deleteFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException {
+		throw new IOException("Unimplemented");
+	}
+	
+	@POST
+	@Path("/{repoId}/restore/{tag}")
+	@ApiOperation(value="Restore a repository to the specified tag (UNIMPLEMENTED)",position=5)
+	public void restore(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws IOException {
+		throw new IOException("Unimplemented");
+	}
+	
+	@POST
+	@Path("/{repoId}")
+	@ApiOperation(value="Create a tag in the repository",
+		notes="Submissions (for testing) are created with reference to tags in the repository")
+	public RepoTag tag(@PathParam("repoId") String repoId) throws IOException, RepoException {
+		RepoTag r = new RepoTag();
+		r.setTag(repoManager.newTag(repoId));
+		return r;
+	}
+	
+		
 }
