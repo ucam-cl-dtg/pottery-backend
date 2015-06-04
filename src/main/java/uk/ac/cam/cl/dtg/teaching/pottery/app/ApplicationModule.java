@@ -5,6 +5,8 @@ import java.net.UnknownHostException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
+import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
 import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
@@ -34,6 +36,7 @@ public class ApplicationModule implements Module {
 		binder.bind(TasksController.class);
 		binder.bind(ExceptionHandler.class);
 		binder.bind(CorsResponseFilter.class);
+		binder.bind(CorsRequestFilter.class);
 		binder.bind(AuthenticationPrincipalInterceptor.class);
 	}
 	
