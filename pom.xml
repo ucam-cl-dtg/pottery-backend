@@ -141,11 +141,11 @@
 			<version>0.4-SNAPSHOT</version>
 		</dependency>
 
-	<dependency>
-		<groupId>org.eclipse.jgit</groupId>
-		<artifactId>org.eclipse.jgit</artifactId>
-		<version>3.5.1.201410131835-r</version>
-	</dependency>
+		<dependency>
+			<groupId>org.eclipse.jgit</groupId>
+			<artifactId>org.eclipse.jgit</artifactId>
+			<version>3.5.1.201410131835-r</version>
+		</dependency>
 		
 	</dependencies>
 
