@@ -33,7 +33,6 @@ public class SubmissionsController {
 	SourceManager repoManager;
 	
 	public SubmissionsController() {
-		// TODO Auto-generated constructor stub
 	}
 
 	@POST
