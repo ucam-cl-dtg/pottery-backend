@@ -2,6 +2,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery.exceptions;
 
 public class ResultDoesNotExistException extends Exception {
 
+	private static final long serialVersionUID = 1L;
+
 	public ResultDoesNotExistException() {
 		// TODO Auto-generated constructor stub
 	}

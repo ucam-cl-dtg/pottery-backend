@@ -2,6 +2,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery.exceptions;
 
 public class RepoException extends Exception {
 
+	private static final long serialVersionUID = 1L;
+
 	public RepoException() {
 		// TODO Auto-generated constructor stub
 	}
