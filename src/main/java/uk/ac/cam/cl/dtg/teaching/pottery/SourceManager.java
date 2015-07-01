@@ -141,7 +141,7 @@ public class SourceManager {
 	}
 	
 	
-	public void cloneForTesting(String repoId, String tag) throws IOException, RepoException {
+	public File cloneForTesting(String repoId, String tag) throws IOException, RepoException {
 		File newLocation = new File(testingRoot,repoId);
 		if (newLocation.exists()) {
 			FileUtil.deleteRecursive(newLocation);
@@ -159,6 +159,7 @@ public class SourceManager {
 		} catch (GitAPIException e) {
 			throw new RepoException("Failed to copy repository",e);
 		}
+		return newLocation;
 	}
 	
 	
