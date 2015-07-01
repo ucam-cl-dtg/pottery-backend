@@ -30,14 +30,20 @@ import com.wordnik.swagger.annotations.ApiOperation;
 @Api(value = "/tasks", description = "Manages the descriptions of the programming questions.",position=0)
 public class TasksController {
 
+	@SuppressWarnings("unused")
 	private static final Logger log = LoggerFactory.getLogger(TasksController.class);
 	
-	@Inject
-	Store store;
+	private Store store;
+	
+	private SourceManager repoManager;
 	
 	@Inject
-	SourceManager repoManager;
-	
+	public TasksController(Store store, SourceManager repoManager) {
+		super();
+		this.store = store;
+		this.repoManager = repoManager;
+	}
+
 	@GET
 	@Path("/")
 	@ApiOperation(value="Lists all available tasks",response=Task.class,responseContainer="List",position=0)

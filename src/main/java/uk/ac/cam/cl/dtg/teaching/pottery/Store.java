@@ -13,15 +13,19 @@ import javax.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 
+@Singleton
 public class Store {
 
 	private static final Logger log = LoggerFactory.getLogger(Store.class);
 	
-	private static File STORAGE_LOCATION = new File("/local/scratch/acr31/pottery-problems");
+	private File storageLocation; 
 		
 	public Map<String,Task> tasks = new HashMap<String,Task>();
 	
@@ -35,10 +39,11 @@ public class Store {
 	
 	private Thread worker;
 
-	
-	public Store(final SourceManager repoManager) {
+	@Inject
+	public Store(final SourceManager repoManager, Config config) {
+		storageLocation = config.getStorageLocation();
 		ObjectMapper o = new ObjectMapper();
-		for(File f : STORAGE_LOCATION.listFiles()) {
+		for(File f : storageLocation.listFiles()) {
 			if (f.getName().startsWith(".")) continue;			
 			File taskSpecFile = new File(f,"task.json");
 			if (taskSpecFile.exists()) {
@@ -114,7 +119,7 @@ public class Store {
 		worker.interrupt();
 	}
 
-	public static File getSkeletonLocation(String taskId) {
-		return new File(new File(STORAGE_LOCATION,taskId),"skeleton");
+	public File getSkeletonLocation(String taskId) {
+		return new File(new File(storageLocation,taskId),"skeleton");
 	}
 }

@@ -39,22 +39,37 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 
-public class SourceManager {
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 
-	public static final File REPO_ROOT = new File("/local/scratch/acr31/reporoot");
-	public static final File TESTING_ROOT = new File("/local/scratch/acr31/testingroot");
-	public static final String HEAD = "HEAD";
+@Singleton
+public class SourceManager {
+	
+	private File repoRoot;
+	private File testingRoot;
+	private String headTag;
+	private String webtagPrefix;
 	
 	private static Logger log = LoggerFactory.getLogger(SourceManager.class);
+	
+	@Inject
+	public SourceManager(Config config) {
+		super();
+		repoRoot = config.getRepoRoot();
+		testingRoot = config.getTestingRoot();
+		headTag = config.getHeadTag();
+		webtagPrefix = config.getWebtagPrefix();
+	}
 
-	private static final String WEBTAG_PREFIX="online-";
+	public String getHeadTag() { return headTag; }
 	
 	public String createRepo() throws RepoException, IOException {
 		
-		Path repoDir = Files.createTempDirectory(REPO_ROOT.toPath(), "");
+		Path repoDir = Files.createTempDirectory(repoRoot.toPath(), "");
 		
 		String repoId = repoDir.getFileName().toString();
 		try {
@@ -79,7 +94,7 @@ public class SourceManager {
 	public void copyFiles(String repoId, File sourceLocation) throws IOException, RepoException {
 		List<String> copiedFiles = new LinkedList<>();
 		
-		File repoDir = new File(REPO_ROOT,repoId);
+		File repoDir = new File(repoRoot,repoId);
 		
 		Files.walkFileTree(sourceLocation.toPath(), new SimpleFileVisitor<Path>() {
 			@Override
@@ -127,7 +142,7 @@ public class SourceManager {
 	
 	
 	public void cloneForTesting(String repoId, String tag) throws IOException, RepoException {
-		File newLocation = new File(TESTING_ROOT,repoId);
+		File newLocation = new File(testingRoot,repoId);
 		if (newLocation.exists()) {
 			FileUtil.deleteRecursive(newLocation);
 		}
@@ -136,7 +151,7 @@ public class SourceManager {
 		}
 		try {
 			Git.cloneRepository()
-			.setURI(new File(REPO_ROOT,repoId).getPath())
+			.setURI(new File(repoRoot,repoId).getPath())
 			.setDirectory(newLocation)
 			.setBranch(tag)
 			.call()
@@ -148,7 +163,7 @@ public class SourceManager {
 	
 	
 	public boolean existsTag(String repoId,String tag) throws IOException {
-		Git git = Git.open(new File(REPO_ROOT,repoId));
+		Git git = Git.open(new File(repoRoot,repoId));
 		try {
 			return git.getRepository().resolve(Constants.R_TAGS+tag) != null;
 		}
@@ -158,7 +173,7 @@ public class SourceManager {
 	}
 	
 	public List<String> listFiles(String repoId, String tag) throws RepoException, IOException {
-		Git git = Git.open(new File(REPO_ROOT,repoId));
+		Git git = Git.open(new File(repoRoot,repoId));
 		Repository repo = git.getRepository();
 		RevWalk revWalk = new RevWalk(repo);
 		
@@ -191,9 +206,9 @@ public class SourceManager {
 			IOException, RepoException, MissingObjectException, NoHeadInRepoException {
 		RevTree tree;
 		try {
-			ObjectId tagId = repo.resolve(HEAD.equals(tag) ? Constants.HEAD : Constants.R_TAGS+tag);
+			ObjectId tagId = repo.resolve(headTag.equals(tag) ? Constants.HEAD : Constants.R_TAGS+tag);
 			if (tagId == null) {
-				if (HEAD.equals(tag)) {
+				if (headTag.equals(tag)) {
 					throw new NoHeadInRepoException("Failed to find HEAD in repo.");
 				}
 				else {
@@ -211,7 +226,7 @@ public class SourceManager {
 
 	public String newTag(String repoId) throws IOException, RepoException {
 		synchronized (getMutex(repoId)) {	
-			File repoDir = new File(REPO_ROOT,repoId);
+			File repoDir = new File(repoRoot,repoId);
 			Git git = Git.open(repoDir);
 			List<Ref> tagList;
 			try {
@@ -220,7 +235,7 @@ public class SourceManager {
 				throw new RepoException("Failed to list all tags in repo",e);
 			}
 			
-			String prefix = Constants.R_TAGS+WEBTAG_PREFIX;
+			String prefix = Constants.R_TAGS+webtagPrefix;
 			int max = -1;
 			for(Ref tag : tagList) {
 				String tagName = tag.getName();
@@ -235,7 +250,7 @@ public class SourceManager {
 				}				
 			}
 			
-			String newTag = WEBTAG_PREFIX + String.format("%03d", (max+1));
+			String newTag = webtagPrefix + String.format("%03d", (max+1));
 			
 			try {
 				git.tag().setName(newTag).call();
@@ -251,9 +266,9 @@ public class SourceManager {
 	
 	public void updateFile(String repoId, String fileName, byte[] data) throws RepoException, IOException {
 		synchronized (getMutex(repoId)) {
-			File repoDir = new File(REPO_ROOT,repoId);
+			File repoDir = new File(repoRoot,repoId);
 			File f = new File(repoDir,fileName);
-			if (!FileUtil.isParent(REPO_ROOT, f)) {
+			if (!FileUtil.isParent(repoRoot, f)) {
 				throw new IOException("Invalid fileName "+fileName);
 			}
 			if (f.isDirectory()) {
@@ -287,7 +302,7 @@ public class SourceManager {
 	}
 	
 	public StreamingOutput readFile(String repoId, String tag, String fileName) throws IOException, RepoException {
-		Git git = Git.open(new File(REPO_ROOT,repoId));
+		Git git = Git.open(new File(repoRoot,repoId));
 		Repository repo = git.getRepository();
 		RevWalk revWalk = new RevWalk(repo);
 		RevTree tree;

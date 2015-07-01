@@ -1,16 +1,12 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
-import java.net.UnknownHostException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
 import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.BinaryManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
@@ -21,14 +17,14 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import com.mongodb.DB;
-import com.mongodb.MongoClient;
 import com.wordnik.swagger.jaxrs.config.BeanConfig;
+import com.wordnik.swagger.jaxrs.listing.ApiDeclarationProvider;
+import com.wordnik.swagger.jaxrs.listing.ApiListingResource;
+import com.wordnik.swagger.jaxrs.listing.ApiListingResourceJSON;
+import com.wordnik.swagger.jaxrs.listing.ResourceListingProvider;
 
 public class ApplicationModule implements Module {
 
-	private static final Logger log = LoggerFactory.getLogger(ApplicationModule.class);
-	
 	@Override
 	public void configure(Binder binder) {
 		binder.bind(TasksController.class);
@@ -39,10 +35,15 @@ public class ApplicationModule implements Module {
 		binder.bind(CorsResponseFilter.class);
 		binder.bind(CorsRequestFilter.class);
 		binder.bind(AuthenticationPrincipalInterceptor.class);
-        binder.bind(com.wordnik.swagger.jaxrs.listing.ApiListingResource.class);
-        binder.bind(com.wordnik.swagger.jaxrs.listing.ApiDeclarationProvider.class);
-        binder.bind(com.wordnik.swagger.jaxrs.listing.ApiListingResourceJSON.class);
-        binder.bind(com.wordnik.swagger.jaxrs.listing.ResourceListingProvider.class);
+        binder.bind(ApiListingResource.class);
+        binder.bind(ApiDeclarationProvider.class);
+        binder.bind(ApiListingResourceJSON.class);
+        binder.bind(ResourceListingProvider.class);
+        binder.bind(Store.class).in(Singleton.class);
+        binder.bind(SourceManager.class).in(Singleton.class);
+        binder.bind(Config.class).in(Singleton.class);
+        binder.bind(Database.class).in(Singleton.class);
+        binder.bind(BinaryManager.class).in(Singleton.class);
 	}
 	
 	@Provides @Singleton
@@ -50,15 +51,7 @@ public class ApplicationModule implements Module {
 		return new Docker("localhost",2375).api();
 	}
 	
-	private DB db;
-	private SourceManager sourceManager;
 	public ApplicationModule() {
-		try {
-			db = new MongoClient("localhost").getDB("ptest");
-		} catch (UnknownHostException e) {
-			log.error("Failed to open database",e);
-		}
-		sourceManager = new SourceManager();
 		BeanConfig beanConfig = new BeanConfig();
 		beanConfig.setVersion("1.0.0");
 		beanConfig.setBasePath("/pottery-backend/api");
@@ -66,25 +59,4 @@ public class ApplicationModule implements Module {
 		beanConfig.setScan(true);
 	}
 	
-	@Provides @Singleton
-	DB provideMongoDB() throws UnknownHostException {
-		return db;
-	}
-	
-	@Provides @Singleton
-	Store provideStore()  {
-		return new Store(sourceManager);
-	}
-	
-	
-	
-	@Provides @Singleton
-	SourceManager provideSourceManager() {
-		return sourceManager;
-	}
-	
-	@Provides @Singleton
-	BinaryManager provideBinaryManager() {
-		return new BinaryManager(db);
-	}
 }

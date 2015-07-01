@@ -27,15 +27,18 @@ import com.wordnik.swagger.annotations.ApiOperation;
 @Api(value = "/submissions", description = "Manages requests for testing",position=2)
 public class SubmissionsController {
 
+	@SuppressWarnings("unused")
 	private static final Logger log = LoggerFactory.getLogger(SubmissionsController.class);	
 	
-	@Inject
-	Store store;
+	private Store store;
 	
-	@Inject
-	SourceManager repoManager;
+	private SourceManager repoManager;
 	
-	public SubmissionsController() {
+	@Inject	
+	public SubmissionsController(Store store, SourceManager repoManager) {
+		super();
+		this.store = store;
+		this.repoManager = repoManager;
 	}
 
 	@POST

@@ -37,14 +37,19 @@ import com.wordnik.swagger.annotations.ApiOperation;
 @Path("/repo")
 @Api(value = "/repo", description = "Manages the candidates attempt at the task",position=1)
 public class RepoController {
+	
+	private Store store;
+	private SourceManager sourceManager;
+	
+	@SuppressWarnings("unused")
+	private static final Logger log = LoggerFactory.getLogger(RepoController.class);
 
 	@Inject
-	Store store;
-	
-	@Inject
-	SourceManager repoManager;
-	
-	private static final Logger log = LoggerFactory.getLogger(RepoController.class);
+	public RepoController(Store store, SourceManager repoManager) {
+		super();
+		this.store = store;
+		this.sourceManager = repoManager;
+	}
 
 	@POST
 	@Path("/")
@@ -54,13 +59,13 @@ public class RepoController {
 		Task t = store.tasks.get(taskId);
 		if (t == null) throw new TaskNotFoundException();
 
-		String repoId = repoManager.createRepo();
+		String repoId = sourceManager.createRepo();
 		
 		Repo r = new Repo();
 		r.setTaskId(taskId);
 		r.setRepoId(repoId);
 		
-		repoManager.copyFiles(repoId, Store.getSkeletonLocation(taskId));
+		sourceManager.copyFiles(repoId, store.getSkeletonLocation(taskId));
 		
 		store.repos.put(r.getRepoId(),r);
 		return r;
@@ -70,7 +75,7 @@ public class RepoController {
 	@Path("/{repoId}/{tag}")
 	@ApiOperation(value="List all the files in the repository",response=String.class,responseContainer="List",position=1)
 	public List<String> listFiles(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws RepoException, IOException {
-		return repoManager.listFiles(repoId, tag);
+		return sourceManager.listFiles(repoId, tag);
 	}
 	
 	@GET
@@ -79,7 +84,7 @@ public class RepoController {
 	@ApiOperation(value="Read a file from the repository",
 			notes="Returns the file contents directly",position=2)
 	public Response readFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException, RepoException {
-		StreamingOutput s = repoManager.readFile(repoId, tag, fileName);
+		StreamingOutput s = sourceManager.readFile(repoId, tag, fileName);
 		return Response.ok(s,MediaType.APPLICATION_OCTET_STREAM).build();
 	}
 	
@@ -89,10 +94,10 @@ public class RepoController {
 	@ApiOperation(value="Update a file in the repository",
 			notes="The new contents of the file should be submitted as a multipart form request",position=3)
 	public Response updateFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName, @MultipartForm FileData file) throws RepoException, IOException {
-		if (!SourceManager.HEAD.equals(tag)) {
+		if (!sourceManager.getHeadTag().equals(tag)) {
 			throw new RepoException("Can only update files at HEAD revision");
 		}
-		repoManager.updateFile(repoId,fileName,file.getData());
+		sourceManager.updateFile(repoId,fileName,file.getData());
 		return Response.ok().build();
 	}
 	
@@ -116,7 +121,7 @@ public class RepoController {
 		notes="Submissions (for testing) are created with reference to tags in the repository")
 	public RepoTag tag(@PathParam("repoId") String repoId) throws IOException, RepoException {
 		RepoTag r = new RepoTag();
-		r.setTag(repoManager.newTag(repoId));
+		r.setTag(sourceManager.newTag(repoId));
 		return r;
 	}
 	

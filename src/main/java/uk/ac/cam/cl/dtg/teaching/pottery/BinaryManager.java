@@ -3,6 +3,9 @@ package uk.ac.cam.cl.dtg.teaching.pottery;
 import java.io.File;
 import java.io.InputStream;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+
+import com.google.inject.Inject;
 import com.mongodb.DB;
 import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
@@ -10,12 +13,14 @@ import com.mongodb.gridfs.GridFSInputFile;
 
 public class BinaryManager {
 
-	public static final File BINARY_ROOT = new File("/local/scratch/acr31/binaryroot");
+	private File binaryRoot;
 	
 	private DB db;
 	
-	public BinaryManager(DB db) {
-		this.db = db;
+	@Inject
+	public BinaryManager(Database database, Config config) {
+		this.db = database.getDb();
+		binaryRoot = config.getBinaryRoot();
 	}
 
 	public void store(InputStream is, String key) {
