@@ -24,6 +24,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
@@ -40,15 +41,17 @@ public class RepoController {
 	
 	private Store store;
 	private SourceManager sourceManager;
+	private TaskManager taskManager;
 	
 	@SuppressWarnings("unused")
 	private static final Logger log = LoggerFactory.getLogger(RepoController.class);
 
 	@Inject
-	public RepoController(Store store, SourceManager repoManager) {
+	public RepoController(Store store, SourceManager repoManager, TaskManager taskManager) {
 		super();
 		this.store = store;
 		this.sourceManager = repoManager;
+		this.taskManager = taskManager;
 	}
 
 	@POST
@@ -56,7 +59,7 @@ public class RepoController {
 	@ApiOperation(value="Start a new repository",
 		notes="Starts a new repository for solving the specified task",position=0)
 	public Repo makeRepo(@FormParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException {
-		Task t = store.tasks.get(taskId);
+		Task t = taskManager.getTask(taskId);
 		if (t == null) throw new TaskNotFoundException();
 
 		String repoId = sourceManager.createRepo();
@@ -65,7 +68,7 @@ public class RepoController {
 		r.setTaskId(taskId);
 		r.setRepoId(repoId);
 		
-		sourceManager.copyFiles(repoId, store.getSkeletonLocation(taskId));
+		sourceManager.copyFiles(repoId, taskManager.getSkeletonLocation(taskId));
 		
 		store.repos.put(r.getRepoId(),r);
 		return r;

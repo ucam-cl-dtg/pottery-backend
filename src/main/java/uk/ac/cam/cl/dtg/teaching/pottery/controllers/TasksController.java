@@ -17,6 +17,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 
 import com.google.common.collect.ImmutableList;
@@ -33,22 +34,22 @@ public class TasksController {
 	@SuppressWarnings("unused")
 	private static final Logger log = LoggerFactory.getLogger(TasksController.class);
 	
-	private Store store;
-	
-	private SourceManager repoManager;
+	private SourceManager sourceManager;
+
+	private TaskManager taskManager;
 	
 	@Inject
-	public TasksController(Store store, SourceManager repoManager) {
+	public TasksController(SourceManager repoManager, TaskManager taskManager) {
 		super();
-		this.store = store;
-		this.repoManager = repoManager;
+		this.taskManager = taskManager;
+		this.sourceManager = repoManager;
 	}
 
 	@GET
 	@Path("/")
 	@ApiOperation(value="Lists all available tasks",response=Task.class,responseContainer="List",position=0)
 	public Collection<Task> listAllTasks() {
-		return store.tasks.values();
+		return taskManager.getAllTasks();
 	}
 	
 	@GET
