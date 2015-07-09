@@ -12,6 +12,9 @@ import javax.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 
 import com.google.inject.Inject;
@@ -22,7 +25,6 @@ public class Store {
 
 	private static final Logger log = LoggerFactory.getLogger(Store.class); 
 			
-	public Map<String,Repo> repos = new ConcurrentHashMap<String,Repo>();
 	
 	public Map<String,Submission> submission = new ConcurrentHashMap<String,Submission>();
 	
@@ -33,7 +35,7 @@ public class Store {
 	private Thread worker;
 
 	@Inject
-	public Store(final SourceManager repoManager, final TaskManager taskManager) {
+	public Store(final SourceManager sourceManager, final TaskManager taskManager, final DockerApi docker) {
 		
 		worker = new Thread() {
 			@Override
@@ -42,46 +44,34 @@ public class Store {
 					try {
 						Submission s = testingQueue.take();
 						try {
-							Repo r = repos.get(s.getRepoId());
+							Repo r = sourceManager.getRepo(s.getRepoId());
 							Task t = taskManager.getTask(r.getTaskId());
-							log.error("Testing repo "+s.getRepoId()+":"+s.getTag()+ " on task "+r.getTaskId());
-
-							// clone the submitted code repo with the given tag
-							File submittedCodeLocation = repoManager.cloneForTesting(s.getRepoId(), s.getTag());
 							
-							// get the name of the compile directory from the problem source
-
+							File codeDir = sourceManager.cloneForTesting(s.getRepoId(), s.getTag());
 							
-							// get the name of the container image from the problem spec
-							// mount the clone of the repo within it
-							// mount the compile directory within it
-							// run compile-solution.sh in it passing the clone dir
+							ExecResponse compileResult = ContainerHelper.execCompilation(codeDir, taskManager.getCompileDirectory(t.getTaskId()), t.getImage(), docker);
 							
+							System.out.println(compileResult.getResponse()+" "+compileResult.isSuccess());
 							
-							// start a new container with mounts
-							// clone of the repo
-							// the harness directory from the test							
-							// run-harness.sh [cloneDir] [harnessDir]
-							// capture the output
+							ExecResponse harnessResult = ContainerHelper.execHarness(codeDir,taskManager.getHarnessDirectory(t.getTaskId()),t.getImage(),docker);
 							
-							// start a new container with mounts
-							// the validator directory from the test
-							// run-validator.sh [validatorDir]
-							// pipe the previous output into it
-							// capture the output
+							System.out.println(harnessResult.getResponse()+" "+harnessResult.isSuccess());
 							
-
-							Thread.sleep(5000);
-						}
-						catch (IOException|RepoException e) {
-							log.error("Failed to start test",e);
+							ExecResponse validationResult = ContainerHelper.execValidator(taskManager.getValidatorDirectory(t.getTaskId()),harnessResult.getResponse(), t.getImage(),docker);
+							
+							System.out.println(validationResult.getResponse()+" " +validationResult.isSuccess());
+						} catch (IOException|RepoException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
 						}
 						finally {
 							s.setStatus(Submission.STATUS_COMPLETE);
 							s.setResult(new Result());
 						}
 					}
-					catch (InterruptedException e) {} 
+					catch (Throwable e) {
+						e.printStackTrace();
+					} 
 				}
 			}
 			

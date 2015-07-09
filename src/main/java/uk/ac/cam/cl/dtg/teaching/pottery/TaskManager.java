@@ -54,8 +54,30 @@ public class TaskManager {
 		return tasks.values();
 	}
 	
-	public File getSkeletonLocation(String taskId) {
+	/**
+	 * Return the directory for this task that contains the skeleton or template code for the task
+	 * @param taskId
+	 * @return
+	 */
+	public File getSkeletonDirectory(String taskId) {
 		return new File(new File(storageLocation,taskId),"skeleton");
 	}
 
+	/** 
+	 * Return the directory that contains the compilation script for this task
+	 * @param taskId
+	 * @return
+	 */
+	public File getCompileDirectory(String taskId) {
+		return new File(new File(storageLocation,taskId),"compile");
+	}
+
+	public File getHarnessDirectory(String taskId) {
+		return new File(new File(storageLocation,taskId),"harness");
+	}
+
+	public File getValidatorDirectory(String taskId) {
+		return new File(new File(storageLocation,taskId),"validator");
+	}
+	
 }

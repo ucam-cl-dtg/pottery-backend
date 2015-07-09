@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
@@ -39,7 +38,6 @@ import com.wordnik.swagger.annotations.ApiOperation;
 @Api(value = "/repo", description = "Manages the candidates attempt at the task",position=1)
 public class RepoController {
 	
-	private Store store;
 	private SourceManager sourceManager;
 	private TaskManager taskManager;
 	
@@ -47,9 +45,8 @@ public class RepoController {
 	private static final Logger log = LoggerFactory.getLogger(RepoController.class);
 
 	@Inject
-	public RepoController(Store store, SourceManager repoManager, TaskManager taskManager) {
+	public RepoController(SourceManager repoManager, TaskManager taskManager) {
 		super();
-		this.store = store;
 		this.sourceManager = repoManager;
 		this.taskManager = taskManager;
 	}
@@ -62,15 +59,8 @@ public class RepoController {
 		Task t = taskManager.getTask(taskId);
 		if (t == null) throw new TaskNotFoundException();
 
-		String repoId = sourceManager.createRepo();
-		
-		Repo r = new Repo();
-		r.setTaskId(taskId);
-		r.setRepoId(repoId);
-		
-		sourceManager.copyFiles(repoId, taskManager.getSkeletonLocation(taskId));
-		
-		store.repos.put(r.getRepoId(),r);
+		Repo r = sourceManager.createRepo(taskId);		
+		sourceManager.copyFiles(r.getRepoId(), taskManager.getSkeletonDirectory(taskId));
 		return r;
 	}
 	
@@ -101,7 +91,7 @@ public class RepoController {
 			throw new RepoException("Can only update files at HEAD revision");
 		}
 		sourceManager.updateFile(repoId,fileName,file.getData());
-		return Response.ok().build();
+		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
 	@DELETE
