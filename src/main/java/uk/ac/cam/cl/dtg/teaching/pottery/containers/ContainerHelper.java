@@ -93,7 +93,6 @@ public class ContainerHelper {
 				IOUtils.copy(p.getInputStream(),output);
 				p.destroy();
 			}		
-			System.out.println("Waiting for "+containerId);
 			WaitResponse waitResponse = docker.waitContainer(containerId);
 			boolean success = waitResponse.statusCode == 0;
 			if (output == null) {
