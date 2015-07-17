@@ -35,7 +35,7 @@ public class Store {
 	private Thread worker;
 
 	@Inject
-	public Store(final SourceManager sourceManager, final TaskManager taskManager, final DockerApi docker) {
+	public Store(final SourceManager sourceManager, final TaskManager taskManager, final DockerApi docker, final Database database) {
 		
 		worker = new Thread() {
 			@Override
@@ -43,30 +43,30 @@ public class Store {
 				while(running.get()) {
 					try {
 						Submission s = testingQueue.take();
+						Repo r = sourceManager.getRepo(s.getRepoId());
+						Task t = taskManager.getTask(r.getTaskId());
+						Result result = new Result(s.getRepoId(),s.getTag());
+						s.setResult(result);
 						try {
-							Repo r = sourceManager.getRepo(s.getRepoId());
-							Task t = taskManager.getTask(r.getTaskId());
 							
 							File codeDir = sourceManager.cloneForTesting(s.getRepoId(), s.getTag());
 							
 							ExecResponse compileResult = ContainerHelper.execCompilation(codeDir, taskManager.getCompileDirectory(t.getTaskId()), t.getImage(), docker);
-							
-							System.out.println(compileResult.getResponse()+" "+compileResult.isSuccess());
+							result.setCompilationResult(compileResult);
 							
 							ExecResponse harnessResult = ContainerHelper.execHarness(codeDir,taskManager.getHarnessDirectory(t.getTaskId()),t.getImage(),docker);
-							
-							System.out.println(harnessResult.getResponse()+" "+harnessResult.isSuccess());
-							
+							result.setHarnessResult(harnessResult);
+														
 							ExecResponse validationResult = ContainerHelper.execValidator(taskManager.getValidatorDirectory(t.getTaskId()),harnessResult.getResponse(), t.getImage(),docker);
+							result.setValidationResult(validationResult);
+							result.insert(database);
 							
-							System.out.println(validationResult.getResponse()+" " +validationResult.isSuccess());
 						} catch (IOException|RepoException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
 						finally {
 							s.setStatus(Submission.STATUS_COMPLETE);
-							s.setResult(new Result());
 						}
 					}
 					catch (Throwable e) {
