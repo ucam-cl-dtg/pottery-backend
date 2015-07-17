@@ -54,22 +54,25 @@ public class SourceManager {
 	private String headTag;
 	private String webtagPrefix;
 	
-	private Map<String,Repo> repos = new ConcurrentHashMap<String,Repo>();
+	private Database database;
 
 	private static Logger log = LoggerFactory.getLogger(SourceManager.class);
 	
 	@Inject
-	public SourceManager(Config config) {
+	public SourceManager(Config config,Database database) {
 		super();
 		repoRoot = config.getRepoRoot();
 		testingRoot = config.getTestingRoot();
 		headTag = config.getHeadTag();
 		webtagPrefix = config.getWebtagPrefix();
+		this.database = database;
 	}
 
 	public String getHeadTag() { return headTag; }
 	
-	public Repo getRepo(String repoId) { return repos.get(repoId); }
+	public Repo getRepo(String repoId) {
+		return Repo.getByRepoId(repoId, database);
+	}
 	
 	public Repo createRepo(String taskId) throws RepoException, IOException {
 		
@@ -84,12 +87,8 @@ public class SourceManager {
 			throw new RepoException("Failed to initialise git repository",e); 
 		}
 		
-		Repo r = new Repo();
-		r.setRepoId(repoId);
-		r.setTaskId(taskId);
-		
-		repos.put(repoId, r);
-		
+		Repo r = new Repo(repoId,taskId);
+		r.insert(database);
 		return r;
 	}
 	
