@@ -14,8 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
-import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
@@ -34,15 +32,12 @@ public class TasksController {
 	@SuppressWarnings("unused")
 	private static final Logger log = LoggerFactory.getLogger(TasksController.class);
 	
-	private SourceManager sourceManager;
-
 	private TaskManager taskManager;
 	
 	@Inject
-	public TasksController(SourceManager repoManager, TaskManager taskManager) {
+	public TasksController(TaskManager taskManager) {
 		super();
 		this.taskManager = taskManager;
-		this.sourceManager = repoManager;
 	}
 
 	@GET

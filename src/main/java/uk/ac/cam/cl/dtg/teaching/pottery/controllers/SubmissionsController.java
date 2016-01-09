@@ -1,6 +1,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -11,9 +12,10 @@ import javax.ws.rs.Produces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.Submission;
+import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
@@ -32,49 +34,31 @@ public class SubmissionsController {
 	
 	private Store store;
 	
-	private SourceManager repoManager;
+	private Database database;
 	
 	@Inject	
-	public SubmissionsController(Store store, SourceManager repoManager) {
+	public SubmissionsController(Store store, Database database) {
 		super();
 		this.store = store;
-		this.repoManager = repoManager;
+		this.database = database;
 	}
 
 	@POST
 	@Path("/{repoId}/{tag}")
 	@ApiOperation(value="Schedules a test by creating a submission",
 			notes="A submission is created from a tag in the code repository used by the candidate.",position=0)
-	public Submission scheduleTest(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SubmissionAlreadyScheduledException, RepoException, IOException {
-		synchronized(repoManager.getMutex("repoId")) {
-			if (!store.submission.containsKey(repoId+"-"+tag)) {
-				if (repoManager.existsTag(repoId, tag)) {
-					Submission s = new Submission();
-					s.setRepoId(repoId);
-					s.setTag(tag);
-					s.setStatus(Submission.STATUS_PENDING);
-					store.submission.put(repoId+"-"+tag,s);
-					store.testingQueue.add(s);
-					return s;
-				}
-				else {
-					throw new RepoException("Tag not found");
-				}
-			}
-			else {
-				throw new SubmissionAlreadyScheduledException();
-			}
-		}
+	public Submission scheduleTest(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SubmissionAlreadyScheduledException, RepoException, IOException, SQLException {
+		return store.createSubmission(repoId, tag);
 	}
 	
 	@GET
 	@Path("/{repoId}/{tag}")
 	@ApiOperation(value="Poll the submission information",
 		notes="Use this call to poll for the results of testing.",position=1)
-	public Submission getSubmission(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException {
-		Submission s = store.submission.get(repoId+"-"+tag);
-		if (s==null) throw new SubmissionNotFoundException();
-		return s;
+	public Submission getSubmission(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SQLException {
+		try (TransactionQueryRunner q = database.getQueryRunner()) {
+			return Submission.getByRepoIdAndTag(repoId, tag, q);
+		}
 	}
 	
 

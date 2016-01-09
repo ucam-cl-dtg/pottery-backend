@@ -1,10 +1,14 @@
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
-import com.mongodb.QueryBuilder;
+import java.sql.SQLException;
+
+import org.apache.commons.dbutils.QueryRunner;
+import org.apache.commons.dbutils.handlers.BeanHandler;
 
 public class Repo {
 
 	private String _id;
+	
 	private String repoId;
 	private String taskId;
 	
@@ -39,11 +43,11 @@ public class Repo {
 		this.taskId = taskId;
 	}
 	
-	public static Repo getByRepoId(String repoId, Database database) {
-		return database.getCollection(Repo.class).findOne(QueryBuilder.start("repoId").is(repoId).get());
+	public static Repo getByRepoId(String repoId, QueryRunner q) throws SQLException {
+		return q.query("SELECT * from repos where repoid=?",new BeanHandler<Repo>(Repo.class),repoId);
 	}
 	
-	public void insert(Database database) {
-		database.getCollection(Repo.class).insert(this);
+	public void insert(QueryRunner q) throws SQLException {
+		q.update("INSERT INTO repos(repoid,taskid) values (?,?)",repoId,taskId);
 	}
 }

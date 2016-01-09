@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -70,8 +71,12 @@ public class SourceManager {
 
 	public String getHeadTag() { return headTag; }
 	
-	public Repo getRepo(String repoId) {
-		return Repo.getByRepoId(repoId, database);
+	public Repo getRepo(String repoId) throws RepoException {
+		try (TransactionQueryRunner q = database.getQueryRunner()) {
+			return Repo.getByRepoId(repoId, q);
+		} catch (SQLException e) {
+			throw new RepoException("Failed to get repository",e);
+		}
 	}
 	
 	public Repo createRepo(String taskId) throws RepoException, IOException {
@@ -88,7 +93,18 @@ public class SourceManager {
 		}
 		
 		Repo r = new Repo(repoId,taskId);
-		r.insert(database);
+		try (TransactionQueryRunner t = database.getQueryRunner()){
+			r.insert(t);
+			t.commit();
+		} catch (SQLException e) {
+			RepoException t = new RepoException("Failed to store repository details",e); 
+			try {
+				FileUtil.deleteRecursive(repoDir.toFile());
+			} catch (IOException e1) {
+				t.addSuppressed(e1);
+			}
+			throw t;
+		}
 		return r;
 	}
 	
@@ -115,7 +131,7 @@ public class SourceManager {
 				copiedFiles.add(localLocation.toString());
 				File newLocation = repoDir.toPath().resolve(localLocation).toFile();
 				File newDir = newLocation.getParentFile();
-				log.error("Copying {} to {}",originalFile, newLocation);
+				log.debug("Copying {} to {}",originalFile, newLocation);
 
 				if (newDir.exists()) {
 					newDir.mkdirs();
@@ -327,7 +343,7 @@ public class SourceManager {
 		treeWalk.setRecursive(true);
 		treeWalk.setFilter(PathFilter.create(fileName));
 		if(!treeWalk.next()) {
-			throw new IOException("File not found");
+			throw new IOException("File ("+fileName+") not found");
 		}
 		
         ObjectId objectId = treeWalk.getObjectId(0);

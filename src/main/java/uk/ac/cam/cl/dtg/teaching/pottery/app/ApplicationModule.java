@@ -1,18 +1,5 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
-import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
-import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
-import uk.ac.cam.cl.dtg.teaching.docker.Docker;
-import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
-import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
-import uk.ac.cam.cl.dtg.teaching.pottery.BinaryManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.Store;
-import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
-import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
-import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
-
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
@@ -22,6 +9,18 @@ import com.wordnik.swagger.jaxrs.listing.ApiDeclarationProvider;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResource;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResourceJSON;
 import com.wordnik.swagger.jaxrs.listing.ResourceListingProvider;
+
+import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
+import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
+import uk.ac.cam.cl.dtg.teaching.docker.Docker;
+import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
+import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
+import uk.ac.cam.cl.dtg.teaching.pottery.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.Store;
+import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
+import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
+import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
 
 public class ApplicationModule implements Module {
 
@@ -43,7 +42,6 @@ public class ApplicationModule implements Module {
         binder.bind(SourceManager.class).in(Singleton.class);
         binder.bind(Config.class).in(Singleton.class);
         binder.bind(Database.class).in(Singleton.class);
-        binder.bind(BinaryManager.class).in(Singleton.class);
 	}
 	
 	@Provides @Singleton

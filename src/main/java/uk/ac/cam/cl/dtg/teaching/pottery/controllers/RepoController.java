@@ -72,7 +72,7 @@ public class RepoController {
 	}
 	
 	@GET
-	@Path("/{repoId}/{tag}/{fileName: .+}")
+	@Path("/{repoId}/{tag}/{fileName:.+}")
 	@Produces("application/octet-stream")
 	@ApiOperation(value="Read a file from the repository",
 			notes="Returns the file contents directly",position=2)
@@ -83,7 +83,7 @@ public class RepoController {
 	
 	@POST
 	@Consumes("multipart/form-data")
-	@Path("/{repoId}/{tag}/{fileName: .+}")
+	@Path("/{repoId}/{tag}/{fileName:.+}")
 	@ApiOperation(value="Update a file in the repository",
 			notes="The new contents of the file should be submitted as a multipart form request",position=3)
 	public Response updateFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName, @MultipartForm FileData file) throws RepoException, IOException {
