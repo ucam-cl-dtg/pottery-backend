@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.Store;
-import uk.ac.cam.cl.dtg.teaching.pottery.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;

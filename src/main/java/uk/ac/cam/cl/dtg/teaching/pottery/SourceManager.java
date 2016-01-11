@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 

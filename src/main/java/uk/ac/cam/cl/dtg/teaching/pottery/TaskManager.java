@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
@@ -80,4 +81,15 @@ public class TaskManager {
 		return new File(new File(storageLocation,taskId),"validator");
 	}
 	
+	
+	public static void create() {
+		// generate a task id
+		// create a directory to hold the task
+		// init the git repo
+		// create: /compile, /harness, /validator, /skeleton, /solution directories
+		// create compile-solution.sh, run-harness.sh, run-validator.sh
+		// for java tasks create a pom file
+		// keep templates for these files in the project resources
+		
+	}
 }

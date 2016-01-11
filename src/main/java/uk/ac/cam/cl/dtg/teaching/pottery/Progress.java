@@ -3,6 +3,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery;
 import java.util.LinkedList;
 import java.util.List;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
+
 /**
  * Class for tracking the progress that a candidate has made through the tests.  Keeps track of all their submissions, best results etc.
  * @author acr31

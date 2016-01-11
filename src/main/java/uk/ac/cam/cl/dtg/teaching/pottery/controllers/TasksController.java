@@ -14,8 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
-import uk.ac.cam.cl.dtg.teaching.pottery.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 
 import com.google.common.collect.ImmutableList;

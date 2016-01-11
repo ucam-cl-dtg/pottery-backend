@@ -17,6 +17,9 @@ import com.google.inject.Singleton;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
 

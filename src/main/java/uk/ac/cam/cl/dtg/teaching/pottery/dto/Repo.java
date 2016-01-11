@@ -1,4 +1,4 @@
-package uk.ac.cam.cl.dtg.teaching.pottery;
+package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 
 import java.sql.SQLException;
 

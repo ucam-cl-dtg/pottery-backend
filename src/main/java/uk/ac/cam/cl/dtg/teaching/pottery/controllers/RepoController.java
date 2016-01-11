@@ -19,12 +19,12 @@ import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.Repo;
-import uk.ac.cam.cl.dtg.teaching.pottery.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoTag;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 

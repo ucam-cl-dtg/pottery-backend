@@ -1,8 +1,10 @@
-package uk.ac.cam.cl.dtg.teaching.pottery;
+package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 
 import java.util.Set;
 
 import com.wordnik.swagger.annotations.ApiModelProperty;
+
+import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
 
 public class Task {
 
