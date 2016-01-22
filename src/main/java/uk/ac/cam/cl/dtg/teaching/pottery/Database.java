@@ -4,8 +4,7 @@ import java.beans.PropertyVetoException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import javax.sql.DataSource;
-
+import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +36,7 @@ public class Database {
 		return new TransactionQueryRunner(connectionPool);
 	}
 	
-	public int nextVal(String sequence, TransactionQueryRunner q) throws SQLException {
+	public static int nextVal(String sequence, QueryRunner q) throws SQLException {
 		return q.query("SELECT nextval('"+sequence+"')", new ResultSetHandler<Integer>() {
 			@Override
 			public Integer handle(ResultSet rs) throws SQLException {

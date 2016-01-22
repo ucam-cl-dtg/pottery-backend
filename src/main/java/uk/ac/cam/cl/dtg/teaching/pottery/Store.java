@@ -16,10 +16,12 @@ import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
 
@@ -59,15 +61,12 @@ public class Store {
 							
 							File codeDir = sourceManager.cloneForTesting(s.getRepoId(), s.getTag());
 							
-							ExecResponse compileResult = ContainerHelper.execCompilation(codeDir, taskManager.getCompileDirectory(t.getTaskId()), t.getImage(), docker);
-							s.setCompilationSuccess(compileResult.isSuccess());
-							s.setCompilationResponse(compileResult.getResponse());
-							ExecResponse harnessResult = ContainerHelper.execHarness(codeDir,taskManager.getHarnessDirectory(t.getTaskId()),t.getImage(),docker);
-							s.setHarnessSuccess(harnessResult.isSuccess());;
-							s.setHarnessResponse(harnessResult.getResponse());
-							ExecResponse validationResult = ContainerHelper.execValidator(taskManager.getValidatorDirectory(t.getTaskId()),harnessResult.getResponse(), t.getImage(),docker);
-							s.setValidationSuccess(validationResult.isSuccess());
-							s.setValidationResponse(validationResult.getResponse());
+							CompilationResponse compilationResponse = ContainerHelper.execCompilation(codeDir, taskManager.getCompileDirectory(t.getTaskId()), t.getImage(), docker);
+							s.setCompilationResponse(compilationResponse);
+							HarnessResponse harnessResponse = ContainerHelper.execHarness(codeDir,taskManager.getHarnessDirectory(t.getTaskId()),t.getImage(),docker);
+							s.setHarnessResponse(harnessResponse);
+							ValidationResponse validationResponse = ContainerHelper.execValidator(taskManager.getValidatorDirectory(t.getTaskId()),harnessResponse, t.getImage(),docker);
+							s.setValidationResponse(validationResponse);
 						} catch (IOException|RepoException e) {
 							LOG.error("Caught exception",e);
 						}
