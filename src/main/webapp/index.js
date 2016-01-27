@@ -89,6 +89,23 @@ $(document).ready(
 
 			});
 
+			$("#deleteFromRepo").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/repo/'+$("#repoId").val()+"/"+$("#repoTag").val()+"/"+$("#deleteFile").val(),
+					type: 'DELETE',
+					success: function (result) {
+						reportSuccess(result);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+
+				return false;				
+			});
+
+			
 			$("#readRepo").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
