@@ -19,6 +19,10 @@ import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.inject.Inject;
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
+
 import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
@@ -27,10 +31,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
-
-import com.google.inject.Inject;
-import com.wordnik.swagger.annotations.Api;
-import com.wordnik.swagger.annotations.ApiOperation;
 
 
 @Produces("application/json")
@@ -81,6 +81,7 @@ public class RepoController {
 		return Response.ok(s,MediaType.APPLICATION_OCTET_STREAM).build();
 	}
 	
+	
 	@POST
 	@Consumes("multipart/form-data")
 	@Path("/{repoId}/{tag}/{fileName:.+}")
@@ -95,10 +96,14 @@ public class RepoController {
 	}
 	
 	@DELETE
-	@Path("/{repoId}/{tag}/{fileName: .+}")
-	@ApiOperation(value="Delete a file from the repository (UNIMPLEMENTED)",position=4)
-	public void deleteFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException {
-		throw new IOException("Unimplemented");
+	@Path("/{repoId}/{tag}/{fileName:.+}")
+	@ApiOperation(value="Delete a file from the repository",position=4)
+	public Response deleteFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException, RepoException {
+		if (!sourceManager.getHeadTag().equals(tag)) {
+			throw new RepoException("Can only delete files at HEAD revision");
+		}
+		sourceManager.deleteFile(repoId,fileName);
+		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
 	@POST
