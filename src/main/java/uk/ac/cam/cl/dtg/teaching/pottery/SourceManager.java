@@ -40,13 +40,13 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
-
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
 
 @Singleton
 public class SourceManager {
@@ -290,6 +290,30 @@ public class SourceManager {
 			return newTag;
 		}
 	}
+
+	public void deleteFile(String repoId, String fileName) throws IOException, RepoException {
+		synchronized (getMutex(repoId)) {
+			Git git = Git.open(new File(repoRoot,repoId));
+			try {
+				git.rm().addFilepattern(fileName).call();
+				git.commit().setMessage("Removing file: "+fileName).call();
+			}
+			catch (GitAPIException e) {
+				try {
+					git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
+					throw new RepoException("Failed to commit delete of "+fileName+". Rolled back",e);
+				} catch (GitAPIException e1) {
+					e1.addSuppressed(e);
+					throw new RepoException("Failed to rollback delete of "+fileName,e1);
+				}
+			}
+			finally {
+				git.close();
+			}
+		}
+		
+	}
+
 	
 	public void updateFile(String repoId, String fileName, byte[] data) throws RepoException, IOException {
 		synchronized (getMutex(repoId)) {
@@ -376,5 +400,6 @@ public class SourceManager {
 		}
 		return mutex;
 	}
+
 	
 }
