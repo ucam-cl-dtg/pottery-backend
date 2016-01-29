@@ -4,12 +4,14 @@ import java.io.File;
 
 public class Config {
 
+	private static final File PREFIX= new File("/opt/pottery");
+	
 	public File getRepoRoot() {
-		return new File("/local/scratch/acr31/reporoot");
+		return new File(PREFIX,"repos");
 	}
 	
 	public File getTestingRoot() {
-		return new File("/local/scratch/acr31/testingroot");
+		return new File(PREFIX,"working-test");
 	}
 	
 	public String getHeadTag() {
@@ -20,13 +22,9 @@ public class Config {
 	public String getWebtagPrefix() {
 		return "online-";
 	}
-	
-	public File getBinaryRoot() {
-		return new File("/local/scratch/acr31/binaryroot");
-	}
-	
+
 	public File getStorageLocation() {
-		return new File("/local/scratch/acr31/pottery-problems");
+		return new File(PREFIX,"tasks");
 	}
 	
 }

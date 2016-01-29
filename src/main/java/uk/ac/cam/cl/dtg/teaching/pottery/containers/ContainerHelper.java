@@ -2,6 +2,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -90,7 +91,7 @@ public class ContainerHelper {
 			
 		ContainerConfig config = new ContainerConfig();
 		config.setOpenStdin(true);
-		config.setCmd(new String[] { "/bin/bash","-c",command});
+		config.setCmd(Arrays.asList("/bin/bash","-c",command));
 		config.setImage(imageName);
 		Map<String,Map<String,String>> volumes = new HashMap<String,Map<String,String>>();
 		for(ContainerHelper.PathPair p : mapping) {
