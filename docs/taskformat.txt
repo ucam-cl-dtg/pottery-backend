@@ -1,0 +1,35 @@
+Task format
+
+Each task is stored in a single git repository. The name of the task is globally unique e.g. a UUID.
+
+Submissions are tested in 3 steps:
+
+1) They are compiled (if necessary)
+2) They are executed in the 'harness' - this executes various parts of the program and produces a log file of what happened
+3) They are evaluated by the 'validator' - this takes the log file from the harness as input and determines the values of the various metrics
+
+Directories in the repository:
+
+skeleton/ the contents of this are copied recursively into the candidates repository as a starting point
+
+solution/ a model answer for testing the task
+
+compile/ this directory is mounted readonly in the container to compile the code. It should contain a script compile-solution.sh which will be passed a single argument which is the name of the directory where the candidates repository has been mounted. This will have the same shape as the contents of the skeleton directory. If the code does not need compiling this script and directory can be ommitted.
+
+harness/ this directory is mounted readonly in the container to run the test harness. It should contain a script run-harness.sh which will be run to initiate the test. The script will be given two command line arguments: 1) the directory that contains the compiled solution provided by the candidate, 2) the directory that the harness/ directory has been mounted at in the container.  The harness should generate JSON output represetning a serialisation of uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse
+
+validator/ this directory is mounted readonly in the container to run the validator. It should contain a script run-validator.sh which will be run to validate the results. The validator should read a serialised uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse JSON object from STDIN and return a JSON uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse as its output.  The script will be given a single command line argument which is the directory to that the validation/ directory has been mounted at in the container
+
+
+The task repository should also contain a task.json file describing the task. This should be of the form of uk.ac.cam.cl.dtg.teaching.pottery.dto.Task.
+
+{
+    "taskId":"133fd4db-905d-4b09-a37f-abb4fb463d2a",
+    "name":"Average",
+    "image":"template:java",
+    "criteria":["correctness","robustness"],
+    "difficulty":"easy",
+    "recommendedTimeMinutes":"10",
+    "language":"java",
+    "problemStatement":"<p>The function <texttt>mean</texttt> should take an array of doubles and compute their mean. Complete the implementation of this function.</p>"
+}
