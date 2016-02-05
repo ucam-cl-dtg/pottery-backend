@@ -16,7 +16,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.RepoManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.CleanupController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
@@ -40,7 +40,7 @@ public class ApplicationModule implements Module {
         binder.bind(ApiListingResourceJSON.class);
         binder.bind(ResourceListingProvider.class);
         binder.bind(Store.class).in(Singleton.class);
-        binder.bind(SourceManager.class).in(Singleton.class);
+        binder.bind(RepoManager.class).in(Singleton.class);
         binder.bind(Config.class).in(Singleton.class);
         binder.bind(Database.class).in(Singleton.class);
         binder.bind(CleanupController.class);

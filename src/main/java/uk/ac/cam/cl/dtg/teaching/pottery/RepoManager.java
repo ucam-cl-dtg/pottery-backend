@@ -22,7 +22,6 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
-import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.AmbiguousObjectException;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
@@ -50,7 +49,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 
 @Singleton
-public class SourceManager {
+public class RepoManager {
 	
 	private File repoRoot;
 	private File testingRoot;
@@ -59,10 +58,10 @@ public class SourceManager {
 	
 	private Database database;
 
-	private static Logger log = LoggerFactory.getLogger(SourceManager.class);
+	private static Logger log = LoggerFactory.getLogger(RepoManager.class);
 	
 	@Inject
-	public SourceManager(Config config,Database database) {
+	public RepoManager(Config config,Database database) {
 		super();
 		repoRoot = config.getRepoRoot();
 		testingRoot = config.getTestingRoot();

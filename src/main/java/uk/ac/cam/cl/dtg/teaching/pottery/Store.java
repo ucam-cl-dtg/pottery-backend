@@ -36,12 +36,12 @@ public class Store {
 	
 	private Thread worker;
 	
-	private SourceManager sourceManager;
+	private RepoManager sourceManager;
 
 	private Database database;
 
 	@Inject
-	public Store(SourceManager sourceManager, final TaskManager taskManager, final DockerApi docker, Database database) throws SQLException {
+	public Store(RepoManager sourceManager, final TaskManager taskManager, final DockerApi docker, Database database) throws SQLException {
 		this.sourceManager = sourceManager;
 		this.database = database;
 		

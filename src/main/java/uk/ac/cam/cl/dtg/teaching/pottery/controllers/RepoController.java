@@ -23,7 +23,7 @@ import com.google.inject.Inject;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.SourceManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.RepoManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
@@ -38,14 +38,14 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 @Api(value = "/repo", description = "Manages the candidates attempt at the task",position=1)
 public class RepoController {
 	
-	private SourceManager sourceManager;
+	private RepoManager sourceManager;
 	private TaskManager taskManager;
 	
 	@SuppressWarnings("unused")
 	private static final Logger log = LoggerFactory.getLogger(RepoController.class);
 
 	@Inject
-	public RepoController(SourceManager repoManager, TaskManager taskManager) {
+	public RepoController(RepoManager repoManager, TaskManager taskManager) {
 		super();
 		this.sourceManager = repoManager;
 		this.taskManager = taskManager;
