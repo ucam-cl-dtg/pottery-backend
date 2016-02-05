@@ -27,7 +27,7 @@ public class TaskManager {
 	
 	@Inject
 	public TaskManager(Config config) {
-		storageLocation = config.getStorageLocation();
+		storageLocation = config.getRegisteredTaskRoot();
 
 		ObjectMapper o = new ObjectMapper();
 		for(File f : storageLocation.listFiles()) {

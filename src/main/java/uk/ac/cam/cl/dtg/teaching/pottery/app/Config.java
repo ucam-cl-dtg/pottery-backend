@@ -23,8 +23,12 @@ public class Config {
 		return "online-";
 	}
 
-	public File getStorageLocation() {
-		return new File(PREFIX,"tasks");
+	public File getRegisteredTaskRoot() {
+		return new File(PREFIX,"working-tasks");
+	}
+	
+	public File getTaskRepoRoot() {
+		return new File(PREFIX,"tasks-bare");
 	}
 	
 }
