@@ -105,7 +105,22 @@ $(document).ready(
 				return false;				
 			});
 
-			
+			$("#resetRepo").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/repo/'+$("#repoId").val()+"/reset/"+$("#resetTag").val(),
+					type: 'POST',
+					success: function (result) {
+						reportSuccess(result);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+
+				return false;				
+			});
+
 			$("#readRepo").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
