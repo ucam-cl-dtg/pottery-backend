@@ -107,10 +107,11 @@ public class RepoController {
 	}
 	
 	@POST
-	@Path("/{repoId}/restore/{tag}")
-	@ApiOperation(value="Restore a repository to the specified tag (UNIMPLEMENTED)",position=5)
-	public void restore(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws IOException {
-		throw new IOException("Unimplemented");
+	@Path("/{repoId}/reset/{tag}")
+	@ApiOperation(value="Reset a repository to the specified tag (UNIMPLEMENTED)",position=5)
+	public Response reset(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws IOException, RepoException {
+		sourceManager.reset(repoId, tag);
+		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
 	@POST
