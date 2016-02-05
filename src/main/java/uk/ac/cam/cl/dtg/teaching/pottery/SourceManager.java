@@ -22,6 +22,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
+import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.AmbiguousObjectException;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
@@ -291,6 +292,21 @@ public class SourceManager {
 		}
 	}
 
+	public void reset(String repoId, String tag) throws IOException, RepoException {
+		synchronized (getMutex(repoId)) {
+			Git git = Git.open(new File(repoRoot,repoId));
+			try {
+				git.reset().setRef(tag).setMode(ResetType.HARD).call();
+			}
+			catch (GitAPIException e) {
+				throw new RepoException("Failed to reset repo to tag "+tag,e);
+			}
+			finally {
+				git.close();
+			}
+		}
+	}
+	
 	public void deleteFile(String repoId, String fileName) throws IOException, RepoException {
 		synchronized (getMutex(repoId)) {
 			Git git = Git.open(new File(repoRoot,repoId));
