@@ -4,25 +4,27 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Response;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
-import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
+
+import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
+import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 
 @Produces("application/json")
 @Path("/tasks")
@@ -92,23 +94,30 @@ public class TasksController {
 	public List<String>	listLanguages() {
 		return ImmutableList.of("java");
 	}
-	
-	@POST
-	@Path("/")
-	public void createTask() {
 		
+	@POST
+	@Path("/register")
+	public Task registerTask(@FormParam("remote") String remote, @FormParam("sha1") String sha1) {		
+		// make a checkout from the remote into the tasks working directory - generating a unique task id
+		// if that succeeds then update the database to record the task being present
+		// mark the task as inactive - so it doesn't appear in the lists etc.
+		return null;
 	}
 	
 	@POST
-	@Path("/{taskId}")
-	public void createOrUpdateTask(@PathParam("taskId") String taskId) {
-		// could store task as a git repo
-		// special file to contain metadata
-		// another file for problem briefing
-		// skeleton code
-		// source code for tests and validator
-		// build script for tests and validator
-		// testscript of some form
-		// model answer
+	@Path("/{taskId}/activate")
+	public Response activateTask(@PathParam("taskId") String taskId) {
+		// mark the task as active
+		return null;
 	}
+	
+
+	@POST
+	@Path("/{taskId}/deactivate")
+	public Response deactivateTask(@PathParam("taskId") String taskId) {
+		// mark the task as inactive
+		// note that you can't remove tasks because people might have given solutions to them
+		return null;
+	}
+	
 }
