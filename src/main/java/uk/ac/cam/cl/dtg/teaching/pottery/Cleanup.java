@@ -20,6 +20,16 @@ public class Cleanup {
 	
 		List<String> actionLog = new LinkedList<>();
 		
+		cleanupRepos(database, config, actionLog);
+		
+		// TODO: cleanup tasks
+		
+		return actionLog;
+		
+	}
+
+	private static void cleanupRepos(Database database, Config config, List<String> actionLog)
+			throws SQLException, IOException {
 		File repoRoot = config.getRepoRoot();
 		final Set<String> toRemoveFromFs = new HashSet<>();
 		for(String repo : repoRoot.list(new FilenameFilter() {
@@ -59,9 +69,6 @@ public class Cleanup {
 			
 			r.commit();
 		}
-		
-		return actionLog;
-		
 	}
 	
 	
