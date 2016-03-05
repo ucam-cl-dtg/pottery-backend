@@ -15,42 +15,43 @@
 
   <dependencies>
 
-    
+    <!-- Postgresql JDBC driver, BSD licence https://jdbc.postgresql.org/about/license.html -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <version>9.4-1201-jdbc41</version>
     </dependency>
     
+    <!-- Apache Commons Dbutils, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
     <dependency>
       <groupId>commons-dbutils</groupId>
       <artifactId>commons-dbutils</artifactId>
       <version>1.6</version>
     </dependency>
     
-    <dependency>
-      <groupId>com.google.auto.value</groupId>
-      <artifactId>auto-value</artifactId>
-      <version>1.1</version>
-      <scope>provided</scope>
-    </dependency>
 
+    <!-- c3p0 connection pool, Eclipse public license http://www.eclipse.org/legal/epl-v10.html -->
     <dependency>
       <groupId>com.mchange</groupId>
       <artifactId>c3p0</artifactId>
       <version>0.9.5</version>
     </dependency>
 
+    <!-- Apache Commons IO, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
       <version>2.4</version>
     </dependency>
+
+    <!-- Resteasy exception chains, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
     <dependency>
       <groupId>uk.ac.cam.cl.dtg.web</groupId>
       <artifactId>resteasy-exception-chains</artifactId>
       <version>1.0.6-SNAPSHOT</version>
     </dependency>
+
+    <!-- Resteasy framework, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
     <dependency>
       <groupId>org.jboss.resteasy</groupId>
       <artifactId>jaxrs-api</artifactId>
@@ -81,17 +82,23 @@
       <artifactId>resteasy-guice</artifactId>
       <version>${resteasy.version}</version>
     </dependency>
+
+    <!-- Google Guice, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
     <dependency>
       <groupId>com.google.inject</groupId>
       <artifactId>guice</artifactId>
       <version>3.0</version>
     </dependency>
+
+    <!-- Java servlet api, CDDL + GPLv2 with classpath exception, https://glassfish.java.net/nonav/public/CDDL+GPL.html -->
     <dependency>
       <groupId>javax.servlet</groupId>
       <artifactId>javax.servlet-api</artifactId>
       <version>3.0.1</version>
       <scope>provided</scope>
     </dependency>
+
+    <!-- Junit testing framework, Eclipse Public License 1.0 http://junit.org/license.html -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
@@ -99,19 +106,22 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- Google Guava,  Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>18.0</version>
     </dependency>
 
-
+    <!-- Log4j, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
     <dependency>
       <groupId>log4j</groupId>
       <artifactId>log4j</artifactId>
       <version>${log4j.version}</version>
       <scope>runtime</scope>
     </dependency>
+
+    <!-- Slf4j, MIT license http://www.slf4j.org/license.html -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
@@ -124,24 +134,21 @@
       <scope>runtime</scope>
     </dependency>
 
+    <!-- Resteasy Docker Bindings, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
     <dependency>
       <groupId>uk.ac.cam.cl.dtg.web</groupId>
       <artifactId>resteasy-docker</artifactId>
       <version>1.0.0-SNAPSHOT</version>
     </dependency>
 
+    <!-- Resteasy CORS filter, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
     <dependency>
       <groupId>uk.ac.cam.cl.dtg.web</groupId>
       <artifactId>resteasy-cors</artifactId>
       <version>1.0.0-SNAPSHOT</version>
     </dependency>
     
-    <dependency>
-      <groupId>com.pty4j</groupId>
-      <artifactId>pty4j</artifactId>
-      <version>0.4-SNAPSHOT</version>
-    </dependency>
-
+    <!-- JGit, Eclipse Distribution License 1.0 http://www.eclipse.org/org/documents/edl-v10.php -->
     <dependency>
       <groupId>org.eclipse.jgit</groupId>
       <artifactId>org.eclipse.jgit</artifactId>
@@ -152,6 +159,8 @@
       <artifactId>org.eclipse.jgit.http.server</artifactId>
       <version>4.2.0.201601211800-r</version>
     </dependency>
+
+    <!-- Swagger, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
     <dependency>
       <groupId>com.wordnik</groupId>
       <artifactId>swagger-jaxrs_2.11</artifactId>
