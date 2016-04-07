@@ -144,18 +144,12 @@ public class ContainerHelper {
 				null,
 				docker);
 		
-		if (r.isSuccess()) {
-			ObjectMapper objectMapper = new ObjectMapper();
-			try {
-				return objectMapper.readValue(r.getResponse(),HarnessResponse.class);
-			} catch (IOException e) {
-				return new HarnessResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse());
-			}
-		}
-		else {
-			return new HarnessResponse("Failed to execute container: "+r.getResponse());
-		}
-		
+		ObjectMapper objectMapper = new ObjectMapper();
+		try {
+			return objectMapper.readValue(r.getResponse(),HarnessResponse.class);
+		} catch (IOException e) {
+			return new HarnessResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse());
+		}		
 	}
 
 	public static ValidationResponse execValidator(File validatorDirectory, HarnessResponse harnessResponse,
@@ -168,15 +162,10 @@ public class ContainerHelper {
 					imageName,
 					o.writeValueAsString(harnessResponse)+"\n\n",
 					docker);
-			if (r.isSuccess()) {
-				try {
-					return o.readValue(r.getResponse(),ValidationResponse.class);
-				} catch (IOException e) {
-					return new ValidationResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse());
-				}
-			}
-			else {
-				return new ValidationResponse("Container error running validator: "+r.getResponse());
+			try {
+				return o.readValue(r.getResponse(),ValidationResponse.class);
+			} catch (IOException e) {
+				return new ValidationResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse());
 			}
 		} catch (JsonProcessingException e) {
 			return new ValidationResponse("Failed to serialise harness response: "+e.getMessage());
