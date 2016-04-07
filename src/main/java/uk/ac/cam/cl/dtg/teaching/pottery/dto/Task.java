@@ -149,7 +149,4 @@ public class Task {
 	public void setImage(String image) {
 		this.image = image;
 	}
-
-
-	
 }
