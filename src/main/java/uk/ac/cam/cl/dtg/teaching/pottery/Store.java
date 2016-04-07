@@ -64,11 +64,11 @@ public class Store {
 							
 							File codeDir = sourceManager.cloneForTesting(s.getRepoId(), s.getTag());
 							
-							CompilationResponse compilationResponse = ContainerHelper.execCompilation(codeDir, taskManager.getCompileDirectory(t.getTaskId()), config.getLibRoot(), t.getImage(), docker);
+							CompilationResponse compilationResponse = ContainerHelper.execCompilation(codeDir, taskManager.getCompileDirectory(t.getTaskId()), t.getImage(), docker,config);
 							s.setCompilationResponse(compilationResponse);
-							HarnessResponse harnessResponse = ContainerHelper.execHarness(codeDir,taskManager.getHarnessDirectory(t.getTaskId()),config.getLibRoot(), t.getImage(),docker);
+							HarnessResponse harnessResponse = ContainerHelper.execHarness(codeDir,taskManager.getHarnessDirectory(t.getTaskId()),t.getImage(),docker,config);
 							s.setHarnessResponse(harnessResponse);
-							ValidationResponse validationResponse = ContainerHelper.execValidator(taskManager.getValidatorDirectory(t.getTaskId()),harnessResponse, config.getLibRoot(), t.getImage(),docker);
+							ValidationResponse validationResponse = ContainerHelper.execValidator(taskManager.getValidatorDirectory(t.getTaskId()),harnessResponse, t.getImage(),docker,config);
 							s.setValidationResponse(validationResponse);
 						} catch (IOException|RepoException e) {
 							LOG.error("Caught exception",e);
