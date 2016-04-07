@@ -15,6 +15,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
+import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
@@ -41,7 +42,7 @@ public class Store {
 	private Database database;
 
 	@Inject
-	public Store(RepoManager sourceManager, final TaskManager taskManager, final DockerApi docker, Database database) throws SQLException {
+	public Store(RepoManager sourceManager, final TaskManager taskManager, final DockerApi docker, Database database, final Config config) throws SQLException {
 		this.sourceManager = sourceManager;
 		this.database = database;
 		
@@ -61,11 +62,11 @@ public class Store {
 							
 							File codeDir = sourceManager.cloneForTesting(s.getRepoId(), s.getTag());
 							
-							CompilationResponse compilationResponse = ContainerHelper.execCompilation(codeDir, taskManager.getCompileDirectory(t.getTaskId()), t.getImage(), docker);
+							CompilationResponse compilationResponse = ContainerHelper.execCompilation(codeDir, taskManager.getCompileDirectory(t.getTaskId()), config.getLibRoot(), t.getImage(), docker);
 							s.setCompilationResponse(compilationResponse);
-							HarnessResponse harnessResponse = ContainerHelper.execHarness(codeDir,taskManager.getHarnessDirectory(t.getTaskId()),t.getImage(),docker);
+							HarnessResponse harnessResponse = ContainerHelper.execHarness(codeDir,taskManager.getHarnessDirectory(t.getTaskId()),config.getLibRoot(), t.getImage(),docker);
 							s.setHarnessResponse(harnessResponse);
-							ValidationResponse validationResponse = ContainerHelper.execValidator(taskManager.getValidatorDirectory(t.getTaskId()),harnessResponse, t.getImage(),docker);
+							ValidationResponse validationResponse = ContainerHelper.execValidator(taskManager.getValidatorDirectory(t.getTaskId()),harnessResponse, config.getLibRoot(), t.getImage(),docker);
 							s.setValidationResponse(validationResponse);
 						} catch (IOException|RepoException e) {
 							LOG.error("Caught exception",e);

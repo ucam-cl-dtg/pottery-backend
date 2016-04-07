@@ -9,6 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +27,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
 
 public class ContainerHelper {
 
+	private static final Logger LOG = LoggerFactory.getLogger(ContainerHelper.class);
 	
 	
 	static class PathPair {
@@ -124,22 +127,27 @@ public class ContainerHelper {
 		}
 	}
 
-	public static CompilationResponse execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName, DockerApi docker) {
+	public static CompilationResponse execCompilation(File codeDirHost, File compilationRecipeDirHost, File libDirHost, String imageName, DockerApi docker) {
+		LOG.error(libDirHost.toString());
+		LOG.error(codeDirHost.toString());
+		LOG.error(compilationRecipeDirHost.toString());
 		ExecResponse r = exec_container(new PathPair[] { 
 				new PathPair(codeDirHost,"/code"),
-				new PathPair(compilationRecipeDirHost,"/compile") },
-				"/compile/compile-solution.sh /code",
+				new PathPair(compilationRecipeDirHost,"/compile"),
+				new PathPair(libDirHost,"/testlib") },
+				"/compile/compile-solution.sh /code /testlib",
 				imageName,
 				null,
 				docker);			
 		return new CompilationResponse(r.isSuccess(),r.getResponse());
 	}
 
-	public static HarnessResponse execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, DockerApi docker) {
+	public static HarnessResponse execHarness(File codeDirHost, File harnessRecipeDirHost, File libDirHost, String imageName, DockerApi docker) {
 		ExecResponse r = exec_container(new PathPair[] { 
 				new PathPair(codeDirHost,"/code"),
-				new PathPair(harnessRecipeDirHost,"/harness") },
-				"/harness/run-harness.sh /code /harness",
+				new PathPair(harnessRecipeDirHost,"/harness"),
+				new PathPair(libDirHost,"/testlib") },
+				"/harness/run-harness.sh /code /harness /testlib",
 				imageName,
 				null,
 				docker);
@@ -152,13 +160,14 @@ public class ContainerHelper {
 		}		
 	}
 
-	public static ValidationResponse execValidator(File validatorDirectory, HarnessResponse harnessResponse,
+	public static ValidationResponse execValidator(File validatorDirectory, HarnessResponse harnessResponse, File libDirHost,
 			String imageName, DockerApi docker) {
 		ObjectMapper o = new ObjectMapper();
 		try {
 			ExecResponse r = exec_container(new PathPair[] { 
-					new PathPair(validatorDirectory,"/validator") },
-					"/validator/run-validator.sh /validator",
+					new PathPair(validatorDirectory,"/validator"),
+					new PathPair(libDirHost,"/testlib") },
+					"/validator/run-validator.sh /validator /testlib",
 					imageName,
 					o.writeValueAsString(harnessResponse)+"\n\n",
 					docker);

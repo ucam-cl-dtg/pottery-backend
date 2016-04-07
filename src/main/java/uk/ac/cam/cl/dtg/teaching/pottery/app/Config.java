@@ -14,6 +14,10 @@ public class Config {
 		return new File(PREFIX,"working-test");
 	}
 	
+	public File getLibRoot() {
+		return new File(PREFIX,"lib");
+	}
+	
 	public String getHeadTag() {
 		return "HEAD";
 	}
