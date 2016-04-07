@@ -23,14 +23,14 @@ import com.google.inject.Inject;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.RepoManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.managers.RepoManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
 
 
 @Produces("application/json")

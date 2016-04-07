@@ -1,4 +1,4 @@
-package uk.ac.cam.cl.dtg.teaching.pottery;
+package uk.ac.cam.cl.dtg.teaching.pottery.managers;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -43,6 +43,9 @@ import org.slf4j.LoggerFactory;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
+import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
@@ -190,40 +193,33 @@ public class RepoManager {
 	
 	
 	public boolean existsTag(String repoId,String tag) throws IOException {
-		Git git = Git.open(new File(repoRoot,repoId));
-		try {
+		try (Git git = Git.open(new File(repoRoot,repoId))) {
 			return git.getRepository().resolve(Constants.R_TAGS+tag) != null;
-		}
-		finally {
-			git.close();
 		}
 	}
 	
 	public List<String> listFiles(String repoId, String tag) throws RepoException, IOException {
-		Git git = Git.open(new File(repoRoot,repoId));
-		Repository repo = git.getRepository();
-		RevWalk revWalk = new RevWalk(repo);
-		
-		List<String> result;
-		try {
-			RevTree tree = getRevTree(tag, repo, revWalk); 
+		try (Git git = Git.open(new File(repoRoot,repoId))) {
+			Repository repo = git.getRepository();
+			RevWalk revWalk = new RevWalk(repo);
 			
-			TreeWalk treeWalk = new TreeWalk(repo);
-			treeWalk.addTree(tree);
-			treeWalk.setRecursive(true);
-			result = new LinkedList<String>();
-			while(treeWalk.next()) {
-				result.add(treeWalk.getNameString());
-			}
-			revWalk.dispose();
-			return result;
-		} catch (NoHeadInRepoException e) {
-			return new LinkedList<String>();
-		} 
-		finally {
-			repo.close();
+			List<String> result;
+			try {
+				RevTree tree = getRevTree(tag, repo, revWalk); 
+				try (TreeWalk treeWalk = new TreeWalk(repo)) {
+					treeWalk.addTree(tree);
+					treeWalk.setRecursive(true);
+					result = new LinkedList<String>();
+					while(treeWalk.next()) {
+						result.add(treeWalk.getNameString());
+					}
+				}
+				revWalk.dispose();
+				return result;
+			} catch (NoHeadInRepoException e) {
+				return new LinkedList<String>();
+			} 
 		}
-		
 	}
 
 
@@ -254,79 +250,72 @@ public class RepoManager {
 	public String newTag(String repoId) throws IOException, RepoException {
 		synchronized (getMutex(repoId)) {	
 			File repoDir = new File(repoRoot,repoId);
-			Git git = Git.open(repoDir);
-			List<Ref> tagList;
-			try {
-				tagList = git.tagList().call();
-			} catch (GitAPIException e) {
-				throw new RepoException("Failed to list all tags in repo",e);
-			}
-			
-			String prefix = Constants.R_TAGS+webtagPrefix;
-			int max = -1;
-			for(Ref tag : tagList) {
-				String tagName = tag.getName();
-				if (tagName.startsWith(prefix)) {
-					int value;
-					try {
-						value = Integer.parseInt(tagName.substring(prefix.length()));
-					} catch (NumberFormatException e) {
-						throw new RepoException("Failed to parse tag name "+tagName);						
-					}
-					if (value > max) max = value;
-				}				
-			}
-			
-			String newTag = webtagPrefix + String.format("%03d", (max+1));
-			
-			try {
-				git.tag().setName(newTag).call();
-			} catch (GitAPIException e) {
-				throw new RepoException("Failed to apply tag "+newTag+" to repo");
-			}
-						
-			git.close();
-			
-			return newTag;
+			try (Git git = Git.open(repoDir)) {
+				List<Ref> tagList;
+				try {
+					tagList = git.tagList().call();
+				} catch (GitAPIException e) {
+					throw new RepoException("Failed to list all tags in repo",e);
+				}
+				
+				String prefix = Constants.R_TAGS+webtagPrefix;
+				int max = -1;
+				for(Ref tag : tagList) {
+					String tagName = tag.getName();
+					if (tagName.startsWith(prefix)) {
+						int value;
+						try {
+							value = Integer.parseInt(tagName.substring(prefix.length()));
+						} catch (NumberFormatException e) {
+							throw new RepoException("Failed to parse tag name "+tagName);						
+						}
+						if (value > max) max = value;
+					}				
+				}
+				
+				String newTag = webtagPrefix + String.format("%03d", (max+1));
+				
+				try {
+					git.tag().setName(newTag).call();
+				} catch (GitAPIException e) {
+					throw new RepoException("Failed to apply tag "+newTag+" to repo");
+				}
+				return newTag;
+			}			
 		}
 	}
 
 	public void reset(String repoId, String tag) throws IOException, RepoException {
 		synchronized (getMutex(repoId)) {
-			Git git = Git.open(new File(repoRoot,repoId));
-			try {
-				git.reset().setRef(tag).setMode(ResetType.HARD).call();
-			}
-			catch (GitAPIException e) {
-				throw new RepoException("Failed to reset repo to tag "+tag,e);
-			}
-			finally {
-				git.close();
+			try (Git git = Git.open(new File(repoRoot,repoId))) {
+				try {
+					git.reset().setRef(tag).setMode(ResetType.HARD).call();
+				}
+				catch (GitAPIException e) {
+					throw new RepoException("Failed to reset repo to tag "+tag,e);
+				}
 			}
 		}
 	}
 	
 	public void deleteFile(String repoId, String fileName) throws IOException, RepoException {
 		synchronized (getMutex(repoId)) {
-			Git git = Git.open(new File(repoRoot,repoId));
-			try {
-				git.rm().addFilepattern(fileName).call();
-				git.commit().setMessage("Removing file: "+fileName).call();
-			}
-			catch (GitAPIException e) {
+			try (Git git = Git.open(new File(repoRoot,repoId))) {
 				try {
-					git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
-					throw new RepoException("Failed to commit delete of "+fileName+". Rolled back",e);
-				} catch (GitAPIException e1) {
-					e1.addSuppressed(e);
-					throw new RepoException("Failed to rollback delete of "+fileName,e1);
+					git.rm().addFilepattern(fileName).call();
+					git.commit().setMessage("Removing file: "+fileName).call();
+				}
+				catch (GitAPIException e) {
+					try {
+						git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
+						throw new RepoException("Failed to commit delete of "+fileName+". Rolled back",e);
+					} catch (GitAPIException e1) {
+						e1.addSuppressed(e);
+						throw new RepoException("Failed to rollback delete of "+fileName,e1);
+					}
 				}
 			}
-			finally {
-				git.close();
-			}
 		}
-		
 	}
 
 	
@@ -368,37 +357,37 @@ public class RepoManager {
 	}
 	
 	public StreamingOutput readFile(String repoId, String tag, String fileName) throws IOException, RepoException {
-		Git git = Git.open(new File(repoRoot,repoId));
-		Repository repo = git.getRepository();
-		RevWalk revWalk = new RevWalk(repo);
-		RevTree tree;
-		try {
-			tree = getRevTree(tag, repo, revWalk);
-		} catch (NoHeadInRepoException e) {
-			throw new IOException("File not found");
-		} 
-		
-		TreeWalk treeWalk = new TreeWalk(repo);
-		treeWalk.addTree(tree);
-		treeWalk.setRecursive(true);
-		treeWalk.setFilter(PathFilter.create(fileName));
-		if(!treeWalk.next()) {
-			throw new IOException("File ("+fileName+") not found");
-		}
-		
-        ObjectId objectId = treeWalk.getObjectId(0);
-        ObjectLoader loader = repo.open(objectId);
-        
-        return new StreamingOutput() {
-			@Override
-			public void write(OutputStream output) throws IOException,
-					WebApplicationException {
-				output.write(loader.getBytes());
-				revWalk.dispose();
-				repo.close();				
+		try (Git git = Git.open(new File(repoRoot,repoId))) {
+			Repository repo = git.getRepository();
+			RevWalk revWalk = new RevWalk(repo);
+			RevTree tree;
+			try {
+				tree = getRevTree(tag, repo, revWalk);
+			} catch (NoHeadInRepoException e) {
+				throw new IOException("File not found");
+			} 
+			
+			try (TreeWalk treeWalk = new TreeWalk(repo)) {
+				treeWalk.addTree(tree);
+				treeWalk.setRecursive(true);
+				treeWalk.setFilter(PathFilter.create(fileName));
+				if(!treeWalk.next()) {
+					throw new IOException("File ("+fileName+") not found");
+				}
+			
+				ObjectId objectId = treeWalk.getObjectId(0);
+				ObjectLoader loader = repo.open(objectId);
+				byte[] result = loader.getBytes();
+				
+				return new StreamingOutput() {
+					@Override
+					public void write(OutputStream output) throws IOException,
+						WebApplicationException {
+						output.write(result);
+					}
+				};
 			}
-        	
-        };
+		}
   	}
 	
 	private Map<String,Object> repoLocks = new ConcurrentHashMap<String, Object>();

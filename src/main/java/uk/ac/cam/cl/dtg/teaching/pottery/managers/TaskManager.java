@@ -1,4 +1,4 @@
-package uk.ac.cam.cl.dtg.teaching.pottery;
+package uk.ac.cam.cl.dtg.teaching.pottery.managers;
 
 import java.io.File;
 import java.io.IOException;
@@ -9,17 +9,17 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
+
 @Singleton
 public class TaskManager {
 
-	private File storageLocation;
+	private File checkoutLocation;
 
 	private Map<String,Task> tasks = new HashMap<String,Task>();
 
@@ -27,10 +27,10 @@ public class TaskManager {
 	
 	@Inject
 	public TaskManager(Config config) {
-		storageLocation = config.getRegisteredTaskRoot();
+		checkoutLocation = config.getRegisteredTaskRoot();
 
 		ObjectMapper o = new ObjectMapper();
-		for(File f : storageLocation.listFiles()) {
+		for(File f : checkoutLocation.listFiles()) {
 			if (f.getName().startsWith(".")) continue;			
 			File taskSpecFile = new File(f,"task.json");
 			if (taskSpecFile.exists()) {
@@ -47,6 +47,11 @@ public class TaskManager {
 		}
 	}
 	
+	public static Task loadTask(File taskSpecFile) throws IOException {
+		ObjectMapper o = new ObjectMapper();
+		return o.readValue(taskSpecFile, Task.class);
+	}
+	
 	public Task getTask(String taskId) {
 		return tasks.get(taskId);
 	}
@@ -61,7 +66,7 @@ public class TaskManager {
 	 * @return
 	 */
 	public File getSkeletonDirectory(String taskId) {
-		return new File(new File(storageLocation,taskId),"skeleton");
+		return new File(new File(checkoutLocation,taskId),"skeleton");
 	}
 
 	/** 
@@ -70,19 +75,23 @@ public class TaskManager {
 	 * @return
 	 */
 	public File getCompileDirectory(String taskId) {
-		return new File(new File(storageLocation,taskId),"compile");
+		return new File(new File(checkoutLocation,taskId),"compile");
 	}
 
 	public File getHarnessDirectory(String taskId) {
-		return new File(new File(storageLocation,taskId),"harness");
+		return new File(new File(checkoutLocation,taskId),"harness");
 	}
 
 	public File getValidatorDirectory(String taskId) {
-		return new File(new File(storageLocation,taskId),"validator");
+		return new File(new File(checkoutLocation,taskId),"validator");
 	}
 	
 	
 	public static void create() {
+		
+		
+		
+		
 		// generate a task id
 		// create a directory to hold the task
 		// init the git repo

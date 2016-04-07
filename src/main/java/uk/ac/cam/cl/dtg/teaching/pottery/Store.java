@@ -25,6 +25,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
+import uk.ac.cam.cl.dtg.teaching.pottery.managers.RepoManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
 
 @Singleton
 public class Store {
