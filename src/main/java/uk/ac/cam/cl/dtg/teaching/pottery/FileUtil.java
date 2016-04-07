@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.UUID;
 
 public class FileUtil {
 
@@ -52,6 +53,22 @@ public class FileUtil {
 				return true;
 		} while ((descendant = descendant.getParentFile()) != null);
 		return false;
+	}
+	
+	private static Object createLock = new Object();
+	public static String createNewDirectory(File parent) throws IOException {
+		synchronized (createLock) {
+			while(true)	{
+				String name = UUID.randomUUID().toString();
+				File dir = new File(parent,name);
+				if (!dir.exists()) {
+					if (!dir.mkdir()) {
+						throw new IOException("Failed to create directory "+dir.toString());
+					}
+					return name;
+				}
+			}
+		}
 	}
 
 }
