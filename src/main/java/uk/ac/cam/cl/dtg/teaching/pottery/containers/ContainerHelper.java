@@ -86,37 +86,41 @@ public class ContainerHelper {
 	}
 	
 	public static ExecResponse exec_container(ContainerHelper.PathPair[] mapping, String command, String imageName, String stdin, DockerApi docker) {				
-		String containerName = "pottery-"+counter.incrementAndGet();
-		DockerUtil.deleteContainerByName(containerName,docker);
-			
-		ContainerConfig config = new ContainerConfig();
-		config.setOpenStdin(true);
-		config.setCmd(Arrays.asList("/bin/bash","-c",command));
-		config.setImage(imageName);
-		Map<String,Map<String,String>> volumes = new HashMap<String,Map<String,String>>();
-		for(ContainerHelper.PathPair p : mapping) {
-			volumes.put(p.getContainer().getPath(), new HashMap<String,String>());
-		}
-		config.setVolumes(volumes);
-		ContainerResponse response = docker.createContainer(containerName,config);
 		try {
-			String containerId = response.getId();
-			ContainerStartConfig startConfig = new ContainerStartConfig();
-			String[] binds = new String[mapping.length];
-			for(int i=0;i<mapping.length;++i) {
-				binds[i] = DockerUtil.bind(mapping[i].getHost(),mapping[i].getContainer());
+			String containerName = "pottery-"+counter.incrementAndGet();
+			DockerUtil.deleteContainerByName(containerName,docker);
+				
+			ContainerConfig config = new ContainerConfig();
+			config.setOpenStdin(true);
+			config.setCmd(Arrays.asList("/bin/bash","-c",command));
+			config.setImage(imageName);
+			Map<String,Map<String,String>> volumes = new HashMap<String,Map<String,String>>();
+			for(ContainerHelper.PathPair p : mapping) {
+				volumes.put(p.getContainer().getPath(), new HashMap<String,String>());
 			}
-			startConfig.setBinds(binds);
-			docker.startContainer(containerId,startConfig);
-			StringBuffer output = new StringBuffer();
-			AttachListener l = new AttachListener(output,stdin);
-			docker.attach(response.getId(),true,true,true,true,true,l);
-			WaitResponse waitResponse = docker.waitContainer(response.getId());
-			boolean success = waitResponse.statusCode == 0;
-			return new ExecResponse(success, output.toString());
-		}
-		finally {
-			docker.deleteContainer(response.getId(), true, true);
+			config.setVolumes(volumes);
+			ContainerResponse response = docker.createContainer(containerName,config);
+			try {
+				String containerId = response.getId();
+				ContainerStartConfig startConfig = new ContainerStartConfig();
+				String[] binds = new String[mapping.length];
+				for(int i=0;i<mapping.length;++i) {
+					binds[i] = DockerUtil.bind(mapping[i].getHost(),mapping[i].getContainer());
+				}
+				startConfig.setBinds(binds);
+				docker.startContainer(containerId,startConfig);
+				StringBuffer output = new StringBuffer();
+				AttachListener l = new AttachListener(output,stdin);
+				docker.attach(response.getId(),true,true,true,true,true,l);
+				WaitResponse waitResponse = docker.waitContainer(response.getId());
+				boolean success = waitResponse.statusCode == 0;
+				return new ExecResponse(success, output.toString());
+			}
+			finally {
+				docker.deleteContainer(response.getId(), true, true);
+			}
+		} catch (RuntimeException e) {
+			return new ExecResponse(false,e.getMessage());
 		}
 	}
 
