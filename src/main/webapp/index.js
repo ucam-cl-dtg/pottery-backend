@@ -13,6 +13,40 @@ $(document).ready(
 				$("#error pre").text(JSON.stringify($.parseJSON(xhr.responseText),undefined,2));
 			}
 
+			$("#listTaskReposButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "GET",
+							url : "api/taskrepos",
+							success : function(result) {
+								reportSuccess(result);
+								$("#taskRepoId").val(result[0].name);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+
+			$("#testTaskRepoForm").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/taskrepos/test/' + $("#taskRepoId").val(),
+					type: 'POST',
+					data : {"sha1" : $("#taskreposha1").val() },
+					success: function (result) {
+						reportSuccess(result);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+
+				return false;				
+			});
+
+			
 			
 			$("#listTasksButton").click(
 					function(e) {

@@ -8,10 +8,23 @@
 <body>
 
 	<div style="float: left; width: 30em">
+		<p>TaskRepoId: <input type="text" id="taskRepoId"/></p>
 		<p>TaskId: <input type="text" id="taskId"/></p>
 		<p>RepoId: <input type="text" id="repoId"/></p>
 		<p>RepoTag: <input type="text" id="repoTag" value="HEAD"/></p>
 		<p>SubmissionTag: <input type="text" id="submissionTag"/></p>
+		<hr />
+		
+		<h2>Task repos</h2>
+		
+		<p>Get a list of task repositories</p>
+		<input type="submit" value="List task repos" id="listTaskReposButton" /><br />
+		
+		<p>Test task repo</p>
+		<form id="testTaskRepoForm">
+			<p>SHA1: <input type="text" id="taskreposha1" name="sha1"/></p>
+			<input type="submit"/>	
+		</form>
 		<hr />
 		
 		<h2>Tasks</h2>
