@@ -56,8 +56,14 @@ public class TaskManager {
 		return tasks.get(taskId);
 	}
 
-	public Collection<Task> getAllTasks() {
-		return tasks.values();
+	public Collection<Task> getAllTasks(boolean includeDisabledTasks) {
+		List<Task> result = new LinkedList<Task>();
+		for(Task t : tasks.values()) {
+			if (t.isActive() || includeDisabledTasks) {
+				result.add(t);
+			}
+		}
+		return result;
 	}
 	
 	/**
