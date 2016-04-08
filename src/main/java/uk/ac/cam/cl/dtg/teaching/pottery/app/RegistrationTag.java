@@ -76,5 +76,9 @@ public class RegistrationTag {
 			return o.getName();
 		}
 	}
+
+	public void setActive(boolean active) {
+		this.active = active;
+	}
 	
 }
