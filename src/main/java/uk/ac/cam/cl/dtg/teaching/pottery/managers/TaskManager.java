@@ -85,20 +85,4 @@ public class TaskManager {
 	public File getValidatorDirectory(String taskId) {
 		return new File(new File(checkoutLocation,taskId),"validator");
 	}
-	
-	
-	public static void create() {
-		
-		
-		
-		
-		// generate a task id
-		// create a directory to hold the task
-		// init the git repo
-		// create: /compile, /harness, /validator, /skeleton, /solution directories
-		// create compile-solution.sh, run-harness.sh, run-validator.sh
-		// for java tasks create a pom file
-		// keep templates for these files in the project resources
-		
-	}
 }
