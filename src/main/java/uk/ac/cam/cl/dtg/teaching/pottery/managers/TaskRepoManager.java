@@ -3,14 +3,16 @@ package uk.ac.cam.cl.dtg.teaching.pottery.managers;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 
@@ -27,9 +29,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskRepo;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskRepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskTestResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTagFormatException;
 
 public class TaskRepoManager {
 
@@ -40,16 +42,11 @@ public class TaskRepoManager {
 	private UUIDGenerator uuidGenerator;
 	
 	@Inject
-	public TaskRepoManager(Config config, DockerApi docker) {
+	public TaskRepoManager(Config config, DockerApi docker) throws IOException {
 		this.config = config;
 		this.docker = docker;
 		this.uuidGenerator = new UUIDGenerator();
-		
-		File taskRepoRoot = config.getTaskRepoRoot();
-		for(File f : taskRepoRoot.listFiles()) {
-			if (f.getName().startsWith(".")) continue;
-			uuidGenerator.reserve(f.getName());
-		}
+		uuidGenerator.reserveAll(scanForTaskRepositories());
 	}
 
 	public TaskRepo create() throws IOException {
@@ -151,13 +148,49 @@ public class TaskRepoManager {
 		return new TaskTestResponse(true,"Passed");
 	}
 	
-	public Collection<TaskRepoInfo> list() {
+	public List<String> scanForTaskRepositories() throws IOException {
+		List<String> result = new LinkedList<>();
 		File taskRepoRoot = config.getTaskRepoRoot();
-		List<TaskRepoInfo> result = new LinkedList<TaskRepoInfo>();
+		for(File f : taskRepoRoot.listFiles()) {
+			if (f.getName().startsWith(".")) continue;
+			result.add(f.getName());
+		}
+		return result;
+	}
+	
+	public Map<String,RegistrationTag> scanForTasks() throws IOException, GitAPIException {
+		return scanForTasks(config.getTaskRepoRoot());
+	}
+	
+	/**
+	 * Build a map for all registered tasks by scanning for tags in the task repositories
+	 * 
+	 * @param taskRepoRoot
+	 * @return a map of task UUID to tag information
+	 * @throws IOException
+	 * @throws GitAPIException
+	 */
+	public static Map<String,RegistrationTag> scanForTasks(File taskRepoRoot) throws IOException, GitAPIException {
+		
+		// TODO: concurrency on git?
+		
+		Map<String,RegistrationTag> result = new HashMap<>();  
+		
 		for(File taskRepo : taskRepoRoot.listFiles()) {
-			if (taskRepo.isDirectory()) {
-				result.add(new TaskRepoInfo(taskRepo.getName()));
-			}
+			if (taskRepo.getName().startsWith(".")) continue;
+			try (Git g = Git.open(taskRepo)) {
+				List<Ref> tagList = g.tagList().call();
+				for(Ref tag : tagList) {
+					String tagName = tag.getName();
+					try {
+						RegistrationTag r = RegistrationTag.fromTagName(tagName, taskRepo);
+						result.put(r.getRegisteredTaskUUID(),r);
+					}
+					catch (InvalidTagFormatException e) {
+						// Ignore tags which we didn't set
+					}
+				}
+			}				
 		}
 		return result;
 	}

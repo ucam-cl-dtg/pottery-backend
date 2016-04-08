@@ -11,7 +11,6 @@ import java.util.Map;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.lib.Ref;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +50,7 @@ public class TaskManager {
 		File taskReposDir = config.getTaskRepoRoot();
 
 		this.checkoutLocation = config.getRegisteredTaskRoot();
-		this.taskRegistrations = scanForTasks(taskReposDir);
+		this.taskRegistrations = TaskRepoManager.scanForTasks(taskReposDir);
 		this.tasks = new HashMap<>();
 		this.uuidGenerator = new UUIDGenerator();
 		uuidGenerator.reserveAll(taskRegistrations.keySet());
@@ -95,8 +94,10 @@ public class TaskManager {
 			if (t == null)
 				FileUtil.deleteRecursive(taskDir);
 		}
-		if (t != null) 
+		if (t != null) {
 			tasks.put(t.getTaskId(), t);
+			taskRegistrations.put(uuid, registrationTag);
+		}
 		return t;		
 	}
 	
@@ -112,40 +113,10 @@ public class TaskManager {
 		return taskRegistrations.get(taskId);
 	}
 	
-
-	/**
-	 * Build a map for all registered tasks by scanning for tags in the task repositories
-	 * 
-	 * @param taskRepoRoot
-	 * @return a map of task UUID to tag information
-	 * @throws IOException
-	 * @throws GitAPIException
-	 */
-	private Map<String,RegistrationTag> scanForTasks(File taskRepoRoot) throws IOException, GitAPIException {
-		
-		// TODO: concurrency on git?
-		
-		Map<String,RegistrationTag> result = new HashMap<>();  
-		
-		for(File taskRepo : taskRepoRoot.listFiles()) {
-			if (taskRepo.getName().startsWith(".")) continue;
-			try (Git g = Git.open(taskRepo)) {
-				List<Ref> tagList = g.tagList().call();
-				for(Ref tag : tagList) {
-					String tagName = tag.getName();
-					try {
-						RegistrationTag r = RegistrationTag.fromTagName(tagName, taskRepo);
-						result.put(r.getRegisteredTaskUUID(),r);
-					}
-					catch (InvalidTagFormatException e) {
-						// Ignore tags which we didn't set
-					}
-				}
-			}				
-		}
-		return result;
+	public Map<String,RegistrationTag> getRegistrations() {
+		return taskRegistrations;
 	}
-	
+
 	/**
 	 * Load a task from its spec file
 	 * 
