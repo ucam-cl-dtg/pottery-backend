@@ -126,7 +126,7 @@ public class TaskRepoManager {
 		try {
 			try (Git g = Git.cloneRepository().setURI(taskRepoDir.getPath()).setDirectory(tempDir).call()) {
 				g.reset().setMode(ResetType.HARD).setRef(sha1).call();
-				Task t = TaskManager.loadTask(new File(tempDir,"task.json"));
+				Task t = TaskManager.loadTask(tempDir.getName(),false,new File(tempDir,"task.json"));
 				ExecResponse r = ContainerHelper.execTaskCompilation(tempDir,t.getImage(),docker,config);
 				if (!r.isSuccess()) {
 					return new TaskTestResponse(false,"Failed to compile test: "+r.getResponse());
