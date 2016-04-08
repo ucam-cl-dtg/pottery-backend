@@ -1,17 +1,17 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.Response;
 
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,9 +22,11 @@ import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
+import uk.ac.cam.cl.dtg.teaching.pottery.app.RegistrationTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskRepoManager;
 
 @Produces("application/json")
 @Path("/tasks")
@@ -35,11 +37,13 @@ public class TasksController {
 	private static final Logger log = LoggerFactory.getLogger(TasksController.class);
 	
 	private TaskManager taskManager;
+	private TaskRepoManager taskRepoManager;
 	
 	@Inject
-	public TasksController(TaskManager taskManager) {
+	public TasksController(TaskManager taskManager, TaskRepoManager taskRepoManager) {
 		super();
 		this.taskManager = taskManager;
+		this.taskRepoManager = taskRepoManager;
 	}
 
 	@GET
@@ -102,30 +106,30 @@ public class TasksController {
 	public List<String>	listLanguages() {
 		return ImmutableList.of("java");
 	}
-		
-	@POST
-	@Path("/register")
-	public Task registerTask(@FormParam("remote") String remote, @FormParam("sha1") String sha1) {		
-		// make a checkout from the remote into the tasks working directory - generating a unique task id
-		// if that succeeds then update the database to record the task being present
-		// mark the task as inactive - so it doesn't appear in the lists etc.
-		return null;
-	}
-	
+			
 	@POST
 	@Path("/{taskId}/activate")
-	public Response activateTask(@PathParam("taskId") String taskId) {
-		// mark the task as active
-		return null;
+	@ApiOperation(value="Activate a task. This makes is appear in the lists of available problems to solve",position=1)
+	public Task activateTask(@PathParam("taskId") String taskId) throws IOException, GitAPIException {
+		return changeTaskActivation(taskId, true);
+	}
+	
+	private Task changeTaskActivation(String taskId, boolean active) throws IOException, GitAPIException {
+		RegistrationTag tag = taskManager.getRegistration(taskId);
+		String sha1 = tag.lookupSHA1();
+		taskRepoManager.removeRegistration(tag);
+		taskRepoManager.recordRegistration(tag.getRepository().getName(), sha1, taskId, active);
+		Task t = taskManager.getTask(taskId);
+		t.setActive(active);
+		return t;
 	}
 	
 
 	@POST
 	@Path("/{taskId}/deactivate")
-	public Response deactivateTask(@PathParam("taskId") String taskId) {
-		// mark the task as inactive
-		// note that you can't remove tasks because people might have given solutions to them
-		return null;
+	@ApiOperation(value="Deactivate a task. This makes it invisible in the lists of problems to solve. You can't delete a task because people might have solutions to it.",position=1)
+	public Task deactivateTask(@PathParam("taskId") String taskId) throws IOException, GitAPIException {
+		return changeTaskActivation(taskId, false);
 	}
 	
 }
