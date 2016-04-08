@@ -15,11 +15,14 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import com.google.inject.Inject;
 import com.wordnik.swagger.annotations.ApiOperation;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.app.RegistrationTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskRepo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskRepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskTestResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTagFormatException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskRepoException;
+import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskRepoManager;
 
 @Produces("application/json")
@@ -27,10 +30,12 @@ import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskRepoManager;
 public class TaskRepoController {
 
 	private TaskRepoManager taskRepoManager;
+	private TaskManager taskManager;
 	
 	@Inject
-	public TaskRepoController(TaskRepoManager taskRepoManager) {
+	public TaskRepoController(TaskRepoManager taskRepoManager, TaskManager taskManager) {
 		this.taskRepoManager = taskRepoManager;
+		this.taskManager = taskManager;
 	}
 	
 	@POST
@@ -54,8 +59,12 @@ public class TaskRepoController {
 	@POST
 	@Path("/register/{taskRepoId}")
 	@ApiOperation(value="Register a new task based on the particular SHA1 from the task repo",response=Task.class)
-	public Task register(@PathParam("taskRepoId") String taskRepoId, @FormParam("sha1") String sha1) throws IOException {
-		return taskRepoManager.register(taskRepoId,sha1);
+	public Task register(@PathParam("taskRepoId") String taskRepoId, @FormParam("sha1") String sha1) throws IOException, InvalidTagFormatException, GitAPIException {
+		
+		String newUuid = taskManager.reserveNewTaskUuid();
+		RegistrationTag r = taskRepoManager.recordRegistration(taskRepoId, sha1, newUuid, false /* disabled */);
+		Task t = taskManager.cloneTask(r);
+		return t;
 	}
 	
 	@POST
