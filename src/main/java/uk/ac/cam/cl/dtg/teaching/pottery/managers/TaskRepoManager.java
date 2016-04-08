@@ -36,16 +36,26 @@ public class TaskRepoManager {
 	private DockerApi docker;
 	private Config config;
 
+	private UUIDGenerator uuidGenerator;
+	
 	@Inject
 	public TaskRepoManager(Config config, DockerApi docker) {
 		this.config = config;
 		this.docker = docker;
+		this.uuidGenerator = new UUIDGenerator();
+		
+		File taskRepoRoot = config.getTaskRepoRoot();
+		for(File f : taskRepoRoot.listFiles()) {
+			if (f.getName().startsWith(".")) continue;
+			uuidGenerator.reserve(f.getName());
+		}
 	}
 
 	public TaskRepo create() throws IOException {
 		File taskRepoRoot = config.getTaskRepoRoot();
-		String taskRepoId = FileUtil.createNewDirectory(taskRepoRoot);
-		File taskRepoDir = new File(taskRepoRoot,taskRepoId);		
+		String taskRepoId = uuidGenerator.generate();
+		File taskRepoDir = new File(taskRepoRoot,taskRepoId);
+		taskRepoDir.mkdir();
 		try {
 			Git.init().setBare(true).setDirectory(taskRepoDir).call();
 		} catch (IllegalStateException|GitAPIException e) {
