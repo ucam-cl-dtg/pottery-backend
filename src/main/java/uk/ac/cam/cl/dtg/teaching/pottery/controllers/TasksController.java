@@ -121,6 +121,7 @@ public class TasksController {
 		taskRepoManager.recordRegistration(tag.getRepository().getName(), sha1, taskId, active);
 		Task t = taskManager.getTask(taskId);
 		t.setActive(active);
+		tag.setActive(active);
 		return t;
 	}
 	
