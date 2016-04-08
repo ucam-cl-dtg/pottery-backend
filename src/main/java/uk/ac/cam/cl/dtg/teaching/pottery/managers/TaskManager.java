@@ -47,9 +47,25 @@ public class TaskManager {
 		}
 	}
 	
-	public static Task loadTask(File taskSpecFile) throws IOException {
-		ObjectMapper o = new ObjectMapper();
-		return o.readValue(taskSpecFile, Task.class);
+	/**
+	 * Load a task from its spec file
+	 * 
+	 * @param taskId The id of the task
+	 * @param active Whether the task is active or not
+	 * @param taskSpecFile The file containing the spec for the task
+	 * @return a task object with the task information in it
+	 */
+	public static Task loadTask(String taskId, boolean active, File taskSpecFile) {
+		try {
+			ObjectMapper o = new ObjectMapper();
+			Task t = o.readValue(taskSpecFile, Task.class);
+			t.setTaskId(taskId);
+			t.setActive(active);
+			return t;
+		} catch (IOException e) {
+			log.warn("Failed to load task "+taskSpecFile,e);
+			return null;
+		}
 	}
 	
 	public Task getTask(String taskId) {
