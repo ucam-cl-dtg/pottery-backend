@@ -44,10 +44,18 @@ public class TasksController {
 
 	@GET
 	@Path("/")
-	@ApiOperation(value="Lists all available tasks",response=Task.class,responseContainer="List",position=0)
-	public Collection<Task> listAllTasks() {
-		return taskManager.getAllTasks();
+	@ApiOperation(value="Lists all available active tasks",response=Task.class,responseContainer="List",position=0)
+	public Collection<Task> listActive() {
+		return taskManager.getAllTasks(false);
 	}
+
+	@GET
+	@Path("/alltasks")
+	@ApiOperation(value="Lists all tasks including disabled ones",response=Task.class,responseContainer="List",position=0)
+	public Collection<Task> listAllTasks() {
+		return taskManager.getAllTasks(true);
+	}
+	
 	
 	@GET
 	@Path("/types")
