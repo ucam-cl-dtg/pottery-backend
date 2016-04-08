@@ -76,7 +76,20 @@ public class Task {
 	@ApiModelProperty("The problem statement as an HTML fragment")
 	private String problemStatement;
 	
+	private boolean active;
+	
 	public Task() {	}
+
+
+	public boolean isActive() {
+		return active;
+	}
+
+
+	public void setActive(boolean active) {
+		this.active = active;
+	}
+
 
 	public String getDifficulty() {
 		return difficulty;
