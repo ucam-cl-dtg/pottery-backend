@@ -45,6 +45,37 @@ public class TaskManager {
 				log.warn("Failed to find task.json file for task in {}",taskSpecFile);
 			}
 		}
+	/**
+	 * Build a map for all registered tasks by scanning for tags in the task repositories
+	 * 
+	 * @param taskRepoRoot
+	 * @return a map of task UUID to tag information
+	 * @throws IOException
+	 * @throws GitAPIException
+	 */
+	private Map<String,RegistrationTag> scanForTasks(File taskRepoRoot) throws IOException, GitAPIException {
+		
+		// TODO: concurrency on git?
+		
+		Map<String,RegistrationTag> result = new HashMap<>();  
+		
+		for(File taskRepo : taskRepoRoot.listFiles()) {
+			if (taskRepo.getName().startsWith(".")) continue;
+			try (Git g = Git.open(taskRepo)) {
+				List<Ref> tagList = g.tagList().call();
+				for(Ref tag : tagList) {
+					String tagName = tag.getName();
+					try {
+						RegistrationTag r = RegistrationTag.fromTagName(tagName, taskRepo);
+						result.put(r.getRegisteredTaskUUID(),r);
+					}
+					catch (InvalidTagFormatException e) {
+						// Ignore tags which we didn't set
+					}
+				}
+			}				
+		}
+		return result;
 	}
 	
 	/**
