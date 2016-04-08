@@ -1,7 +1,11 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
@@ -52,15 +56,31 @@ public class TaskRepoController {
 	@GET
 	@Path("/")
 	@ApiOperation(value="Return a list of task-repos",response=TaskRepoInfo.class,responseContainer="List")
-	public Collection<TaskRepoInfo> list() {
-		return taskRepoManager.list();
+	public List<TaskRepoInfo> list() throws IOException, GitAPIException {
+
+		Map<String,TaskRepoInfo> data = new HashMap<>();
+		for(String taskRepoId : taskRepoManager.scanForTaskRepositories()) {
+			data.put(taskRepoId, new TaskRepoInfo(taskRepoId));
+		}
+		
+		Map<String,RegistrationTag> registrations = taskRepoManager.scanForTasks();
+		for(Map.Entry<String,RegistrationTag> e : registrations.entrySet()) {
+			String taskId = e.getKey();
+			RegistrationTag r = e.getValue();
+			String taskRepoId = r.getRepository().getName();
+			Task t = taskManager.getTask(taskId);
+			data.get(taskRepoId).getRegisteredTasks().add(t);
+		}
+		
+		List<TaskRepoInfo> result = new LinkedList<>(data.values());
+		Collections.sort(result);
+		return result;
 	}
 	
 	@POST
 	@Path("/register/{taskRepoId}")
 	@ApiOperation(value="Register a new task based on the particular SHA1 from the task repo",response=Task.class)
 	public Task register(@PathParam("taskRepoId") String taskRepoId, @FormParam("sha1") String sha1) throws IOException, InvalidTagFormatException, GitAPIException {
-		
 		String newUuid = taskManager.reserveNewTaskUuid();
 		RegistrationTag r = taskRepoManager.recordRegistration(taskRepoId, sha1, newUuid, false /* disabled */);
 		Task t = taskManager.cloneTask(r);
