@@ -21,7 +21,7 @@ $(document).ready(
 							url : "api/taskrepos",
 							success : function(result) {
 								reportSuccess(result);
-								$("#taskRepoId").val(result[0].name);
+								$("#taskRepoId").val(result[0].taskRepoId);
 							},
 							error : function(xhr,textStatus,errorThrown) {
 								reportError(xhr);
