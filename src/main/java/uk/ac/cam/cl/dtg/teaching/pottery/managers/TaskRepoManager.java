@@ -19,6 +19,7 @@ import com.google.inject.Inject;
 
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
+import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
