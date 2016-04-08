@@ -29,25 +29,41 @@ $(document).ready(
 						});
 					});
 
-			$("#testTaskRepoForm").submit(function(event) {
-				event.preventDefault();
-				$.ajax({
-					url: 'api/taskrepos/test/' + $("#taskRepoId").val(),
-					type: 'POST',
-					data : {"sha1" : $("#taskreposha1").val() },
-					success: function (result) {
-						reportSuccess(result);
-					},
-					error : function(xhr,textStatus,errorThrown) {
-						reportError(xhr);
-					}
-				});
+			$("#testTaskReposButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "POST",
+							url : "api/taskrepos/test/" + $("#taskRepoId").val(),
+							data : {"sha1" : $("#taskreposha1").val() },
+							success : function(result) {
+								reportSuccess(result);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
 
-				return false;				
-			});
 
-			
-			
+			$("#registerTaskButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "POST",
+							url : "api/taskrepos/register/" + $("#taskRepoId").val(),
+							data : {"sha1" : $("#taskreposha1").val() },
+							success : function(result) {
+								reportSuccess(result);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+
+
+
 			$("#listTasksButton").click(
 					function(e) {
 						e.preventDefault();
@@ -64,7 +80,54 @@ $(document).ready(
 						});
 					});
 			
-
+			
+			$("#listAllTasksButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "GET",
+							url : "api/tasks/alltasks",
+							success : function(result) {
+								reportSuccess(result);
+								$("#taskId").val(result[0].taskId);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+			
+			$("#activateTaskButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "POST",
+							url : "api/tasks/" + $("#taskId").val() + "/activate",
+							success : function(result) {
+								reportSuccess(result);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+			
+			$("#deactivateTaskButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "POST",
+							url : "api/tasks/" + $("#taskId").val() + "/deactivate",
+							success : function(result) {
+								reportSuccess(result);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+			
+			
 			$("#startTaskForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({

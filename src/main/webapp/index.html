@@ -9,6 +9,7 @@
 
 	<div style="float: left; width: 30em">
 		<p>TaskRepoId: <input type="text" id="taskRepoId"/></p>
+		<p>TaskRepoSHA1: <input type="text" id="taskreposha1"</p> 
 		<p>TaskId: <input type="text" id="taskId"/></p>
 		<p>RepoId: <input type="text" id="repoId"/></p>
 		<p>RepoTag: <input type="text" id="repoTag" value="HEAD"/></p>
@@ -21,17 +22,19 @@
 		<input type="submit" value="List task repos" id="listTaskReposButton" /><br />
 		
 		<p>Test task repo</p>
-		<form id="testTaskRepoForm">
-			<p>SHA1: <input type="text" id="taskreposha1" name="sha1"/></p>
-			<input type="submit"/>	
-		</form>
+		<input type="submit" value="Test task repo" id="testTaskReposButton" /><br />
+		
+		<p>Register task</p>
+		<input type="submit" value="Register task" id="registerTaskButton" /><br />
 		<hr />
 		
 		<h2>Tasks</h2>
 	
 		<p>Get a list of available tasks</p>
-		<input type="submit" value="List tasks" id="listTasksButton" /><br />
-		
+		<input type="submit" value="List active tasks" id="listTasksButton" /><br />
+		<input type="submit" value="List all tasks" id="listAllTasksButton" /><br />
+		<input type="submit" value="Activate task" id="activateTaskButton" /><br />
+		<input type="submit" value="Deactivate task" id="deactivateTaskButton" /><br />
 		<hr />
 
 		<h2>Repositories</h2>
