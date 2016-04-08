@@ -6,7 +6,6 @@ import java.nio.file.Files;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.UUID;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
@@ -21,6 +20,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.app.RegistrationTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
@@ -72,8 +72,11 @@ public class TaskRepoManager {
 		return new TaskRepo(taskRepoId);
 	}
 
-	public Task register(String taskRepoId, String sha1) throws IOException {
+	public RegistrationTag recordRegistration(String taskRepoId, String sha1, String newUuid, boolean active) throws IOException, GitAPIException {
 		File taskRepoDir = new File(config.getTaskRepoRoot(),taskRepoId);
+		RegistrationTag tag = new RegistrationTag(active, newUuid,taskRepoDir);
+		String tagName = tag.toTagName();
+		
 		if (!taskRepoDir.exists()) {
 			throw new IOException("Failed to open task repository directory");
 		}
@@ -81,20 +84,29 @@ public class TaskRepoManager {
 			try(RevWalk revwalk = new RevWalk(g.getRepository())) {
 				ObjectId id = g.getRepository().resolve(sha1);
 				RevCommit commit = revwalk.parseCommit(id);
-				// TODO: this should be unique and not used for any other tasks
-				String taskUuid = UUID.randomUUID().toString();
+				File taskDir = new File(config.getRegisteredTaskRoot(),newUuid);
 				try {
-					g.tag().setObjectId(commit).setName("task:"+taskUuid).call();
-					Task t = new Task();
-					t.setTaskId(taskUuid);
-					return t;
+					g.tag().setObjectId(commit).setName(tagName).call();
 				} catch (GitAPIException e) {
-					throw new IOException("Failed to write tag in git repository",e);
+					FileUtil.deleteRecursive(taskDir);
+					throw e;
 				}
 			}
 		}
+		return tag;
 	}
 
+	public void removeRegistration(RegistrationTag tag) throws IOException, GitAPIException {
+		File taskRepoDir = tag.getRepository();
+		if (!taskRepoDir.exists()) {
+			throw new IOException("Failed to open task repository directory");
+		}
+		try(Git g = Git.open(taskRepoDir)) {
+			g.tagDelete().setTags(tag.toTagName()).call();
+		}
+	}
+	
+	
 	/**
 	 * Test to see that this checkout of the task actually conforms to what we need.
 	 * 1) make a clone at the required SHA1
