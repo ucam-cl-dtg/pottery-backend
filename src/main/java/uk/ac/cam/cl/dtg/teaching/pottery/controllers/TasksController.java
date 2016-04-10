@@ -1,5 +1,6 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,8 @@ import com.wordnik.swagger.annotations.ApiOperation;
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskRegistrationException;
 
 @Produces("application/json")
 @Path("/tasks")
@@ -31,45 +34,47 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 public class TasksController {
 
 	public static final Logger log = LoggerFactory.getLogger(TasksController.class);
+	private TaskManager taskManager;
 		
 	@Inject
-	public TasksController() {
+	public TasksController(TaskManager taskManager) {
 		super();
+		this.taskManager = taskManager;
 	}
 	
 	@GET
 	@Path("/retired")
 	@ApiOperation(value="Lists all retired tasks",response=Task.class,responseContainer="List",position=0)
 	public Collection<Task> listRetired() {
-		return null;
+		return taskManager.getRetiredTasks();
 	}	
 	
 	@GET
 	@Path("/released")
-	@ApiOperation(value="Lists all registered tasks",response=Task.class,responseContainer="List",position=0)
+	@ApiOperation(value="Lists all released tasks",response=Task.class,responseContainer="List",position=0)
 	public Collection<Task> listReleased() {
-		return null;
+		return taskManager.getReleasedTasks();
 	}
 
 	@GET
-	@Path("/testing")
-	@ApiOperation(value="Lists all test versions of tasks",response=Task.class,responseContainer="List",position=0)
-	public Collection<Task> listTesting() {
-		return null;
+	@Path("/")
+	@ApiOperation(value="Lists all defined tasks",response=Task.class,responseContainer="List",position=0)
+	public Collection<Task> listDefined() {
+		return taskManager.getDefinedTasks();
 	}
 
 	@POST
 	@Path("/create")
 	@ApiOperation(value="Create a new task",response=Task.class)
-	public Task create() {
-		return null;
+	public Task create() throws IOException {
+		return taskManager.createNewTask();
 	}
 	
 	@GET
 	@Path("/{taskId}")
 	@ApiOperation(value="Returns information about a specific task",response=Task.class)
 	public Task getTask(@PathParam("taskId") String taskID) {
-		return null;
+		return taskManager.getTask(taskID);
 	}
 	
 	@POST
@@ -82,8 +87,8 @@ public class TasksController {
 	@POST
 	@Path("/{taskId}/release")
 	@ApiOperation(value="Releases (or updates the released version) of a task. If sha1 is not specified then HEAD is used.",response=Response.class)
-	public Response releaseTask(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) {
-		return null;
+	public Task releaseTask(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException {
+		return taskManager.registerTask(taskID, sha1);
 	}
 	
 	// TODO: we should be able to remove this and replace it with a hook in the gitservlet
