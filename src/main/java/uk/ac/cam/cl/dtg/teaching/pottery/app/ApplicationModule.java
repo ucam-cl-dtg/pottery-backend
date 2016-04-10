@@ -20,10 +20,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.CleanupController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
-import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TaskRepoController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
 import uk.ac.cam.cl.dtg.teaching.pottery.managers.RepoManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskRepoManager;
 
 public class ApplicationModule implements Module {
 
@@ -45,8 +43,6 @@ public class ApplicationModule implements Module {
         binder.bind(Config.class).in(Singleton.class);
         binder.bind(Database.class).in(Singleton.class);
         binder.bind(CleanupController.class);
-        binder.bind(TaskRepoController.class);
-        binder.bind(TaskRepoManager.class).in(Singleton.class);
 	}
 	
 	@Provides @Singleton
