@@ -1,7 +1,12 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wordnik.swagger.annotations.ApiModelProperty;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
@@ -49,7 +54,7 @@ public class Task {
 	 */
 	public static final String TYPE_DEBUGGING = "DEBUGGING";
 	
-	@ApiModelProperty("A unique identifier for the task")
+	@ApiModelProperty("The unique identifier for this task")
 	private String taskId;
 	
 	@ApiModelProperty("The primary skill tested by this task")
@@ -75,19 +80,54 @@ public class Task {
 	
 	@ApiModelProperty("The problem statement as an HTML fragment")
 	private String problemStatement;
-	
-	private boolean active;
-	
-	public Task() {	}
 
+	@ApiModelProperty("Indicates if a task is locked. Locked tasks may not be started or tested")
+	private boolean locked;
+	
 
-	public boolean isActive() {
-		return active;
+	@JsonCreator
+	public Task(@JsonProperty("type") String type, 
+				@JsonProperty("name") String name, 
+				@JsonProperty("criteria") Set<Criterion> criteria, 
+				@JsonProperty("image") String image, 
+				@JsonProperty("difficulty") String difficulty,
+				@JsonProperty("recommendedTimeMinutes") int recommendedTimeMinutes, 
+				@JsonProperty("language") String language, 
+				@JsonProperty("problemStatement") String problemStatement) {
+		super();
+		this.type = type;
+		this.name = name;
+		this.criteria = criteria;
+		this.image = image;
+		this.difficulty = difficulty;
+		this.recommendedTimeMinutes = recommendedTimeMinutes;
+		this.language = language;
+		this.problemStatement = problemStatement;
 	}
 
 
-	public void setActive(boolean active) {
-		this.active = active;
+	public String getTaskId() {
+		return taskId;
+	}
+
+
+	public String getType() {
+		return type;
+	}
+
+
+	public String getName() {
+		return name;
+	}
+
+
+	public Set<Criterion> getCriteria() {
+		return criteria;
+	}
+
+
+	public String getImage() {
+		return image;
 	}
 
 
@@ -95,71 +135,34 @@ public class Task {
 		return difficulty;
 	}
 
-	public void setDifficulty(String difficulty) {
-		this.difficulty = difficulty;
-	}
 
 	public int getRecommendedTimeMinutes() {
 		return recommendedTimeMinutes;
 	}
 
-	public void setRecommendedTimeMinutes(int recommendedTimeMinutes) {
-		this.recommendedTimeMinutes = recommendedTimeMinutes;
-	}
 
 	public String getLanguage() {
 		return language;
 	}
 
-	public void setLanguage(String language) {
-		this.language = language;
-	}
 
 	public String getProblemStatement() {
 		return problemStatement;
 	}
 
-	public void setProblemStatement(String problemStatement) {
-		this.problemStatement = problemStatement;
+
+	public boolean isLocked() {
+		return locked;
 	}
 
-	public String getTaskId() {
-		return taskId;
+
+	public static Task load(File taskDirectory) throws IOException {
+		String taskId = taskDirectory.getName();
+		ObjectMapper o = new ObjectMapper();
+		Task t = o.readValue(new File(taskDirectory,"task.json"),Task.class);
+		t.taskId = taskId;
+		t.locked = false;
+		return t;
 	}
 
-	public void setTaskId(String taskId) {
-		this.taskId = taskId;
-	}
-
-	public String getType() {
-		return type;
-	}
-
-	public void setType(String type) {
-		this.type = type;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public void setName(String name) {
-		this.name = name;
-	}
-
-	public Set<Criterion> getCriteria() {
-		return criteria;
-	}
-
-	public void setCriteria(Set<Criterion> criteria) {
-		this.criteria = criteria;
-	}
-
-	public String getImage() {
-		return image;
-	}
-
-	public void setImage(String image) {
-		this.image = image;
-	}
 }
