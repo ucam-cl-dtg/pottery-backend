@@ -60,7 +60,7 @@ public class RepoController {
 		if (t == null) throw new TaskNotFoundException();
 		if (t.isLocked()) throw new TaskNotAvailableException();
 		
-		Repo r = sourceManager.createRepo(taskId);		
+		Repo r = sourceManager.createRepo(t);		
 		sourceManager.copyFiles(r.getRepoId(), taskManager.getSkeletonRoot(t));
 		return r;
 	}
