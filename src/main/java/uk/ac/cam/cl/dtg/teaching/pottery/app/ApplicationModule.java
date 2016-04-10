@@ -29,7 +29,6 @@ public class ApplicationModule implements Module {
 
 	@Override
 	public void configure(Binder binder) {
-		binder.bind(TasksController.class);
 		binder.bind(SubmissionsController.class);
 		binder.bind(RepoController.class);
 		binder.bind(TasksController.class);
