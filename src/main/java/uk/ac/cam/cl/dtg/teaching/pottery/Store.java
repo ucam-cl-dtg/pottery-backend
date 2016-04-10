@@ -59,7 +59,7 @@ public class Store {
 					try {
 						Submission s = testingQueue.take();
 						Repo r = sourceManager.getRepo(s.getRepoId());
-						Task t = taskManager.getTask(r.getTaskId());
+						Task t = r.isRelease() ? taskManager.getReleasedTask(r.getTaskId()) : taskManager.getTestingTask(r.getTaskId());
 						try {
 							
 							File codeDir = sourceManager.cloneForTesting(s.getRepoId(), s.getTag());
