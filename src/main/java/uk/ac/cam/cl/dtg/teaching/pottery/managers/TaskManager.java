@@ -240,4 +240,25 @@ public class TaskManager {
 		return releasedTasks.get(taskId);
 	}
 		
+	public File getTaskRoot(Task t) {
+		File root = t.isReleased() ? config.getTaskReleaseRoot() : config.getTestingRoot();
+		return new File(root,t.getTaskId());
+	}
+	
+	public File getSkeletonRoot(Task t) {
+		return new File(getTaskRoot(t),"skeleton");
+	}
+	
+	public File getCompileRoot(Task t) {
+		return new File(getTaskRoot(t),"compile");
+	}
+	
+	public File getHarnessRoot(Task t) {
+		return new File(getTaskRoot(t),"harness");
+	}
+
+	public File getValidatorRoot(Task t) {
+		return new File(getTaskRoot(t),"validator");
+	}
+
 }
