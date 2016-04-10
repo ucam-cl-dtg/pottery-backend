@@ -48,6 +48,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 
@@ -55,7 +56,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 public class RepoManager {
 	
 	private File repoRoot;
-	private File testingRoot;
+	private File repoTestingRoot;
 	private String headTag;
 	private String webtagPrefix;
 	
@@ -67,7 +68,7 @@ public class RepoManager {
 	public RepoManager(Config config,Database database) {
 		super();
 		repoRoot = config.getRepoRoot();
-		testingRoot = config.getTestingRoot();
+		repoTestingRoot = config.getRepoTestingRoot();
 		headTag = config.getHeadTag();
 		webtagPrefix = config.getWebtagPrefix();
 		this.database = database;
@@ -82,8 +83,8 @@ public class RepoManager {
 			throw new RepoException("Failed to get repository",e);
 		}
 	}
-	
-	public Repo createRepo(String taskId) throws RepoException, IOException {
+
+	public Repo createRepo(Task task) throws RepoException, IOException {
 		
 		Path repoDir = Files.createTempDirectory(repoRoot.toPath(), "");
 		
@@ -96,7 +97,7 @@ public class RepoManager {
 			throw new RepoException("Failed to initialise git repository",e); 
 		}
 		
-		Repo r = new Repo(repoId,taskId);
+		Repo r = new Repo(repoId,task.getTaskId(),task.isReleased());
 		try (TransactionQueryRunner t = database.getQueryRunner()){
 			r.insert(t);
 			t.commit();
@@ -171,7 +172,7 @@ public class RepoManager {
 	
 	
 	public File cloneForTesting(String repoId, String tag) throws IOException, RepoException {
-		File newLocation = new File(testingRoot,repoId);
+		File newLocation = new File(repoTestingRoot,repoId);
 		if (newLocation.exists()) {
 			FileUtil.deleteRecursive(newLocation);
 		}
