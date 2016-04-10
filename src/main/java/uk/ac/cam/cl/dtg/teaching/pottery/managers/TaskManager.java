@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 import org.eclipse.jgit.api.Git;
@@ -14,167 +13,227 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
-import uk.ac.cam.cl.dtg.teaching.pottery.app.RegistrationTag;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTagFormatException;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
 
 @Singleton
 public class TaskManager {
 
-	private File checkoutLocation;
+	public static final Logger LOG = LoggerFactory.getLogger(TaskManager.class);
 	
-	/**
-	 * A map of taskId (uuid) to Task objects
-	 */
-	private Map<String,Task> tasks;
+	// TasksDefinitions are stored as bare git repos. The task uuid is the name of the repo.
+	// A testing version of each task is checked out (at head revision)
+	// If you release a task you specify the sha1 to release and this is checked out to another directory. New releases just update the checked out version
+	// If you retire a task then the released version is left but the testing version is removed
 
-	/**
-	 * A map of taskId (uiid) to the repository it came from
-	 */
-	private Map<String,RegistrationTag> taskRegistrations;
+	private DockerApi docker;
 	
+	private Config config;
+	
+	private Map<String,Task> definedTasks;
+	private Map<String,Task> releasedTasks;
+	private Map<String,Task> retiredTasks;
+ 	
 	private UUIDGenerator uuidGenerator;
-	
-	private static final Logger log = LoggerFactory.getLogger(TaskManager.class);
 	
 	
 	@Inject
-	public TaskManager(Config config) throws IOException, GitAPIException, InvalidTagFormatException {
-		File taskReposDir = config.getTaskRepoRoot();
-
-		this.checkoutLocation = config.getRegisteredTaskRoot();
-		this.taskRegistrations = TaskRepoManager.scanForTasks(taskReposDir);
-		this.tasks = new HashMap<>();
+	public TaskManager(Config config, DockerApi docker) throws GitAPIException, IOException {
+		this.config = config;
+		this.docker = docker;
 		this.uuidGenerator = new UUIDGenerator();
-		uuidGenerator.reserveAll(taskRegistrations.keySet());
-
-		for (Map.Entry<String,RegistrationTag> entry : taskRegistrations.entrySet()) {
-			String uuid = entry.getKey();
-			RegistrationTag r = entry.getValue();
-			File dir = new File(checkoutLocation,uuid);
-			if (!dir.exists()) {
-				cloneTask(r);
-			}
-			Task t = loadTask(uuid,r.isActive(), new File(dir,"task.json"));
-			if (t!=null) {
-				tasks.put(t.getTaskId(), t);
-			}
-		}		
-	}
-	
-	/**
-	 * Take a clone of the task repository at the version given and use it as a new task
-	 * 
-	 * @param registrationTag
-	 * @return a task object containing information about the task
-	 * @throws InvalidTagFormatException
-	 * @throws GitAPIException
-	 * @throws IOException
-	 */
-	public Task cloneTask(RegistrationTag registrationTag) throws InvalidTagFormatException, GitAPIException, IOException {
+		this.definedTasks = new HashMap<>();
+		this.releasedTasks = new HashMap<>();
+		this.retiredTasks = new HashMap<>();
 		
-		// TODO: we also need to compile the source code for the test...
-		String uuid = registrationTag.getRegisteredTaskUUID();
-		File taskDir = new File(checkoutLocation,uuid);
-		Task t = null;
-		try {
-			try (Git g = Git.cloneRepository().setURI(registrationTag.getRepository().getPath()).setDirectory(taskDir).call()) {
-				g.reset().setMode(ResetType.HARD).setRef(registrationTag.toTagName()).call();
+		for(File f : config.getTaskDefinitionRoot().listFiles()) {
+			if (f.getName().startsWith(".")) continue;
+			String uuid = f.getName();
+			uuidGenerator.reserve(uuid);
+			File taskTestDir = new File(config.getTestingRoot(),uuid);
+			if (!taskTestDir.exists()) {
+				try (Git g = Git.cloneRepository().setURI(f.getPath()).setDirectory(taskTestDir).call()) {}
 			}
-			t = loadTask(uuid,registrationTag.isActive(),new File(taskDir,"task.json"));
+			Task t = Task.load(taskTestDir);
+			definedTasks.put(uuid,t);
 		}
-		finally {
-			if (t == null)
-				FileUtil.deleteRecursive(taskDir);
+		
+		for(File f : config.getTaskReleaseRoot().listFiles()) {
+			if (f.getName().startsWith(".")) continue;
+			String uuid = f.getName();
+			Task t = Task.load(f);
+			releasedTasks.put(uuid,t);
 		}
-		if (t != null) {
-			tasks.put(t.getTaskId(), t);
-			taskRegistrations.put(uuid, registrationTag);
+		
+		for(File f : config.getTaskRetiredRoot().listFiles()) {
+			if (f.getName().startsWith(".")) continue;
+			String uuid = f.getName();
+			Task t = Task.load(f);
+			retiredTasks.put(uuid,t);
 		}
-		return t;		
+		
+		//TODO: add cleanup code for when a register is interrupted
 	}
 	
 	/**
-	 * Allocate a new UUID for a task (make sure its unique)
-	 * @return the new UUID
+	 * Creates a new bare git repo to hold a task a pre-populates it with skeleton files
+	 * @return 
+	 * @throws IOException 
 	 */
-	public String reserveNewTaskUuid() {
-		return uuidGenerator.generate();
+	public Task createNewTask() throws IOException {
+		File taskDefRoot = config.getTaskDefinitionRoot();
+		String taskId = uuidGenerator.generate();
+				
+		File taskDefDir = new File(taskDefRoot,taskId);
+		taskDefDir.mkdir();
+		
+		File taskTestingDir = new File(config.getTaskTestingRoot(),taskId);
+		
+		File templateRepo = new File(config.getTaskTemplateRoot(),"standard");
+		
+		try (Git g = Git.cloneRepository().setURI(templateRepo.getPath()).setBare(true).setDirectory(taskDefDir).call()) {
+			try (Git g2 = Git.cloneRepository().setURI(taskDefDir.getPath()).setDirectory(taskTestingDir).call()) {
+				Task t = Task.load(taskTestingDir);
+				definedTasks.put(t.getTaskId(), t);
+				return t;
+			}
+		} catch (IllegalStateException|GitAPIException e) {
+			IOException toThrow = new IOException("Failed to initialise git repository",e);
+			try {
+				FileUtil.deleteRecursive(taskDefDir);
+			} catch (IOException e1) {
+				toThrow.addSuppressed(e1);
+			}
+			try {
+				FileUtil.deleteRecursive(taskTestingDir);
+			} catch (IOException e1) {
+				toThrow.addSuppressed(e1);
+			}
+			throw toThrow;
+		}
 	}
 	
-	public RegistrationTag getRegistration(String taskId) {
-		return taskRegistrations.get(taskId);
-	}
-	
-	public Map<String,RegistrationTag> getRegistrations() {
-		return taskRegistrations;
-	}
-
 	/**
-	 * Load a task from its spec file
+	 * Register this particular version of the task for others to use.
 	 * 
-	 * @param taskId The id of the task
-	 * @param active Whether the task is active or not
-	 * @param taskSpecFile The file containing the spec for the task
-	 * @return a task object with the task information in it
+	 * This works by cloning (if necessary) the task bare repo and then resetting it to the desired sha1. Re-registering a task just changes the version that is checked out.
+	 *  
+	 *  @param taskId is the uuid of the task to register
+	 *  @param sha1 is the version of the commit to register
+	 * @throws TaskRegistrationException 
 	 */
-	public static Task loadTask(String taskId, boolean active, File taskSpecFile) {
+	public Task registerTask(String taskId, String sha1) throws TaskRegistrationException {
+		File taskDefDir = new File(config.getTaskDefinitionRoot(),taskId);
+		File taskStagingDir = new File(config.getTaskStagingRoot(),taskId);
+		File taskReleaseDir = new File(config.getTaskReleaseRoot(),taskId);
+		File taskOutgoingDir = new File(config.getTaskOutgoingRoot(),taskId);
+		
+		Task t;
 		try {
-			ObjectMapper o = new ObjectMapper();
-			Task t = o.readValue(taskSpecFile, Task.class);
-			t.setTaskId(taskId);
-			t.setActive(active);
-			return t;
-		} catch (IOException e) {
-			log.warn("Failed to load task "+taskSpecFile,e);
-			return null;
+			// clone the registered task root in to the staging directory
+			// reset to the sha1
+			try {
+				try(Git g = Git.cloneRepository().setURI(taskDefDir.getPath()).setDirectory(taskStagingDir).call()) {
+					g.reset().setRef(sha1).setMode(ResetType.HARD).call();
+				}
+			}
+			catch (GitAPIException e) {
+				throw new TaskRegistrationException("Failed to clone task definition",e);
+			}
+			
+			try {
+				t = Task.load(taskStagingDir);
+			} catch (IOException e) {
+				throw new TaskRegistrationException("Failed to load task definition",e);
+				
+			}
+			
+			// Compile the testing code
+			ExecResponse r = ContainerHelper.execTaskCompilation(taskStagingDir,t.getImage(),docker,config);
+			if (!r.isSuccess()) {
+				throw new TaskRegistrationException("Failed to compile testing code in task. "+r.getResponse());
+			}
+			
+			// Test it against the model answer
+			CompilationResponse r2 = ContainerHelper.execCompilation(new File(taskStagingDir,"solution"), new File(taskStagingDir,"compile"),t.getImage(), docker,config);
+			if (!r2.isSuccess()) {
+				throw new TaskRegistrationException("Failed to compile solution when testing task for release. "+r2.getFailMessage());
+			}
+			HarnessResponse r3 = ContainerHelper.execHarness(new File(taskStagingDir,"solution"), new File(taskStagingDir,"harness"), t.getImage(), docker,config);
+			if (!r3.isSuccess()) {
+				throw new TaskRegistrationException("Failed to run harness when testing task for release. "+r3.getFailMessage());
+			}
+			ValidationResponse r4 = ContainerHelper.execValidator(new File(taskStagingDir,"validator"), r3, t.getImage(), docker,config);
+			if (!r4.isSuccess()) {
+				throw new TaskRegistrationException("Failed to validate harness results when testing task for release. "+r4.getFailMessage());
+			}
+		} catch (TaskRegistrationException e) {
+			try {
+				FileUtil.deleteRecursive(taskStagingDir);
+			}
+			catch (IOException e1) {
+				e.addSuppressed(e1);
+			}
+			throw e;
 		}
-	}
-	
-	public Task getTask(String taskId) {
-		return tasks.get(taskId);
-	}
 
-	public Collection<Task> getAllTasks(boolean includeDisabledTasks) {
-		List<Task> result = new LinkedList<Task>();
-		for(Task t : tasks.values()) {
-			if (t.isActive() || includeDisabledTasks) {
-				result.add(t);
+		if (releasedTasks.containsKey(taskId)) {
+			//releasedTasks.get(taskId).setLocked(true);
+			// TODO: abort all running tests
+			taskReleaseDir.renameTo(taskOutgoingDir);
+		}
+		
+		// We shuffle these directories around so that we can recover if the server goes down in the middle
+		taskStagingDir.renameTo(taskReleaseDir);
+
+		if (taskOutgoingDir.exists()) {
+			try {
+				FileUtil.deleteRecursive(taskOutgoingDir);
+			} catch (IOException e) {
+				LOG.warn("Failed to delete outgoing task directory "+taskOutgoingDir.getPath(),e);
 			}
 		}
-		return result;
+		
+		releasedTasks.remove(taskId);
+		releasedTasks.put(taskId, t);
+		
+		return t;
 	}
 	
 	/**
-	 * Return the directory for this task that contains the skeleton or template code for the task
-	 * @param taskId
-	 * @return
+	 * Moves a task to the retired list. People will not be able to start new submissions (or retest existing ones)
+	 * 
+	 * @param taskId the uuid of the task to retire
 	 */
-	public File getSkeletonDirectory(String taskId) {
-		return new File(new File(checkoutLocation,taskId),"skeleton");
+	public void retireTasks(String taskId) {
+		
+	}
+	
+	public Collection<Task> getDefinedTasks() {
+		return new LinkedList<Task>(definedTasks.values());
+	}
+	
+	public Collection<Task> getReleasedTasks() {
+		return new LinkedList<Task>(releasedTasks.values());
 	}
 
-	/** 
-	 * Return the directory that contains the compilation script for this task
-	 * @param taskId
-	 * @return
-	 */
-	public File getCompileDirectory(String taskId) {
-		return new File(new File(checkoutLocation,taskId),"compile");
+	public Collection<Task> getRetiredTasks() {
+		return new LinkedList<Task>(retiredTasks.values());
 	}
 
-	public File getHarnessDirectory(String taskId) {
-		return new File(new File(checkoutLocation,taskId),"harness");
+	public Task getTask(String taskId) {
+		return definedTasks.get(taskId);
 	}
-
-	public File getValidatorDirectory(String taskId) {
-		return new File(new File(checkoutLocation,taskId),"validator");
-	}
+		
 }
