@@ -12,6 +12,7 @@ public class Config {
 	public static final Logger LOG = LoggerFactory.getLogger(Config.class);
 	
 	private static final File PREFIX= new File("/opt/pottery");
+	private static final File TASK_PREFIX = new File(PREFIX,"tasks");
 	
 	private String userName;
 
@@ -78,12 +79,31 @@ public class Config {
 		return "online-";
 	}
 
-	public File getTaskRepoRoot() {
-		return new File(PREFIX,"tasks-bare");
+	public File getTaskDefinitionRoot() {
+		return new File(TASK_PREFIX,"def");
 	}
 	
-	public File getRegisteredTaskRoot() {
-		return new File(PREFIX,"working-tasks");
+	public File getTaskTestingRoot() {
+		return new File(TASK_PREFIX,"test");
 	}
 	
+	public File getTaskReleaseRoot() {
+		return new File(TASK_PREFIX,"release");
+	}
+	
+	public File getTaskRetiredRoot() {
+		return new File(TASK_PREFIX,"retired");
+	}
+	
+	public File getTaskTemplateRoot() {
+		return new File(TASK_PREFIX,"template");
+	}
+	
+	public File getTaskStagingRoot() {
+		return new File(TASK_PREFIX,"staging");
+	}
+	
+	public File getTaskOutgoingRoot() {
+		return new File(TASK_PREFIX,"outgoing");
+	}
 }
