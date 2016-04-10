@@ -63,8 +63,8 @@ public class Config {
 		return new File(PREFIX,"repos");
 	}
 	
-	public File getTestingRoot() {
-		return new File(PREFIX,"working-test");
+	public File getRepoTestingRoot() {
+		return new File(PREFIX,"repo-testing");
 	}
 	
 	public File getLibRoot() {
