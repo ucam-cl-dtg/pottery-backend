@@ -65,21 +65,21 @@ public class TaskManager {
 			if (!taskTestDir.exists()) {
 				try (Git g = Git.cloneRepository().setURI(f.getPath()).setDirectory(taskTestDir).call()) {}
 			}
-			Task t = Task.load(taskTestDir);
+			Task t = Task.load(taskTestDir,false);
 			definedTasks.put(uuid,t);
 		}
 		
 		for(File f : config.getTaskReleaseRoot().listFiles()) {
 			if (f.getName().startsWith(".")) continue;
 			String uuid = f.getName();
-			Task t = Task.load(f);
+			Task t = Task.load(f,true);
 			releasedTasks.put(uuid,t);
 		}
 		
 		for(File f : config.getTaskRetiredRoot().listFiles()) {
 			if (f.getName().startsWith(".")) continue;
 			String uuid = f.getName();
-			Task t = Task.load(f);
+			Task t = Task.load(f,false);
 			retiredTasks.put(uuid,t);
 		}
 		
@@ -104,7 +104,7 @@ public class TaskManager {
 		
 		try (Git g = Git.cloneRepository().setURI(templateRepo.getPath()).setBare(true).setDirectory(taskDefDir).call()) {
 			try (Git g2 = Git.cloneRepository().setURI(taskDefDir.getPath()).setDirectory(taskTestingDir).call()) {
-				Task t = Task.load(taskTestingDir);
+				Task t = Task.load(taskTestingDir,false);
 				definedTasks.put(t.getTaskId(), t);
 				return t;
 			}
@@ -153,7 +153,7 @@ public class TaskManager {
 			}
 			
 			try {
-				t = Task.load(taskStagingDir);
+				t = Task.load(taskStagingDir,true);
 			} catch (IOException e) {
 				throw new TaskRegistrationException("Failed to load task definition",e);
 				
@@ -234,6 +234,10 @@ public class TaskManager {
 
 	public Task getTask(String taskId) {
 		return definedTasks.get(taskId);
+	}
+
+	public Task getReleasedTask(String taskId) {
+		return releasedTasks.get(taskId);
 	}
 		
 }
