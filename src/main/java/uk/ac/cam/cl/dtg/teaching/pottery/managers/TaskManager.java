@@ -61,7 +61,7 @@ public class TaskManager {
 			if (f.getName().startsWith(".")) continue;
 			String uuid = f.getName();
 			uuidGenerator.reserve(uuid);
-			File taskTestDir = new File(config.getTestingRoot(),uuid);
+			File taskTestDir = new File(config.getTaskTestingRoot(),uuid);
 			if (!taskTestDir.exists()) {
 				try (Git g = Git.cloneRepository().setURI(f.getPath()).setDirectory(taskTestDir).call()) {}
 			}
@@ -232,7 +232,7 @@ public class TaskManager {
 		return new LinkedList<Task>(retiredTasks.values());
 	}
 
-	public Task getTask(String taskId) {
+	public Task getTestingTask(String taskId) {
 		return definedTasks.get(taskId);
 	}
 
@@ -241,7 +241,7 @@ public class TaskManager {
 	}
 		
 	public File getTaskRoot(Task t) {
-		File root = t.isReleased() ? config.getTaskReleaseRoot() : config.getTestingRoot();
+		File root = t.isReleased() ? config.getTaskReleaseRoot() : config.getTaskTestingRoot();
 		return new File(root,t.getTaskId());
 	}
 	
