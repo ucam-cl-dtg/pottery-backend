@@ -55,12 +55,13 @@ public class RepoController {
 	@Path("/")
 	@ApiOperation(value="Start a new repository",
 		notes="Starts a new repository for solving the specified task",position=0)
-	public Repo makeRepo(@FormParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException {
-		Task t = taskManager.getTask(taskId);
+	public Repo makeRepo(@FormParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException {
+		Task t = taskManager.getReleasedTask(taskId);
 		if (t == null) throw new TaskNotFoundException();
-
+		if (t.isLocked()) throw new TaskNotAvailableException();
+		
 		Repo r = sourceManager.createRepo(taskId);		
-		sourceManager.copyFiles(r.getRepoId(), taskManager.getSkeletonDirectory(taskId));
+		sourceManager.copyFiles(r.getRepoId(), taskManager.getSkeletonRoot(t));
 		return r;
 	}
 	
