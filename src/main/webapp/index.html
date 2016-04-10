@@ -8,28 +8,20 @@
 <body>
 
 	<div style="float: left; width: 30em">
-		<p>TaskRepoId: <input type="text" id="taskRepoId"/></p>
-		<p>TaskRepoSHA1: <input type="text" id="taskreposha1"</p> 
 		<p>TaskId: <input type="text" id="taskId"/></p>
+		<p>TaskSHA1: <input type="text" id="tasksha1" value="HEAD"/></p> 
 		<p>RepoId: <input type="text" id="repoId"/></p>
 		<p>RepoTag: <input type="text" id="repoTag" value="HEAD"/></p>
 		<p>SubmissionTag: <input type="text" id="submissionTag"/></p>
 		<hr />
 		
-		<h2>Task repos</h2>
-		
-		<input type="submit" value="List task repos" id="listTaskReposButton" /><br />
-		<input type="submit" value="Test task repo" id="testTaskReposButton" /><br />
-		<input type="submit" value="Register task" id="registerTaskButton" /><br />
-		<hr />
-		
 		<h2>Tasks</h2>
-	
-		<p>Get a list of available tasks</p>
-		<input type="submit" value="List active tasks" id="listTasksButton" /><br />
-		<input type="submit" value="List all tasks" id="listAllTasksButton" /><br />
-		<input type="submit" value="Activate task" id="activateTaskButton" /><br />
-		<input type="submit" value="Deactivate task" id="deactivateTaskButton" /><br />
+		
+		<input type="submit" value="List tasks" id="listTasksButton" /><br />
+		<input type="submit" value="List released tasks" id="listReleasedTasksButton" /><br />
+		<input type="submit" value="List retiredTasks" id="listRetiredTasksButton" /><br />
+		<input type="submit" value="Create new task" id="createTaskButton" /><br />
+		<input type="submit" value="Release task" id="releaseTaskButton" /><br />
 		<hr />
 
 		<h2>Repositories</h2>

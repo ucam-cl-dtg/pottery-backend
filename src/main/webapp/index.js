@@ -13,57 +13,6 @@ $(document).ready(
 				$("#error pre").text(JSON.stringify($.parseJSON(xhr.responseText),undefined,2));
 			}
 
-			$("#listTaskReposButton").click(
-					function(e) {
-						e.preventDefault();
-						$.ajax({
-							type : "GET",
-							url : "api/taskrepos",
-							success : function(result) {
-								reportSuccess(result);
-								$("#taskRepoId").val(result[0].taskRepoId);
-							},
-							error : function(xhr,textStatus,errorThrown) {
-								reportError(xhr);
-							}
-						});
-					});
-
-			$("#testTaskReposButton").click(
-					function(e) {
-						e.preventDefault();
-						$.ajax({
-							type : "POST",
-							url : "api/taskrepos/test/" + $("#taskRepoId").val(),
-							data : {"sha1" : $("#taskreposha1").val() },
-							success : function(result) {
-								reportSuccess(result);
-							},
-							error : function(xhr,textStatus,errorThrown) {
-								reportError(xhr);
-							}
-						});
-					});
-
-
-			$("#registerTaskButton").click(
-					function(e) {
-						e.preventDefault();
-						$.ajax({
-							type : "POST",
-							url : "api/taskrepos/register/" + $("#taskRepoId").val(),
-							data : {"sha1" : $("#taskreposha1").val() },
-							success : function(result) {
-								reportSuccess(result);
-							},
-							error : function(xhr,textStatus,errorThrown) {
-								reportError(xhr);
-							}
-						});
-					});
-
-
-
 			$("#listTasksButton").click(
 					function(e) {
 						e.preventDefault();
@@ -79,14 +28,45 @@ $(document).ready(
 							}
 						});
 					});
-			
-			
-			$("#listAllTasksButton").click(
+
+			$("#listReleasedTasksButton").click(
 					function(e) {
 						e.preventDefault();
 						$.ajax({
 							type : "GET",
-							url : "api/tasks/alltasks",
+							url : "api/tasks/released",
+							success : function(result) {
+								reportSuccess(result);
+								$("#taskId").val(result[0].taskId);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+
+			$("#listRetiredTasksButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "GET",
+							url : "api/tasks/retired",
+							success : function(result) {
+								reportSuccess(result);
+								$("#taskId").val(result[0].taskId);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+
+			$("#createTaskButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "POST",
+							url : "api/tasks/create",
 							success : function(result) {
 								reportSuccess(result);
 								$("#taskId").val(result[0].taskId);
@@ -97,12 +77,13 @@ $(document).ready(
 						});
 					});
 			
-			$("#activateTaskButton").click(
+			$("#releaseTaskButton").click(
 					function(e) {
 						e.preventDefault();
 						$.ajax({
 							type : "POST",
-							url : "api/tasks/" + $("#taskId").val() + "/activate",
+							url : "api/tasks/" + $("#taskId").val()+"/release",
+							data : {'sha1' : $("#tasksha1").val() },
 							success : function(result) {
 								reportSuccess(result);
 							},
@@ -111,21 +92,7 @@ $(document).ready(
 							}
 						});
 					});
-			
-			$("#deactivateTaskButton").click(
-					function(e) {
-						e.preventDefault();
-						$.ajax({
-							type : "POST",
-							url : "api/tasks/" + $("#taskId").val() + "/deactivate",
-							success : function(result) {
-								reportSuccess(result);
-							},
-							error : function(xhr,textStatus,errorThrown) {
-								reportError(xhr);
-							}
-						});
-					});
+
 			
 			
 			$("#startTaskForm").submit(function(event) {
