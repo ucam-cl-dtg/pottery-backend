@@ -6,48 +6,50 @@ import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.BeanHandler;
 
 public class Repo {
-
-	private String _id;
 	
 	private String repoId;
 	private String taskId;
+	private boolean release;
 	
-	public Repo(String repoId, String taskId) {
+	public Repo() {}
+	
+	public Repo(String repoId, String taskId, boolean release) {
 		super();
 		this.repoId = repoId;
 		this.taskId = taskId;
+		this.release = release;
 	}
 	
 	
-	public Repo() {
-		super();
-	}
-
-
-	public String get_id() {
-		return _id;
-	}
-	public void set_id(String _id) {
-		this._id = _id;
-	}
-	public String getRepoId() {
-		return repoId;
-	}
 	public void setRepoId(String repoId) {
 		this.repoId = repoId;
 	}
-	public String getTaskId() {
-		return taskId;
-	}
+
 	public void setTaskId(String taskId) {
 		this.taskId = taskId;
 	}
+
+	public void setRelease(boolean release) {
+		this.release = release;
+	}
+
+	public String getRepoId() {
+		return repoId;
+	}
+
+	public String getTaskId() {
+		return taskId;
+	}
 	
+	public boolean isRelease() {
+		return release;
+	}
+
 	public static Repo getByRepoId(String repoId, QueryRunner q) throws SQLException {
 		return q.query("SELECT * from repos where repoid=?",new BeanHandler<Repo>(Repo.class),repoId);
 	}
 	
 	public void insert(QueryRunner q) throws SQLException {
-		q.update("INSERT INTO repos(repoid,taskid) values (?,?)",repoId,taskId);
+		q.update("INSERT INTO repos(repoid,taskid,release) values (?,?,?)",repoId,taskId,release);
 	}
 }
