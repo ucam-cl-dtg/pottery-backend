@@ -74,7 +74,7 @@ public class TasksController {
 	@Path("/{taskId}")
 	@ApiOperation(value="Returns information about a specific task",response=Task.class)
 	public Task getTask(@PathParam("taskId") String taskID) {
-		return taskManager.getTask(taskID);
+		return taskManager.getTestingTask(taskID);
 	}
 	
 	@POST
