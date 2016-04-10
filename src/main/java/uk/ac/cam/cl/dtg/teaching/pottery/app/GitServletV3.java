@@ -8,7 +8,7 @@ import org.eclipse.jgit.http.server.GitServlet;
 @SuppressWarnings("serial")
 @WebServlet(urlPatterns = { "/git/*" }, 
 initParams = { 
-		@WebInitParam(name = "base-path", value="/opt/pottery/tasks-bare"),
+		@WebInitParam(name = "base-path", value="/opt/pottery/tasks/def"),
 		@WebInitParam(name = "export-all", value="true")
 })
 public class GitServletV3 extends GitServlet {
