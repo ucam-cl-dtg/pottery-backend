@@ -92,6 +92,7 @@ public class ContainerHelper {
 	public static ExecResponse exec_container(ContainerHelper.PathPair[] mapping, String command, String imageName, String stdin, DockerApi docker, Config serverConfig) {				
 		try {
 			String containerName = "pottery-"+counter.incrementAndGet();
+			LOG.info("Creating container {}",containerName);
 			DockerUtil.deleteContainerByName(containerName,docker);
 			ContainerConfig config = new ContainerConfig();
 			config.setOpenStdin(true);
@@ -108,6 +109,7 @@ public class ContainerHelper {
 				ContainerStartConfig startConfig = new ContainerStartConfig();
 				String[] binds = new String[mapping.length];
 				for(int i=0;i<mapping.length;++i) {
+					LOG.info("Added mapping {} -> {}",mapping[i].getHost().getPath(),mapping[i].getContainer().getPath());
 					binds[i] = DockerUtil.bind(mapping[i].getHost(),mapping[i].getContainer());
 				}
 				startConfig.setBinds(binds);
