@@ -84,7 +84,9 @@ public class Task {
 	@ApiModelProperty("Indicates if a task is locked. Locked tasks may not be started or tested")
 	private boolean locked;
 	
-
+	@ApiModelProperty("Indicates if this is a released version of a task or a testing version")
+	private boolean released;
+	
 	@JsonCreator
 	public Task(@JsonProperty("type") String type, 
 				@JsonProperty("name") String name, 
@@ -155,13 +157,17 @@ public class Task {
 		return locked;
 	}
 
+	public boolean isReleased() {
+		return released;
+	}
 
-	public static Task load(File taskDirectory) throws IOException {
+	public static Task load(File taskDirectory, boolean released) throws IOException {
 		String taskId = taskDirectory.getName();
 		ObjectMapper o = new ObjectMapper();
 		Task t = o.readValue(new File(taskDirectory,"task.json"),Task.class);
 		t.taskId = taskId;
 		t.locked = false;
+		t.released = released;
 		return t;
 	}
 
