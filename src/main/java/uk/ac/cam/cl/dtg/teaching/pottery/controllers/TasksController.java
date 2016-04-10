@@ -1,17 +1,17 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Response;
 
-import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,42 +22,76 @@ import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
-import uk.ac.cam.cl.dtg.teaching.pottery.app.RegistrationTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskRepoManager;
 
 @Produces("application/json")
 @Path("/tasks")
 @Api(value = "/tasks", description = "Manages the descriptions of the programming questions.",position=0)
 public class TasksController {
 
-	@SuppressWarnings("unused")
-	private static final Logger log = LoggerFactory.getLogger(TasksController.class);
-	
-	private TaskManager taskManager;
-	private TaskRepoManager taskRepoManager;
-	
+	public static final Logger log = LoggerFactory.getLogger(TasksController.class);
+		
 	@Inject
-	public TasksController(TaskManager taskManager, TaskRepoManager taskRepoManager) {
+	public TasksController() {
 		super();
-		this.taskManager = taskManager;
-		this.taskRepoManager = taskRepoManager;
+	}
+	
+	@GET
+	@Path("/retired")
+	@ApiOperation(value="Lists all retired tasks",response=Task.class,responseContainer="List",position=0)
+	public Collection<Task> listRetired() {
+		return null;
+	}	
+	
+	@GET
+	@Path("/released")
+	@ApiOperation(value="Lists all registered tasks",response=Task.class,responseContainer="List",position=0)
+	public Collection<Task> listReleased() {
+		return null;
 	}
 
 	@GET
-	@Path("/")
-	@ApiOperation(value="Lists all available active tasks",response=Task.class,responseContainer="List",position=0)
-	public Collection<Task> listActive() {
-		return taskManager.getAllTasks(false);
+	@Path("/testing")
+	@ApiOperation(value="Lists all test versions of tasks",response=Task.class,responseContainer="List",position=0)
+	public Collection<Task> listTesting() {
+		return null;
 	}
 
+	@POST
+	@Path("/create")
+	@ApiOperation(value="Create a new task",response=Task.class)
+	public Task create() {
+		return null;
+	}
+	
 	@GET
-	@Path("/alltasks")
-	@ApiOperation(value="Lists all tasks including disabled ones",response=Task.class,responseContainer="List",position=0)
-	public Collection<Task> listAllTasks() {
-		return taskManager.getAllTasks(true);
+	@Path("/{taskId}")
+	@ApiOperation(value="Returns information about a specific task",response=Task.class)
+	public Task getTask(@PathParam("taskId") String taskID) {
+		return null;
+	}
+	
+	@POST
+	@Path("/{taskId}/retire")
+	@ApiOperation(value="Retires a task and removes it from the list of available ones. This doesn't delete it (because people might have tried solving it).",response=Response.class)
+	public Response retireTask(@PathParam("taskId") String taskID) {
+		return null;
+	}
+	
+	@POST
+	@Path("/{taskId}/release")
+	@ApiOperation(value="Releases (or updates the released version) of a task. If sha1 is not specified then HEAD is used.",response=Response.class)
+	public Response releaseTask(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) {
+		return null;
+	}
+	
+	// TODO: we should be able to remove this and replace it with a hook in the gitservlet
+	@POST
+	@Path("/{taskId}/test")
+	@ApiOperation(value="Update the checkout of the testing version of the task to HEAD.",response=Response.class)
+	public Response testTask(@PathParam("taskId") String taskID) {
+		return null;
 	}
 	
 	
@@ -105,32 +139,5 @@ public class TasksController {
 	@ApiOperation(value="Lists the available programming languages",position=3)
 	public List<String>	listLanguages() {
 		return ImmutableList.of("java");
-	}
-			
-	@POST
-	@Path("/{taskId}/activate")
-	@ApiOperation(value="Activate a task. This makes is appear in the lists of available problems to solve",position=1)
-	public Task activateTask(@PathParam("taskId") String taskId) throws IOException, GitAPIException {
-		return changeTaskActivation(taskId, true);
-	}
-	
-	private Task changeTaskActivation(String taskId, boolean active) throws IOException, GitAPIException {
-		RegistrationTag tag = taskManager.getRegistration(taskId);
-		String sha1 = tag.lookupSHA1();
-		taskRepoManager.removeRegistration(tag);
-		taskRepoManager.recordRegistration(tag.getRepository().getName(), sha1, taskId, active);
-		Task t = taskManager.getTask(taskId);
-		t.setActive(active);
-		tag.setActive(active);
-		return t;
-	}
-	
-
-	@POST
-	@Path("/{taskId}/deactivate")
-	@ApiOperation(value="Deactivate a task. This makes it invisible in the lists of problems to solve. You can't delete a task because people might have solutions to it.",position=1)
-	public Task deactivateTask(@PathParam("taskId") String taskId) throws IOException, GitAPIException {
-		return changeTaskActivation(taskId, false);
-	}
-	
+	}	
 }
