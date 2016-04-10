@@ -31,7 +31,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
 @Singleton
 public class Store {
 
-	private static final Logger LOG = LoggerFactory.getLogger(Store.class); 
+	public static final Logger LOG = LoggerFactory.getLogger(Store.class); 
 			
 	public LinkedBlockingQueue<Submission> testingQueue = new LinkedBlockingQueue<Submission>();
 	
@@ -60,6 +60,7 @@ public class Store {
 						Submission s = testingQueue.take();
 						Repo r = sourceManager.getRepo(s.getRepoId());
 						Task t = r.isRelease() ? taskManager.getReleasedTask(r.getTaskId()) : taskManager.getTestingTask(r.getTaskId());
+						LOG.info("Testing {},released={},id={}",t.getName(),t.isReleased(),t.getTaskId());
 						try {
 							
 							File codeDir = sourceManager.cloneForTesting(s.getRepoId(), s.getTag());
