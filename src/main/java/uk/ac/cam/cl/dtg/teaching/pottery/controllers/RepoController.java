@@ -109,7 +109,7 @@ public class RepoController {
 	
 	@POST
 	@Path("/{repoId}/reset/{tag}")
-	@ApiOperation(value="Reset a repository to the specified tag (UNIMPLEMENTED)",position=5)
+	@ApiOperation(value="Set the contents of the repository to be what it was at this particular tag",position=5)
 	public Response reset(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws IOException, RepoException {
 		sourceManager.reset(repoId, tag);
 		return Response.ok().entity("{\"message\":\"OK\"}").build();

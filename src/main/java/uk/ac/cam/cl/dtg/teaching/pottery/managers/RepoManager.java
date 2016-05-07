@@ -22,6 +22,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
+import org.eclipse.jgit.api.RevertCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.AmbiguousObjectException;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
@@ -286,18 +287,35 @@ public class RepoManager {
 		}
 	}
 
+	/**
+	 * Set the contents of the repository to be the same as at the particular tag. Note that this does a git revert and not a reset.
+	 * 
+	 * @param repoId
+	 * @param tag
+	 * @throws IOException
+	 * @throws RepoException
+	 */
 	public void reset(String repoId, String tag) throws IOException, RepoException {
 		synchronized (getMutex(repoId)) {
 			try (Git git = Git.open(new File(repoRoot,repoId))) {
-				try {
-					git.reset().setRef(tag).setMode(ResetType.HARD).call();
+				Repository r = git.getRepository();
+				Ref tagRef = r.findRef(tag);
+				Ref peeled = r.peel(tagRef);
+				ObjectId tagObjectId = peeled != null ? peeled.getPeeledObjectId() : tagRef.getObjectId();
+				ObjectId headObjectId = r.findRef("HEAD").getObjectId();
+
+				RevertCommand rev = git.revert();
+				for(RevCommit c : git.log().addRange(tagObjectId,headObjectId).call()) {
+					rev = rev.include(c);
 				}
+				rev.call();
+			}
 				catch (GitAPIException e) {
 					throw new RepoException("Failed to reset repo to tag "+tag,e);
 				}
 			}
 		}
-	}
+	
 	
 	public void deleteFile(String repoId, String fileName) throws IOException, RepoException {
 		synchronized (getMutex(repoId)) {
