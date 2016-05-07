@@ -117,6 +117,21 @@ $(document).ready(
 				return false;				
 			});
 
+			$("#listRepoTags").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/repo/'+$("#repoId").val(),
+					type: 'GET',
+					success: function (result) {
+						reportSuccess(result);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+
+				return false;				
+			});
 			
 			$("#listRepo").submit(function(event) {
 				event.preventDefault();

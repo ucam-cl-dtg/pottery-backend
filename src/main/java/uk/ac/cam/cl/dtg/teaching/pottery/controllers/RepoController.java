@@ -65,6 +65,13 @@ public class RepoController {
 		return r;
 	}
 	
+	@GET
+	@Path("/{repoId}")
+	@ApiOperation(value="List all the tags in repository",response=String.class,responseContainer="List")
+	public List<String> listTags(@PathParam("repoId") String repoId) throws RepoException, IOException {
+		return sourceManager.listTags(repoId);
+	}
+	
 	@GET 
 	@Path("/{repoId}/{tag}")
 	@ApiOperation(value="List all the files in the repository",response=String.class,responseContainer="List",position=1)

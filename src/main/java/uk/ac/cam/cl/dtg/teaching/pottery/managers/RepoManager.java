@@ -287,6 +287,22 @@ public class RepoManager {
 		}
 	}
 
+	public List<String> listTags(String repoId) throws RepoException, IOException {
+		String prefix = Constants.R_TAGS+webtagPrefix;
+		synchronized (getMutex(repoId)) {
+			File repoDir = new File(repoRoot,repoId);
+			try (Git g = Git.open(repoDir)) {
+				return g.tagList().call().stream().
+						filter(t -> t.getName().startsWith(prefix)).
+						map(t -> t.getName().substring(Constants.R_TAGS.length())).
+						collect(Collectors.toList());
+			}
+			catch (GitAPIException e) {
+				throw new RepoException("Failed to get tag list",e);
+			}
+		}
+	}
+	
 	/**
 	 * Set the contents of the repository to be the same as at the particular tag. Note that this does a git revert and not a reset.
 	 * 
