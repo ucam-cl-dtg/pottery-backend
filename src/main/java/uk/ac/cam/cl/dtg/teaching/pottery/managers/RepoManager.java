@@ -15,6 +15,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.StreamingOutput;
@@ -269,7 +270,7 @@ public class RepoManager {
 						try {
 							value = Integer.parseInt(tagName.substring(prefix.length()));
 						} catch (NumberFormatException e) {
-							throw new RepoException("Failed to parse tag name "+tagName);						
+							throw new RepoException("Failed to parse tag name "+tagName,e);						
 						}
 						if (value > max) max = value;
 					}				
@@ -280,7 +281,7 @@ public class RepoManager {
 				try {
 					git.tag().setName(newTag).call();
 				} catch (GitAPIException e) {
-					throw new RepoException("Failed to apply tag "+newTag+" to repo");
+					throw new RepoException("Failed to apply tag "+newTag+" to repo",e);
 				}
 				return newTag;
 			}			
@@ -439,6 +440,5 @@ public class RepoManager {
 		}
 		return mutex;
 	}
-
 	
 }
