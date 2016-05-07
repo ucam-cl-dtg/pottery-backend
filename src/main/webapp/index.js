@@ -4,13 +4,17 @@ $(document).ready(
 			var submissionId = 0;
 			
 			var reportSuccess = function(result) {
-				$("#assignmentsList pre").text(JSON.stringify(result,undefined,2));
-				$("#error pre").text("");
+//				$("#assignmentsList pre").text(JSON.stringify(result,undefined,2));
+//				$("#error pre").text("");
+				$("#json").JSONView(result, {nl2br:true});
+				$("#error").text("");
 			}
 
 			var reportError = function(xhr) {
-				$("#assignmentsList pre").text("Error");
-				$("#error pre").text(JSON.stringify($.parseJSON(xhr.responseText),undefined,2));
+				$("#json").text("Error");
+				$("#error").JSONView($.parseJSON(xhr.responseText));
+//				$("#assignmentsList pre").text("Error");
+//				$("#error pre").text(JSON.stringify($.parseJSON(xhr.responseText),undefined,2));
 			}
 
 			$("#listTasksButton").click(
