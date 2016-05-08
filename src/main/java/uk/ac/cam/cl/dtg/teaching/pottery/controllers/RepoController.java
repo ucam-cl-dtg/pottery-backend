@@ -15,6 +15,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.eclipse.jgit.lib.Constants;
 import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,8 +30,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.managers.RepoManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 
 
 @Produces("application/json")
@@ -38,16 +40,16 @@ import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
 @Api(value = "/repo", description = "Manages the candidates attempt at the task",position=1)
 public class RepoController {
 	
-	private RepoManager sourceManager;
+	private RepoFactory repoFactory;
 	private TaskManager taskManager;
 	
 	@SuppressWarnings("unused")
 	private static final Logger log = LoggerFactory.getLogger(RepoController.class);
 
 	@Inject
-	public RepoController(RepoManager repoManager, TaskManager taskManager) {
+	public RepoController(RepoFactory repoFactory, TaskManager taskManager) {
 		super();
-		this.sourceManager = repoManager;
+		this.repoFactory = repoFactory;
 		this.taskManager = taskManager;
 	}
 
@@ -60,23 +62,23 @@ public class RepoController {
 		if (t == null) throw new TaskNotFoundException();
 		if (t.isLocked()) throw new TaskNotAvailableException();
 		
-		RepoInfo r = sourceManager.createRepo(t);		
-		sourceManager.copyFiles(r.getRepoId(), taskManager.getSkeletonRoot(t));
-		return r;
+		Repo r = repoFactory.createInstance(t);
+		r.copyFiles(taskManager.getSkeletonRoot(t));
+		return r.toRepoInfo();
 	}
 	
 	@GET
 	@Path("/{repoId}")
 	@ApiOperation(value="List all the tags in repository",response=String.class,responseContainer="List")
 	public List<String> listTags(@PathParam("repoId") String repoId) throws RepoException, IOException {
-		return sourceManager.listTags(repoId);
+		return repoFactory.getInstance(repoId).listTags();
 	}
 	
 	@GET 
 	@Path("/{repoId}/{tag}")
 	@ApiOperation(value="List all the files in the repository",response=String.class,responseContainer="List",position=1)
 	public List<String> listFiles(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws RepoException, IOException {
-		return sourceManager.listFiles(repoId, tag);
+		return repoFactory.getInstance(repoId).listFiles(tag);
 	}
 	
 	@GET
@@ -85,7 +87,7 @@ public class RepoController {
 	@ApiOperation(value="Read a file from the repository",
 			notes="Returns the file contents directly",position=2)
 	public Response readFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException, RepoException {
-		StreamingOutput s = sourceManager.readFile(repoId, tag, fileName);
+		StreamingOutput s = repoFactory.getInstance(repoId).readFile(tag, fileName);
 		return Response.ok(s,MediaType.APPLICATION_OCTET_STREAM).build();
 	}
 	
@@ -96,10 +98,10 @@ public class RepoController {
 	@ApiOperation(value="Update a file in the repository",
 			notes="The new contents of the file should be submitted as a multipart form request",position=3)
 	public Response updateFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName, @MultipartForm FileData file) throws RepoException, IOException {
-		if (!sourceManager.getHeadTag().equals(tag)) {
+		if (!Constants.HEAD.equals(tag)) {
 			throw new RepoException("Can only update files at HEAD revision");
 		}
-		sourceManager.updateFile(repoId,fileName,file.getData());
+		repoFactory.getInstance(repoId).updateFile(fileName,file.getData());
 		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
@@ -107,10 +109,10 @@ public class RepoController {
 	@Path("/{repoId}/{tag}/{fileName:.+}")
 	@ApiOperation(value="Delete a file from the repository",position=4)
 	public Response deleteFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException, RepoException {
-		if (!sourceManager.getHeadTag().equals(tag)) {
+		if (!Constants.HEAD.equals(tag)) {
 			throw new RepoException("Can only delete files at HEAD revision");
 		}
-		sourceManager.deleteFile(repoId,fileName);
+		repoFactory.getInstance(repoId).deleteFile(fileName);
 		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
@@ -118,7 +120,7 @@ public class RepoController {
 	@Path("/{repoId}/reset/{tag}")
 	@ApiOperation(value="Set the contents of the repository to be what it was at this particular tag",position=5)
 	public Response reset(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws IOException, RepoException {
-		sourceManager.reset(repoId, tag);
+		repoFactory.getInstance(repoId).reset(tag);
 		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
@@ -128,7 +130,7 @@ public class RepoController {
 		notes="Submissions (for testing) are created with reference to tags in the repository")
 	public RepoTag tag(@PathParam("repoId") String repoId) throws IOException, RepoException {
 		RepoTag r = new RepoTag();
-		r.setTag(sourceManager.newTag(repoId));
+		r.setTag(repoFactory.getInstance(repoId).createNewTag());
 		return r;
 	}
 	

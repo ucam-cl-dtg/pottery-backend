@@ -19,14 +19,14 @@ import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
-import uk.ac.cam.cl.dtg.teaching.pottery.managers.RepoManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 
 @Singleton
 public class Store {
@@ -39,13 +39,13 @@ public class Store {
 	
 	private Thread worker;
 	
-	private RepoManager sourceManager;
+	private RepoFactory repoFactory;
 
 	private Database database;
 
 	@Inject
-	public Store(RepoManager sourceManager, final TaskManager taskManager, final DockerApi docker, Database database, final Config config) throws SQLException {
-		this.sourceManager = sourceManager;
+	public Store(RepoFactory repoFactory, final TaskManager taskManager, final DockerApi docker, Database database, final Config config) throws SQLException {
+		this.repoFactory = repoFactory;
 		this.database = database;
 		
 		try (TransactionQueryRunner r = database.getQueryRunner()) {
@@ -58,12 +58,14 @@ public class Store {
 				while(running.get()) {
 					try {
 						Submission s = testingQueue.take();
-						RepoInfo r = sourceManager.getRepo(s.getRepoId());
-						Task t = r.isRelease() ? taskManager.getReleasedTask(r.getTaskId()) : taskManager.getTestingTask(r.getTaskId());
+						Repo r = repoFactory.getInstance(s.getRepoId());
+						Task t = r.isReleased() ? taskManager.getReleasedTask(r.getTaskId()) : taskManager.getTestingTask(r.getTaskId());
 						LOG.info("Testing {},released={},id={}",t.getName(),t.isReleased(),t.getTaskId());
 						try {
 							
-							File codeDir = sourceManager.cloneForTesting(s.getRepoId(), s.getTag());
+							r.setVersionToTest(s.getTag());
+							
+							File codeDir = r.getTestingDirectory();
 							
 							CompilationResponse compilationResponse = ContainerHelper.execCompilation(codeDir, taskManager.getCompileRoot(t), t.getImage(), docker,config);
 							s.setCompilationResponse(compilationResponse);
@@ -71,7 +73,7 @@ public class Store {
 							s.setHarnessResponse(harnessResponse);
 							ValidationResponse validationResponse = ContainerHelper.execValidator(taskManager.getValidatorRoot(t),harnessResponse, t.getImage(),docker,config);
 							s.setValidationResponse(validationResponse);
-						} catch (IOException|RepoException e) {
+						} catch (RepoException e) {
 							LOG.error("Caught exception",e);
 						}
 						finally {
@@ -95,24 +97,25 @@ public class Store {
 		
 	}
 	
-	public Submission createSubmission(String repoId, String tag) throws RepoException, SubmissionAlreadyScheduledException, IOException, SQLException {
-		synchronized(sourceManager.getMutex("repoId")) {
-			try (TransactionQueryRunner q = database.getQueryRunner()) {
-				Submission s = Submission.getByRepoIdAndTag(repoId, tag, q);
-				if (s != null) {
-					throw new SubmissionAlreadyScheduledException();
-				}
+	public synchronized Submission createSubmission(String repoId, String tag) throws RepoException, SubmissionAlreadyScheduledException, IOException, SQLException {
+
+		Repo repo = repoFactory.getInstance(repoId);
+		
+		try (TransactionQueryRunner q = database.getQueryRunner()) {
+			Submission s = Submission.getByRepoIdAndTag(repoId, tag, q);
+			if (s != null) {
+				throw new SubmissionAlreadyScheduledException();
+			}
 			
-				if (sourceManager.existsTag(repoId, tag)) {
-					s = new Submission(repoId,tag);
-					s.insert(q);
-					q.commit();
-					testingQueue.add(s);						
-					return s;
-				}
-				else {
-					throw new RepoException("Tag not found");
-				}
+			if (repo.existsTag(tag)) {
+				s = new Submission(repoId,tag);
+				s.insert(q);
+				q.commit();
+				testingQueue.add(s);						
+				return s;
+			}
+			else {
+				throw new RepoException("Tag not found");
 			}
 		}
 	}

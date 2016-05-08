@@ -21,7 +21,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.controllers.CleanupController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
-import uk.ac.cam.cl.dtg.teaching.pottery.managers.RepoManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 
 public class ApplicationModule implements Module {
 
@@ -39,7 +39,7 @@ public class ApplicationModule implements Module {
         binder.bind(ApiListingResourceJSON.class);
         binder.bind(ResourceListingProvider.class);
         binder.bind(Store.class).in(Singleton.class);
-        binder.bind(RepoManager.class).in(Singleton.class);
+        binder.bind(RepoFactory.class).in(Singleton.class);
         binder.bind(Config.class).in(Singleton.class);
         binder.bind(Database.class).in(Singleton.class);
         binder.bind(CleanupController.class);
