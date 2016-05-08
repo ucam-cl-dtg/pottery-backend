@@ -70,11 +70,7 @@ public class Config {
 	public File getLibRoot() {
 		return new File(PREFIX,"lib");
 	}
-	
-	public String getHeadTag() {
-		return "HEAD";
-	}
-	
+		
 	public String getWebtagPrefix() {
 		return "online-";
 	}
