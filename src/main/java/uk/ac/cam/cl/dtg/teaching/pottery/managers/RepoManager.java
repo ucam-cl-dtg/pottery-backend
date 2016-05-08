@@ -49,7 +49,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
@@ -78,15 +78,15 @@ public class RepoManager {
 
 	public String getHeadTag() { return headTag; }
 	
-	public Repo getRepo(String repoId) throws RepoException {
+	public RepoInfo getRepo(String repoId) throws RepoException {
 		try (TransactionQueryRunner q = database.getQueryRunner()) {
-			return Repo.getByRepoId(repoId, q);
+			return RepoInfo.getByRepoId(repoId, q);
 		} catch (SQLException e) {
 			throw new RepoException("Failed to get repository",e);
 		}
 	}
 
-	public Repo createRepo(Task task) throws RepoException, IOException {
+	public RepoInfo createRepo(Task task) throws RepoException, IOException {
 		
 		Path repoDir = Files.createTempDirectory(repoRoot.toPath(), "");
 		
@@ -99,7 +99,7 @@ public class RepoManager {
 			throw new RepoException("Failed to initialise git repository",e); 
 		}
 		
-		Repo r = new Repo(repoId,task.getTaskId(),task.isReleased());
+		RepoInfo r = new RepoInfo(repoId,task.getTaskId(),task.isReleased());
 		try (TransactionQueryRunner t = database.getQueryRunner()){
 			r.insert(t);
 			t.commit();

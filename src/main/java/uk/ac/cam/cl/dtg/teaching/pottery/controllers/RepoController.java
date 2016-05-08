@@ -24,7 +24,7 @@ import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
@@ -55,12 +55,12 @@ public class RepoController {
 	@Path("/")
 	@ApiOperation(value="Start a new repository",
 		notes="Starts a new repository for solving the specified task",position=0)
-	public Repo makeRepo(@FormParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException {
+	public RepoInfo makeRepo(@FormParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException {
 		Task t = taskManager.getReleasedTask(taskId);
 		if (t == null) throw new TaskNotFoundException();
 		if (t.isLocked()) throw new TaskNotAvailableException();
 		
-		Repo r = sourceManager.createRepo(t);		
+		RepoInfo r = sourceManager.createRepo(t);		
 		sourceManager.copyFiles(r.getRepoId(), taskManager.getSkeletonRoot(t));
 		return r;
 	}

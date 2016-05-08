@@ -19,7 +19,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Repo;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
@@ -58,7 +58,7 @@ public class Store {
 				while(running.get()) {
 					try {
 						Submission s = testingQueue.take();
-						Repo r = sourceManager.getRepo(s.getRepoId());
+						RepoInfo r = sourceManager.getRepo(s.getRepoId());
 						Task t = r.isRelease() ? taskManager.getReleasedTask(r.getTaskId()) : taskManager.getTestingTask(r.getTaskId());
 						LOG.info("Testing {},released={},id={}",t.getName(),t.isReleased(),t.getTaskId());
 						try {

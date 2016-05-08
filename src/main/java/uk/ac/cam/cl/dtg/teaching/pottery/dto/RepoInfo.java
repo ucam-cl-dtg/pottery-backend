@@ -5,15 +5,15 @@ import java.sql.SQLException;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.BeanHandler;
 
-public class Repo {
+public class RepoInfo {
 	
 	private String repoId;
 	private String taskId;
 	private boolean release;
 	
-	public Repo() {}
+	public RepoInfo() {}
 	
-	public Repo(String repoId, String taskId, boolean release) {
+	public RepoInfo(String repoId, String taskId, boolean release) {
 		super();
 		this.repoId = repoId;
 		this.taskId = taskId;
@@ -45,8 +45,8 @@ public class Repo {
 		return release;
 	}
 
-	public static Repo getByRepoId(String repoId, QueryRunner q) throws SQLException {
-		return q.query("SELECT * from repos where repoid=?",new BeanHandler<Repo>(Repo.class),repoId);
+	public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
+		return q.query("SELECT * from repos where repoid=?",new BeanHandler<RepoInfo>(RepoInfo.class),repoId);
 	}
 	
 	public void insert(QueryRunner q) throws SQLException {
