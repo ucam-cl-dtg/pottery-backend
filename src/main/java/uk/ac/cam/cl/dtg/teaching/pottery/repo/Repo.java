@@ -463,6 +463,15 @@ public class Repo {
 	}
 
 	
+	/**
+	 * Create a repo object for an existing repository. Use RepoFactory rather than calling this method directly
+	 *
+	 * @param repoId the ID of the repo to open
+	 * @param config server configuration
+	 * @param database database connection
+	 * @return a repo object for this repository
+	 * @throws RepoException if the repository does not exist or if it can't be opened
+	 */
 	static Repo openRepo(String repoId, Config config, Database database) throws RepoException {
 		
 		File repoDirectory = new File(config.getRepoRoot(),repoId);
@@ -486,6 +495,16 @@ public class Repo {
 		
 	}
 	
+	/**
+	 * Create a new repository and return an appropriate repo object. Use RepoFactory rather than calling this method directly
+	 * 
+	 * @param repoId the ID of the repo to open
+	 * @param task the task associated with this repo ID
+	 * @param config server configuration
+	 * @param database database connection
+	 * @return a repo object for this repository
+	 * @throws RepoException if the repository couldn't be created
+	 */
 	static Repo createRepo(String repoId, Task task, Config config, Database database) throws RepoException {
 		
 		File repoDirectory = new File(config.getRepoRoot(),repoId);
