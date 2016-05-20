@@ -141,6 +141,16 @@ public class TaskManager {
 		
 		Task t;
 		try {
+			
+			if (taskStagingDir.exists()) {
+				// we must have crashed during deployment last time.  Try again
+				try {
+					FileUtil.deleteRecursive(taskStagingDir);
+				} catch (IOException e) {
+					throw new TaskRegistrationException("Failed to delete old staging directory",e);
+				}
+			}
+			
 			// clone the registered task root in to the staging directory
 			// reset to the sha1
 			try {
