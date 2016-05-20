@@ -45,7 +45,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 
@@ -505,7 +505,7 @@ public class Repo {
 	 * @return a repo object for this repository
 	 * @throws RepoException if the repository couldn't be created
 	 */
-	static Repo createRepo(String repoId, Task task, Config config, Database database) throws RepoException {
+	static Repo createRepo(String repoId, TaskInfo task, Config config, Database database) throws RepoException {
 		
 		File repoDirectory = new File(config.getRepoRoot(),repoId);
 		

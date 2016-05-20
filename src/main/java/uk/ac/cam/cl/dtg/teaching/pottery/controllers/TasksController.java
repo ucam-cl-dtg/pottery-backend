@@ -23,7 +23,7 @@ import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskRegistrationException;
@@ -44,36 +44,36 @@ public class TasksController {
 	
 	@GET
 	@Path("/retired")
-	@ApiOperation(value="Lists all retired tasks",response=Task.class,responseContainer="List",position=0)
-	public Collection<Task> listRetired() {
+	@ApiOperation(value="Lists all retired tasks",response=TaskInfo.class,responseContainer="List",position=0)
+	public Collection<TaskInfo> listRetired() {
 		return taskManager.getRetiredTasks();
 	}	
 	
 	@GET
 	@Path("/released")
-	@ApiOperation(value="Lists all released tasks",response=Task.class,responseContainer="List",position=0)
-	public Collection<Task> listReleased() {
+	@ApiOperation(value="Lists all released tasks",response=TaskInfo.class,responseContainer="List",position=0)
+	public Collection<TaskInfo> listReleased() {
 		return taskManager.getReleasedTasks();
 	}
 
 	@GET
 	@Path("/")
-	@ApiOperation(value="Lists all defined tasks",response=Task.class,responseContainer="List",position=0)
-	public Collection<Task> listDefined() {
+	@ApiOperation(value="Lists all defined tasks",response=TaskInfo.class,responseContainer="List",position=0)
+	public Collection<TaskInfo> listDefined() {
 		return taskManager.getDefinedTasks();
 	}
 
 	@POST
 	@Path("/create")
-	@ApiOperation(value="Create a new task",response=Task.class)
-	public Task create() throws IOException {
+	@ApiOperation(value="Create a new task",response=TaskInfo.class)
+	public TaskInfo create() throws IOException {
 		return taskManager.createNewTask();
 	}
 	
 	@GET
 	@Path("/{taskId}")
-	@ApiOperation(value="Returns information about a specific task",response=Task.class)
-	public Task getTask(@PathParam("taskId") String taskID) {
+	@ApiOperation(value="Returns information about a specific task",response=TaskInfo.class)
+	public TaskInfo getTask(@PathParam("taskId") String taskID) {
 		return taskManager.getTestingTask(taskID);
 	}
 	
@@ -87,7 +87,7 @@ public class TasksController {
 	@POST
 	@Path("/{taskId}/release")
 	@ApiOperation(value="Releases (or updates the released version) of a task. If sha1 is not specified then HEAD is used.",response=Response.class)
-	public Task releaseTask(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException {
+	public TaskInfo releaseTask(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException {
 		return taskManager.registerTask(taskID, sha1);
 	}
 	
@@ -105,14 +105,14 @@ public class TasksController {
 	@ApiOperation(value="Lists defined task types and their description",position=1)
 	public Map<String,String> listTypes() {
 		return ImmutableMap.<String,String>builder()
-				.put(Task.TYPE_ALGORITHM,"Algorithms & Data Structures: Tests the ability of the developer to compose algorithms and design appropriate data structures to solve the problem set out in the test.")
-				.put(Task.TYPE_BLACKBOX,"Black Box Testing: Tests the developer's ability to test a solution without knowing or being able to review the underlying source code.")
-				.put(Task.TYPE_DEBUGGING,"Debugging: Assesses a developers ability in debugging existing code that has a series of known issues that must be fixed for it to function correctly.")
-				.put(Task.TYPE_DESIGN,"Design Approaches: Evaluates the logical flow of solution code and appropriate design features of the solution (e.g. ???)")
-				.put(Task.TYPE_IO,"I/O Management: Evaluates the developers ability to implement strategies that result in appropriate I/O activity in a test solution.")
-				.put(Task.TYPE_LIBRARY,"Using Existing APIs & Libraries:	Test the ability of a developer to appropriately exploit existing libraries and APIs to achieve the required test solution.")
-				.put(Task.TYPE_MEMORY,"Cache & Memory Management: Evaluates the developers ability to implement strategies that result in appropriate cache and memory usage approaches in a test solution.")
-				.put(Task.TYPE_UNITTEST,"Unit Testing: Assesses the ability of the developer to write unit tests on pre-existing source code and or source code that they have themselves written.")
+				.put(TaskInfo.TYPE_ALGORITHM,"Algorithms & Data Structures: Tests the ability of the developer to compose algorithms and design appropriate data structures to solve the problem set out in the test.")
+				.put(TaskInfo.TYPE_BLACKBOX,"Black Box Testing: Tests the developer's ability to test a solution without knowing or being able to review the underlying source code.")
+				.put(TaskInfo.TYPE_DEBUGGING,"Debugging: Assesses a developers ability in debugging existing code that has a series of known issues that must be fixed for it to function correctly.")
+				.put(TaskInfo.TYPE_DESIGN,"Design Approaches: Evaluates the logical flow of solution code and appropriate design features of the solution (e.g. ???)")
+				.put(TaskInfo.TYPE_IO,"I/O Management: Evaluates the developers ability to implement strategies that result in appropriate I/O activity in a test solution.")
+				.put(TaskInfo.TYPE_LIBRARY,"Using Existing APIs & Libraries:	Test the ability of a developer to appropriately exploit existing libraries and APIs to achieve the required test solution.")
+				.put(TaskInfo.TYPE_MEMORY,"Cache & Memory Management: Evaluates the developers ability to implement strategies that result in appropriate cache and memory usage approaches in a test solution.")
+				.put(TaskInfo.TYPE_UNITTEST,"Unit Testing: Assesses the ability of the developer to write unit tests on pre-existing source code and or source code that they have themselves written.")
 				.build();
 	}
 

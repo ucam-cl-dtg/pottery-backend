@@ -6,7 +6,7 @@ import java.util.List;
 public class TaskRepoInfo implements Comparable<TaskRepoInfo> {
 
 	private String taskRepoId;
-	private List<Task> registeredTasks = new LinkedList<>();
+	private List<TaskInfo> registeredTasks = new LinkedList<>();
 	
 	public TaskRepoInfo(String taskRepoId) {
 		super();
@@ -18,10 +18,10 @@ public class TaskRepoInfo implements Comparable<TaskRepoInfo> {
 	public void setTaskRepoId(String taskRepoId) {
 		this.taskRepoId = taskRepoId;
 	}
-	public List<Task> getRegisteredTasks() {
+	public List<TaskInfo> getRegisteredTasks() {
 		return registeredTasks;
 	}
-	public void setRegisteredTasks(List<Task> registeredTasks) {
+	public void setRegisteredTasks(List<TaskInfo> registeredTasks) {
 		this.registeredTasks = registeredTasks;
 	}
 	

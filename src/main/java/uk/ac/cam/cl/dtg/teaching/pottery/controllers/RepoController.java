@@ -27,7 +27,7 @@ import com.wordnik.swagger.annotations.ApiOperation;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoTag;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
@@ -58,7 +58,7 @@ public class RepoController {
 	@ApiOperation(value="Start a new repository",
 		notes="Starts a new repository for solving the specified task",position=0)
 	public RepoInfo makeRepo(@FormParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException {
-		Task t = taskManager.getReleasedTask(taskId);
+		TaskInfo t = taskManager.getReleasedTask(taskId);
 		if (t == null) throw new TaskNotFoundException();
 		if (t.isLocked()) throw new TaskNotAvailableException();
 		

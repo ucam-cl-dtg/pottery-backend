@@ -11,7 +11,7 @@ import com.wordnik.swagger.annotations.ApiModelProperty;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
 
-public class Task {
+public class TaskInfo {
 
 	/**
 	 * Algorithms & Data Structures: Tests the ability of the developer to compose algorithms and design appropriate data structures to solve the problem set out in the test.
@@ -88,7 +88,7 @@ public class Task {
 	private boolean released;
 	
 	@JsonCreator
-	public Task(@JsonProperty("type") String type, 
+	public TaskInfo(@JsonProperty("type") String type, 
 				@JsonProperty("name") String name, 
 				@JsonProperty("criteria") Set<Criterion> criteria, 
 				@JsonProperty("image") String image, 
@@ -161,10 +161,10 @@ public class Task {
 		return released;
 	}
 
-	public static Task load(File taskDirectory, boolean released) throws IOException {
+	public static TaskInfo load(File taskDirectory, boolean released) throws IOException {
 		String taskId = taskDirectory.getName();
 		ObjectMapper o = new ObjectMapper();
-		Task t = o.readValue(new File(taskDirectory,"task.json"),Task.class);
+		TaskInfo t = o.readValue(new File(taskDirectory,"task.json"),TaskInfo.class);
 		t.taskId = taskId;
 		t.locked = false;
 		t.released = released;

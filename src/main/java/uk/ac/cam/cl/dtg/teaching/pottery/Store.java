@@ -20,7 +20,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
@@ -59,7 +59,7 @@ public class Store {
 					try {
 						Submission s = testingQueue.take();
 						Repo r = repoFactory.getInstance(s.getRepoId());
-						Task t = r.isReleased() ? taskManager.getReleasedTask(r.getTaskId()) : taskManager.getTestingTask(r.getTaskId());
+						TaskInfo t = r.isReleased() ? taskManager.getReleasedTask(r.getTaskId()) : taskManager.getTestingTask(r.getTaskId());
 						LOG.info("Testing {},released={},id={}",t.getName(),t.isReleased(),t.getTaskId());
 						try {
 							

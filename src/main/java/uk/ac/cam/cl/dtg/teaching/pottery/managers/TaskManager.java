@@ -24,7 +24,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
 
 @Singleton
@@ -41,9 +41,9 @@ public class TaskManager {
 	
 	private Config config;
 	
-	private Map<String,Task> definedTasks;
-	private Map<String,Task> releasedTasks;
-	private Map<String,Task> retiredTasks;
+	private Map<String,TaskInfo> definedTasks;
+	private Map<String,TaskInfo> releasedTasks;
+	private Map<String,TaskInfo> retiredTasks;
  	
 	private UUIDGenerator uuidGenerator;
 	
@@ -65,21 +65,21 @@ public class TaskManager {
 			if (!taskTestDir.exists()) {
 				try (Git g = Git.cloneRepository().setURI(f.getPath()).setDirectory(taskTestDir).call()) {}
 			}
-			Task t = Task.load(taskTestDir,false);
+			TaskInfo t = TaskInfo.load(taskTestDir,false);
 			definedTasks.put(uuid,t);
 		}
 		
 		for(File f : config.getTaskReleaseRoot().listFiles()) {
 			if (f.getName().startsWith(".")) continue;
 			String uuid = f.getName();
-			Task t = Task.load(f,true);
+			TaskInfo t = TaskInfo.load(f,true);
 			releasedTasks.put(uuid,t);
 		}
 		
 		for(File f : config.getTaskRetiredRoot().listFiles()) {
 			if (f.getName().startsWith(".")) continue;
 			String uuid = f.getName();
-			Task t = Task.load(f,false);
+			TaskInfo t = TaskInfo.load(f,false);
 			retiredTasks.put(uuid,t);
 		}
 		
@@ -91,7 +91,7 @@ public class TaskManager {
 	 * @return 
 	 * @throws IOException 
 	 */
-	public Task createNewTask() throws IOException {
+	public TaskInfo createNewTask() throws IOException {
 		File taskDefRoot = config.getTaskDefinitionRoot();
 		String taskId = uuidGenerator.generate();
 				
@@ -104,7 +104,7 @@ public class TaskManager {
 		
 		try (Git g = Git.cloneRepository().setURI(templateRepo.getPath()).setBare(true).setDirectory(taskDefDir).call()) {
 			try (Git g2 = Git.cloneRepository().setURI(taskDefDir.getPath()).setDirectory(taskTestingDir).call()) {
-				Task t = Task.load(taskTestingDir,false);
+				TaskInfo t = TaskInfo.load(taskTestingDir,false);
 				definedTasks.put(t.getTaskId(), t);
 				return t;
 			}
@@ -133,13 +133,13 @@ public class TaskManager {
 	 *  @param sha1 is the version of the commit to register
 	 * @throws TaskRegistrationException 
 	 */
-	public Task registerTask(String taskId, String sha1) throws TaskRegistrationException {
+	public TaskInfo registerTask(String taskId, String sha1) throws TaskRegistrationException {
 		File taskDefDir = new File(config.getTaskDefinitionRoot(),taskId);
 		File taskStagingDir = new File(config.getTaskStagingRoot(),taskId);
 		File taskReleaseDir = new File(config.getTaskReleaseRoot(),taskId);
 		File taskOutgoingDir = new File(config.getTaskOutgoingRoot(),taskId);
 		
-		Task t;
+		TaskInfo t;
 		try {
 			
 			if (taskStagingDir.exists()) {
@@ -163,7 +163,7 @@ public class TaskManager {
 			}
 			
 			try {
-				t = Task.load(taskStagingDir,true);
+				t = TaskInfo.load(taskStagingDir,true);
 			} catch (IOException e) {
 				throw new TaskRegistrationException("Failed to load task definition",e);
 				
@@ -230,44 +230,44 @@ public class TaskManager {
 		
 	}
 	
-	public Collection<Task> getDefinedTasks() {
-		return new LinkedList<Task>(definedTasks.values());
+	public Collection<TaskInfo> getDefinedTasks() {
+		return new LinkedList<TaskInfo>(definedTasks.values());
 	}
 	
-	public Collection<Task> getReleasedTasks() {
-		return new LinkedList<Task>(releasedTasks.values());
+	public Collection<TaskInfo> getReleasedTasks() {
+		return new LinkedList<TaskInfo>(releasedTasks.values());
 	}
 
-	public Collection<Task> getRetiredTasks() {
-		return new LinkedList<Task>(retiredTasks.values());
+	public Collection<TaskInfo> getRetiredTasks() {
+		return new LinkedList<TaskInfo>(retiredTasks.values());
 	}
 
-	public Task getTestingTask(String taskId) {
+	public TaskInfo getTestingTask(String taskId) {
 		return definedTasks.get(taskId);
 	}
 
-	public Task getReleasedTask(String taskId) {
+	public TaskInfo getReleasedTask(String taskId) {
 		return releasedTasks.get(taskId);
 	}
 		
-	public File getTaskRoot(Task t) {
+	public File getTaskRoot(TaskInfo t) {
 		File root = t.isReleased() ? config.getTaskReleaseRoot() : config.getTaskTestingRoot();
 		return new File(root,t.getTaskId());
 	}
 	
-	public File getSkeletonRoot(Task t) {
+	public File getSkeletonRoot(TaskInfo t) {
 		return new File(getTaskRoot(t),"skeleton");
 	}
 	
-	public File getCompileRoot(Task t) {
+	public File getCompileRoot(TaskInfo t) {
 		return new File(getTaskRoot(t),"compile");
 	}
 	
-	public File getHarnessRoot(Task t) {
+	public File getHarnessRoot(TaskInfo t) {
 		return new File(getTaskRoot(t),"harness");
 	}
 
-	public File getValidatorRoot(Task t) {
+	public File getValidatorRoot(TaskInfo t) {
 		return new File(getTaskRoot(t),"validator");
 	}
 
