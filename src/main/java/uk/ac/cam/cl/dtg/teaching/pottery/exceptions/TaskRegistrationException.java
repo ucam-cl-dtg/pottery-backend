@@ -1,4 +1,4 @@
-package uk.ac.cam.cl.dtg.teaching.pottery.managers;
+package uk.ac.cam.cl.dtg.teaching.pottery.exceptions;
 
 public class TaskRegistrationException extends Exception {
 

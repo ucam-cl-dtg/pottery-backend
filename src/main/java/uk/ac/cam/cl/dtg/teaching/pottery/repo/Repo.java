@@ -1,15 +1,9 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,8 +14,8 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.RevertCommand;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
+import org.eclipse.jgit.api.RevertCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.AmbiguousObjectException;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
@@ -40,24 +34,37 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskClone;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class Repo {
 	
-	private static Logger log = LoggerFactory.getLogger(Repo.class);
+	public static Logger log = LoggerFactory.getLogger(Repo.class);
 
 	private String repoId;
 	
 	private String taskId;
-	
-	private boolean released;
+
+	/**
+	 * Is this repo for the registered version of a task or the testing version
+	 */
+	private boolean registered;
 	
 	/**
 	 * The directory holding this repository. This object is also used as a mutex protecting concurrent modification.
@@ -68,13 +75,18 @@ public class Repo {
 
 	private String webtagPrefix;
 	
-	private Repo(String repoId, Config c, String taskId, boolean released) {
+	/**
+	 * The currently scheduled submission for testing - you can only have one at a time per repo
+	 */
+	private Submission currentSubmission;
+	
+	private Repo(String repoId, Config c, String taskId, boolean registered) {
 		this.repoId = repoId;
 		this.repoDirectory = new File(c.getRepoRoot(),repoId);
 		this.repoTestingDirectory = new File(c.getRepoTestingRoot(),repoId);
 		this.webtagPrefix = c.getWebtagPrefix();
 		this.taskId = taskId;
-		this.released = released;
+		this.registered = registered;
 	}
 
 	/** 
@@ -82,37 +94,11 @@ public class Repo {
 	 * @param sourceLocation the location to copy from
 	 * @throws RepoException
 	 */
-	public void copyFiles(File sourceLocation) throws RepoException {
+	public void copyFiles(TaskClone task) throws RepoException {
 		synchronized (repoDirectory) {
-			List<String> copiedFiles = new LinkedList<>();
-			
 			try (Git git = Git.open(repoDirectory)) {
 				try {
-					Files.walkFileTree(sourceLocation.toPath(), new SimpleFileVisitor<Path>() {
-						@Override
-						public FileVisitResult visitFile(Path file,
-								BasicFileAttributes attrs) throws IOException {
-							
-							File originalFile = file.toFile();
-							Path localLocation = sourceLocation.toPath().relativize(file);
-							copiedFiles.add(localLocation.toString());
-							File newLocation = repoDirectory.toPath().resolve(localLocation).toFile();
-							File newDir = newLocation.getParentFile();
-							log.debug("Copying {} to {}",originalFile, newLocation);
-	
-							if (newDir.exists()) {
-								newDir.mkdirs();
-							}
-							
-							try(FileOutputStream fos = new FileOutputStream(newLocation)) {
-								try(FileInputStream fis = new FileInputStream(originalFile)) {
-									IOUtils.copy(fis, fos);
-								}
-							}
-							return FileVisitResult.CONTINUE;
-						}
-					});
-			
+					List<String> copiedFiles = task.copySkeleton(repoDirectory);
 					for(String f : copiedFiles) {
 						git.add().addFilepattern(f).call();
 					}
@@ -130,6 +116,50 @@ public class Repo {
 				throw new RepoException("Failed to open repository",e2);
 			}
 		}		
+	}
+	
+	public synchronized Submission getCurrentSubmission() {
+		return currentSubmission;
+	}
+	
+	public synchronized Submission scheduleSubmission(String tag, Worker w) {
+		if (currentSubmission != null) return currentSubmission;		
+		currentSubmission = new Submission(repoId, tag);
+		w.schedule(new Job() {
+			@Override
+			public void execute(TaskManager taskManager, RepoFactory repoFactory, DockerApi docker, Database database, Config config) throws Exception {					
+				Task t = taskManager.getTask(taskId);
+				TaskClone c = registered ? t.getRegisteredClone() : t.getTestingClone();
+				try {
+					setVersionToTest(tag);
+
+					File codeDir = repoTestingDirectory;
+					File compileRoot = c.getCompileRoot();
+					File harnessRoot = c.getHarnessRoot();
+					File validatorRoot = c.getValidatorRoot();
+					String image = c.getInfo().getImage();
+					
+					CompilationResponse compilationResponse = ContainerHelper.execCompilation(codeDir, compileRoot, image, docker,config);
+					currentSubmission.setCompilationResponse(compilationResponse);
+					HarnessResponse harnessResponse = ContainerHelper.execHarness(codeDir,harnessRoot,image,docker,config);
+					currentSubmission.setHarnessResponse(harnessResponse);
+					ValidationResponse validationResponse = ContainerHelper.execValidator(validatorRoot,harnessResponse, image,docker,config);
+					currentSubmission.setValidationResponse(validationResponse);
+				}
+				finally {
+					synchronized (Repo.this) {
+						currentSubmission.setStatus(Submission.STATUS_COMPLETE);
+						log.error("Saving {}:{}",repoId,tag);
+						try (TransactionQueryRunner q = database.getQueryRunner()) {
+							currentSubmission.insert(q);
+							q.commit();
+						}
+						currentSubmission = null;
+					}
+				}
+			}			
+		});
+		return currentSubmission;
 	}
 	
 	/**
@@ -499,13 +529,14 @@ public class Repo {
 	 * Create a new repository and return an appropriate repo object. Use RepoFactory rather than calling this method directly
 	 * 
 	 * @param repoId the ID of the repo to open
-	 * @param task the task associated with this repo ID
+	 * @param taskId is the ID of the task to begin
+	 * @param registered indicates if we should use the registered version of the task or the testing version
 	 * @param config server configuration
 	 * @param database database connection
 	 * @return a repo object for this repository
 	 * @throws RepoException if the repository couldn't be created
 	 */
-	static Repo createRepo(String repoId, TaskInfo task, Config config, Database database) throws RepoException {
+	static Repo createRepo(String repoId, String taskId, boolean registered, Config config, Database database) throws RepoException {
 		
 		File repoDirectory = new File(config.getRepoRoot(),repoId);
 		
@@ -527,7 +558,7 @@ public class Repo {
 			throw t;
 		}
 
-		RepoInfo r = new RepoInfo(repoId, task.getTaskId(), task.isReleased());
+		RepoInfo r = new RepoInfo(repoId, taskId,registered);
 		
 		try (TransactionQueryRunner t = database.getQueryRunner()){
 			r.insert(t);
@@ -542,7 +573,7 @@ public class Repo {
 			throw t;
 		}
 		
-		return new Repo(repoId,config, task.getTaskId(),task.isReleased());
+		return new Repo(repoId,config, taskId,registered);
 	}
 
 	public String getRepoId() {
@@ -553,8 +584,8 @@ public class Repo {
 		return taskId;
 	}
 
-	public boolean isReleased() {
-		return released;
+	public boolean isRegistered() {
+		return registered;
 	}
 
 	public File getTestingDirectory() {
@@ -562,7 +593,7 @@ public class Repo {
 	}
 
 	public RepoInfo toRepoInfo() {
-		return new RepoInfo(repoId,taskId,released);
+		return new RepoInfo(repoId,taskId,registered);
 	}
 	
 }

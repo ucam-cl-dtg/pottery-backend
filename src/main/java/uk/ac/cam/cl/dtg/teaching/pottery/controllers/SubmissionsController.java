@@ -12,35 +12,39 @@ import javax.ws.rs.Produces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.inject.Inject;
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
+
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
-
-import com.google.inject.Inject;
-import com.wordnik.swagger.annotations.Api;
-import com.wordnik.swagger.annotations.ApiOperation;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 @Produces("application/json")
 @Path("/submissions")
 @Api(value = "/submissions", description = "Manages requests for testing",position=2)
 public class SubmissionsController {
 
-	@SuppressWarnings("unused")
-	private static final Logger log = LoggerFactory.getLogger(SubmissionsController.class);	
+	public static final Logger log = LoggerFactory.getLogger(SubmissionsController.class);	
 	
-	private Store store;
+	private Worker worker;
 	
 	private Database database;
+
+	private RepoFactory repoFactory;
 	
 	@Inject	
-	public SubmissionsController(Store store, Database database) {
+	public SubmissionsController(Worker worker, Database database, RepoFactory repoFactory) {
 		super();
-		this.store = store;
+		this.worker = worker;
 		this.database = database;
+		this.repoFactory = repoFactory;
 	}
 
 	@POST
@@ -48,7 +52,8 @@ public class SubmissionsController {
 	@ApiOperation(value="Schedules a test by creating a submission",
 			notes="A submission is created from a tag in the code repository used by the candidate.",position=0)
 	public Submission scheduleTest(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SubmissionAlreadyScheduledException, RepoException, IOException, SQLException {
-		return store.createSubmission(repoId, tag);
+		Repo r = repoFactory.getInstance(repoId);
+		return r.scheduleSubmission(tag, worker);
 	}
 	
 	@GET

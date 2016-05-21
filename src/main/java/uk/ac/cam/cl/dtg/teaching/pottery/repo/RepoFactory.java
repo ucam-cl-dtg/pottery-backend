@@ -13,7 +13,6 @@ import com.google.inject.Singleton;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 
 @Singleton
@@ -67,13 +66,13 @@ public class RepoFactory {
 		}
 	}
 
-	public Repo createInstance(TaskInfo t) throws RepoException {
+	public Repo createInstance(String taskId, boolean registered) throws RepoException {
 		final String newRepoId = uuidGenerator.generate();
 		try {
 			return cache.get(newRepoId, new Callable<Repo>() {
 				@Override
 				public Repo call() throws Exception {
-					return Repo.createRepo(newRepoId, t, config, database);			
+					return Repo.createRepo(newRepoId, taskId,registered, config, database);			
 				}
 			});
 		} catch (ExecutionException e) {

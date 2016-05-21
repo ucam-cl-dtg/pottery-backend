@@ -25,8 +25,10 @@ import com.wordnik.swagger.annotations.ApiOperation;
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskRegistrationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskRegistrationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 
 @Produces("application/json")
 @Path("/tasks")
@@ -34,8 +36,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskRegistrationException;
 public class TasksController {
 
 	public static final Logger log = LoggerFactory.getLogger(TasksController.class);
+
 	private TaskManager taskManager;
-		
+	
 	@Inject
 	public TasksController(TaskManager taskManager) {
 		super();
@@ -50,23 +53,23 @@ public class TasksController {
 	}	
 	
 	@GET
-	@Path("/released")
+	@Path("/registered")
 	@ApiOperation(value="Lists all released tasks",response=TaskInfo.class,responseContainer="List",position=0)
-	public Collection<TaskInfo> listReleased() {
-		return taskManager.getReleasedTasks();
+	public Collection<TaskInfo> listRegistered() {
+		return taskManager.getRegisteredTasks();
 	}
 
 	@GET
-	@Path("/")
+	@Path("/testing")
 	@ApiOperation(value="Lists all defined tasks",response=TaskInfo.class,responseContainer="List",position=0)
-	public Collection<TaskInfo> listDefined() {
-		return taskManager.getDefinedTasks();
+	public Collection<TaskInfo> listTesting() {
+		return taskManager.getTestingTasks();
 	}
 
 	@POST
 	@Path("/create")
 	@ApiOperation(value="Create a new task",response=TaskInfo.class)
-	public TaskInfo create() throws IOException {
+	public TaskInfo create() throws TaskException {
 		return taskManager.createNewTask();
 	}
 	
@@ -85,9 +88,9 @@ public class TasksController {
 	}
 	
 	@POST
-	@Path("/{taskId}/release")
-	@ApiOperation(value="Releases (or updates the released version) of a task. If sha1 is not specified then HEAD is used.",response=Response.class)
-	public TaskInfo releaseTask(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException {
+	@Path("/{taskId}/register")
+	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.",response=Response.class)
+	public TaskInfo releaseTask(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException {
 		return taskManager.registerTask(taskID, sha1);
 	}
 	
@@ -95,8 +98,9 @@ public class TasksController {
 	@POST
 	@Path("/{taskId}/test")
 	@ApiOperation(value="Update the checkout of the testing version of the task to HEAD.",response=Response.class)
-	public Response testTask(@PathParam("taskId") String taskID) {
-		return null;
+	public Response testTask(@PathParam("taskId") String taskID) throws TaskCloneException {
+		taskManager.updateTesting(taskID);
+		return Response.ok().build();
 	}
 	
 	

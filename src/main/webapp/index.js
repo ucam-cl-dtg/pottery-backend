@@ -17,12 +17,12 @@ $(document).ready(
 //				$("#error pre").text(JSON.stringify($.parseJSON(xhr.responseText),undefined,2));
 			}
 
-			$("#listTasksButton").click(
+			$("#listTestingTasksButton").click(
 					function(e) {
 						e.preventDefault();
 						$.ajax({
 							type : "GET",
-							url : "api/tasks",
+							url : "api/tasks/testing",
 							success : function(result) {
 								reportSuccess(result);
 								$("#taskId").val(result[0].taskId);
@@ -33,12 +33,12 @@ $(document).ready(
 						});
 					});
 
-			$("#listReleasedTasksButton").click(
+			$("#listRegisteredTasksButton").click(
 					function(e) {
 						e.preventDefault();
 						$.ajax({
 							type : "GET",
-							url : "api/tasks/released",
+							url : "api/tasks/registered",
 							success : function(result) {
 								reportSuccess(result);
 								$("#taskId").val(result[0].taskId);
@@ -81,12 +81,12 @@ $(document).ready(
 						});
 					});
 			
-			$("#releaseTaskButton").click(
+			$("#registerTaskButton").click(
 					function(e) {
 						e.preventDefault();
 						$.ajax({
 							type : "POST",
-							url : "api/tasks/" + $("#taskId").val()+"/release",
+							url : "api/tasks/" + $("#taskId").val()+"/register",
 							data : {'sha1' : $("#tasksha1").val() },
 							success : function(result) {
 								reportSuccess(result);

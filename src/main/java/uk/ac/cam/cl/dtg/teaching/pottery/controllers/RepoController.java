@@ -27,12 +27,13 @@ import com.wordnik.swagger.annotations.ApiOperation;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoTag;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.managers.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskClone;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 
 
 @Produces("application/json")
@@ -58,12 +59,12 @@ public class RepoController {
 	@ApiOperation(value="Start a new repository",
 		notes="Starts a new repository for solving the specified task",position=0)
 	public RepoInfo makeRepo(@FormParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException {
-		TaskInfo t = taskManager.getReleasedTask(taskId);
-		if (t == null) throw new TaskNotFoundException();
-		if (t.isLocked()) throw new TaskNotAvailableException();
+		Task t = taskManager.getTask(taskId);
+		TaskClone c = t.getRegisteredClone();
+		if (t == null || c == null) throw new TaskNotFoundException();
 		
-		Repo r = repoFactory.createInstance(t);
-		r.copyFiles(taskManager.getSkeletonRoot(t));
+		Repo r = repoFactory.createInstance(taskId,true /* registered */);
+		r.copyFiles(c);
 		return r.toRepoInfo();
 	}
 	

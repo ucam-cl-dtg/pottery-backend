@@ -80,12 +80,6 @@ public class TaskInfo {
 	
 	@ApiModelProperty("The problem statement as an HTML fragment")
 	private String problemStatement;
-
-	@ApiModelProperty("Indicates if a task is locked. Locked tasks may not be started or tested")
-	private boolean locked;
-	
-	@ApiModelProperty("Indicates if this is a released version of a task or a testing version")
-	private boolean released;
 	
 	@JsonCreator
 	public TaskInfo(@JsonProperty("type") String type, 
@@ -152,22 +146,11 @@ public class TaskInfo {
 		return problemStatement;
 	}
 
-
-	public boolean isLocked() {
-		return locked;
-	}
-
-	public boolean isReleased() {
-		return released;
-	}
-
-	public static TaskInfo load(File taskDirectory, boolean released) throws IOException {
+	public static TaskInfo load(File taskDirectory) throws IOException {
 		String taskId = taskDirectory.getName();
 		ObjectMapper o = new ObjectMapper();
 		TaskInfo t = o.readValue(new File(taskDirectory,"task.json"),TaskInfo.class);
 		t.taskId = taskId;
-		t.locked = false;
-		t.released = released;
 		return t;
 	}
 

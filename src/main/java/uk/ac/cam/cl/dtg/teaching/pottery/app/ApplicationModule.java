@@ -16,12 +16,14 @@ import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.Store;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.CleanupController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class ApplicationModule implements Module {
 
@@ -38,11 +40,13 @@ public class ApplicationModule implements Module {
         binder.bind(ApiDeclarationProvider.class);
         binder.bind(ApiListingResourceJSON.class);
         binder.bind(ResourceListingProvider.class);
-        binder.bind(Store.class).in(Singleton.class);
         binder.bind(RepoFactory.class).in(Singleton.class);
+        binder.bind(TaskFactory.class).in(Singleton.class);
+        binder.bind(TaskManager.class).in(Singleton.class);
         binder.bind(Config.class).in(Singleton.class);
         binder.bind(Database.class).in(Singleton.class);
         binder.bind(CleanupController.class);
+        binder.bind(Worker.class).in(Singleton.class);
 	}
 	
 	@Provides @Singleton
