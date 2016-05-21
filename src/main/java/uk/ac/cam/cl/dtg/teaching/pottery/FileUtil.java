@@ -11,6 +11,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 public class FileUtil {
 
 	public static void deleteRecursive(final File dir) throws IOException {
+		if (!dir.exists()) return;
 		Files.walkFileTree(dir.toPath(), new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file,
