@@ -54,7 +54,7 @@ public class TaskClone {
 
 	public synchronized void update(String tag) throws TaskCloneException {
 		try (Git g = Git.open(repo)) {
-			PullResult p = g.pull().setRemote(upstreamRepo.getPath()).call();
+			PullResult p = g.pull().setRemote("origin").call();
 			if (p.isSuccessful()) {
 				g.reset().setMode(ResetType.HARD).setRef(tag).call();
 			}
