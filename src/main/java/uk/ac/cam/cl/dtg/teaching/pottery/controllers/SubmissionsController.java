@@ -60,11 +60,7 @@ public class SubmissionsController {
 	@Path("/{repoId}/{tag}")
 	@ApiOperation(value="Poll the submission information",
 		notes="Use this call to poll for the results of testing.",position=1)
-	public Submission getSubmission(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SQLException {
-		try (TransactionQueryRunner q = database.getQueryRunner()) {
-			return Submission.getByRepoIdAndTag(repoId, tag, q);
-		}
+	public Submission getSubmission(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SQLException, RepoException {
+		return repoFactory.getInstance(repoId).getSubmission(tag,database);
 	}
-	
-
 }

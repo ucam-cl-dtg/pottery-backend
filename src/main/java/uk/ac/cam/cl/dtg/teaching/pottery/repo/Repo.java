@@ -117,8 +117,15 @@ public class Repo {
 		}		
 	}
 	
-	public synchronized Submission getCurrentSubmission() {
-		return currentSubmission;
+	public synchronized Submission getSubmission(String tag, Database database) throws SQLException {
+		if (currentSubmission != null && currentSubmission.getTag().equals(tag)) {
+			return currentSubmission;
+		}
+		else {
+			try (TransactionQueryRunner q = database.getQueryRunner()) {
+				return Submission.getByRepoIdAndTag(repoId, tag, q);
+			}
+		}
 	}
 	
 	public synchronized Submission scheduleSubmission(String tag, Worker w) {
