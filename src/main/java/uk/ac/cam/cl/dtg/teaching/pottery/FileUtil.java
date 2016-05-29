@@ -10,6 +10,15 @@ import java.nio.file.attribute.BasicFileAttributes;
 
 public class FileUtil {
 
+	
+	public static void mkdir(File dir) throws IOException {
+		if (!dir.exists()) {
+			if (!dir.mkdirs()) {
+				throw new IOException("Failed to create directory "+dir);
+			}
+		}
+	}
+	
 	public static void deleteRecursive(final File dir) throws IOException {
 		if (!dir.exists()) return;
 		Files.walkFileTree(dir.toPath(), new SimpleFileVisitor<Path>() {

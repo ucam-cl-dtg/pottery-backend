@@ -23,6 +23,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerStartConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.WaitResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
@@ -38,9 +39,10 @@ public class ContainerManager {
 	private DockerApi docker;
 	
 	@Inject
-	public ContainerManager(ContainerEnvConfig config, DockerApi docker) {
+	public ContainerManager(ContainerEnvConfig config, DockerApi docker) throws IOException {
 		this.config = config;
 		this.docker = docker;
+		FileUtil.mkdir(config.getLibRoot());
 	}
 	
 	static class PathPair {

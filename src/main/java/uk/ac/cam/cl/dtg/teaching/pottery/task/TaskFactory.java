@@ -1,6 +1,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -11,6 +12,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
@@ -40,9 +42,16 @@ public class TaskFactory {
 	private Database database;
 	
 	@Inject
-	public TaskFactory(TaskConfig config, Database database) {
+	public TaskFactory(TaskConfig config, Database database) throws IOException {
 		this.config = config;
 		this.database = database;
+		FileUtil.mkdir(config.getTaskDefinitionRoot());
+		FileUtil.mkdir(config.getTaskOutgoingRoot());
+		FileUtil.mkdir(config.getTaskRegisteredRoot());
+		FileUtil.mkdir(config.getTaskRetiredRoot());
+		FileUtil.mkdir(config.getTaskStagingRoot());
+		FileUtil.mkdir(config.getTaskTemplateRoot());
+		FileUtil.mkdir(config.getTaskTestingRoot());
 		for(File f : config.getTaskDefinitionRoot().listFiles()) {
 			if (f.getName().startsWith(".")) continue;
 			String uuid = f.getName();
