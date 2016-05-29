@@ -12,7 +12,7 @@ import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
-import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 
 @Singleton
@@ -39,10 +39,10 @@ public class RepoFactory {
 			});
 
 
-	private Config config;
+	private RepoConfig config;
 	
 	@Inject
-	public RepoFactory(Config config, Database database) {
+	public RepoFactory(RepoConfig config, Database database) {
 		this.database = database;
 		this.config = config;
 		for(File f : config.getRepoRoot().listFiles()) {

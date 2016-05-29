@@ -12,7 +12,7 @@ import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
-import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
 
 @Singleton
@@ -35,12 +35,12 @@ public class TaskFactory {
 				}
 			});
 
-	private Config config;
+	private TaskConfig config;
 	
 	private Database database;
 	
 	@Inject
-	public TaskFactory(Config config, Database database) {
+	public TaskFactory(TaskConfig config, Database database) {
 		this.config = config;
 		this.database = database;
 		for(File f : config.getTaskDefinitionRoot().listFiles()) {

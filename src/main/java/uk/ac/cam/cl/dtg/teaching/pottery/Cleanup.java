@@ -12,11 +12,11 @@ import java.util.Set;
 
 import org.apache.commons.dbutils.ResultSetHandler;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 
 public class Cleanup {
 
-	public static List<String> cleanup(Database database, Config config) throws SQLException, IOException {
+	public static List<String> cleanup(Database database, RepoConfig config) throws SQLException, IOException {
 	
 		List<String> actionLog = new LinkedList<>();
 		
@@ -28,7 +28,7 @@ public class Cleanup {
 		
 	}
 
-	private static void cleanupRepos(Database database, Config config, List<String> actionLog)
+	private static void cleanupRepos(Database database, RepoConfig config, List<String> actionLog)
 			throws SQLException, IOException {
 		File repoRoot = config.getRepoRoot();
 		final Set<String> toRemoveFromFs = new HashSet<>();

@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
@@ -21,15 +23,25 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerStartConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.WaitResponse;
-import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
 
-public class ContainerHelper {
+@Singleton
+public class ContainerManager {
 
-	public static final Logger LOG = LoggerFactory.getLogger(ContainerHelper.class);
+	public static final Logger LOG = LoggerFactory.getLogger(ContainerManager.class);
 	
+	private ContainerEnvConfig config;
+
+	private DockerApi docker;
+	
+	@Inject
+	public ContainerManager(ContainerEnvConfig config, DockerApi docker) {
+		this.config = config;
+		this.docker = docker;
+	}
 	
 	static class PathPair {
 		private File host;
@@ -47,7 +59,7 @@ public class ContainerHelper {
 		}
 	}
 
-	private static AtomicInteger counter = new AtomicInteger(0);
+	private AtomicInteger counter = new AtomicInteger(0);
 
 	private static class AttachListener implements WebSocketListener {
 		private StringBuffer output;
@@ -89,17 +101,17 @@ public class ContainerHelper {
 		}		
 	}
 	
-	public static ExecResponse exec_container(ContainerHelper.PathPair[] mapping, String command, String imageName, String stdin, DockerApi docker, Config serverConfig) {				
+	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin) {				
 		try {
 			String containerName = "pottery-"+counter.incrementAndGet();
 			LOG.info("Creating container {}",containerName);
 			DockerUtil.deleteContainerByName(containerName,docker);
 			ContainerConfig config = new ContainerConfig();
 			config.setOpenStdin(true);
-			config.setCmd(Arrays.asList("/usr/bin/sudo","-u","#"+serverConfig.getUid(),"/bin/bash","-c",command));
+			config.setCmd(Arrays.asList("/usr/bin/sudo","-u","#"+this.config.getUid(),"/bin/bash","-c",command));
 			config.setImage(imageName);
 			Map<String,Map<String,String>> volumes = new HashMap<String,Map<String,String>>();
-			for(ContainerHelper.PathPair p : mapping) {
+			for(ContainerManager.PathPair p : mapping) {
 				volumes.put(p.getContainer().getPath(), new HashMap<String,String>());
 			}
 			config.setVolumes(volumes);
@@ -129,34 +141,32 @@ public class ContainerHelper {
 		}
 	}
 
-	public static ExecResponse execTaskCompilation(File taskDirHost, String imageName, DockerApi docker,Config config) {
+	public ExecResponse execTaskCompilation(File taskDirHost, String imageName) {
 		ExecResponse r = exec_container(new PathPair[] {
 				new PathPair(taskDirHost,"/task")
-		}, "/task/compile-test.sh /task/test /task/harness /task/validator", imageName, null, docker,config);
+		}, "/task/compile-test.sh /task/test /task/harness /task/validator", imageName, null);
 		return r;
 	}
 	
-	public static CompilationResponse execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName, DockerApi docker, Config config) {
+	public CompilationResponse execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName) {
 		ExecResponse r = exec_container(new PathPair[] { 
 				new PathPair(codeDirHost,"/code"),
 				new PathPair(compilationRecipeDirHost,"/compile"),
 				new PathPair(config.getLibRoot(),"/testlib") },
 				"/compile/compile-solution.sh /code /testlib",
 				imageName,
-				null,
-				docker,config);			
+				null);			
 		return new CompilationResponse(r.isSuccess(),r.getResponse());
 	}
 
-	public static HarnessResponse execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, DockerApi docker, Config config) {
+	public HarnessResponse execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName) {
 		ExecResponse r = exec_container(new PathPair[] { 
 				new PathPair(codeDirHost,"/code"),
 				new PathPair(harnessRecipeDirHost,"/harness"),
 				new PathPair(config.getLibRoot(),"/testlib") },
 				"/harness/run-harness.sh /code /harness /testlib",
 				imageName,
-				null,
-				docker,config);
+				null);
 		
 		ObjectMapper objectMapper = new ObjectMapper();
 		try {
@@ -166,8 +176,8 @@ public class ContainerHelper {
 		}		
 	}
 
-	public static ValidationResponse execValidator(File validatorDirectory, HarnessResponse harnessResponse,
-			String imageName, DockerApi docker,Config config) {
+	public ValidationResponse execValidator(File validatorDirectory, HarnessResponse harnessResponse,
+			String imageName) {
 		ObjectMapper o = new ObjectMapper();
 		try {
 			ExecResponse r = exec_container(new PathPair[] { 
@@ -175,8 +185,7 @@ public class ContainerHelper {
 					new PathPair(config.getLibRoot(),"/testlib") },
 					"/validator/run-validator.sh /validator /testlib",
 					imageName,
-					o.writeValueAsString(harnessResponse)+"\n\n",
-					docker,config);
+					o.writeValueAsString(harnessResponse)+"\n\n");
 			try {
 				return o.readValue(r.getResponse(),ValidationResponse.class);
 			} catch (IOException e) {

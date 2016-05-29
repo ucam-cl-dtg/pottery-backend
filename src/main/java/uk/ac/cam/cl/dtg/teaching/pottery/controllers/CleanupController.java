@@ -14,7 +14,7 @@ import com.wordnik.swagger.annotations.ApiOperation;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Cleanup;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 
 @Produces("application/json")
 @Path("/cleanup")
@@ -22,10 +22,10 @@ import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 public class CleanupController {
 
 	private Database database;
-	private Config config;
+	private RepoConfig config;
 
 	@Inject
-	public CleanupController(Database database, Config config) {
+	public CleanupController(Database database, RepoConfig config) {
 		super();
 		this.database = database;
 		this.config = config;

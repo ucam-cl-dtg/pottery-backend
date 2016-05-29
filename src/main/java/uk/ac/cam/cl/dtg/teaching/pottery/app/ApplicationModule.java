@@ -16,6 +16,10 @@ import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.CleanupController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
@@ -43,7 +47,12 @@ public class ApplicationModule implements Module {
         binder.bind(RepoFactory.class).in(Singleton.class);
         binder.bind(TaskFactory.class).in(Singleton.class);
         binder.bind(TaskManager.class).in(Singleton.class);
-        binder.bind(Config.class).in(Singleton.class);
+        binder.bind(ContainerManager.class).in(Singleton.class);
+
+        binder.bind(TaskConfig.class).in(Singleton.class);
+        binder.bind(RepoConfig.class).in(Singleton.class);
+        binder.bind(ContainerEnvConfig.class).in(Singleton.class);
+        
         binder.bind(Database.class).in(Singleton.class);
         binder.bind(CleanupController.class);
         binder.bind(Worker.class).in(Singleton.class);

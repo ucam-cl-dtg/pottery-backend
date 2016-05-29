@@ -34,12 +34,11 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
-import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
@@ -80,7 +79,7 @@ public class Repo {
 	 */
 	private Submission currentSubmission;
 	
-	private Repo(String repoId, Config c, String taskId, boolean registered) {
+	private Repo(String repoId, RepoConfig c, String taskId, boolean registered) {
 		this.repoId = repoId;
 		this.repoDirectory = new File(c.getRepoRoot(),repoId);
 		this.repoTestingDirectory = new File(c.getRepoTestingRoot(),repoId);
@@ -127,7 +126,7 @@ public class Repo {
 		currentSubmission = new Submission(repoId, tag);
 		w.schedule(new Job() {
 			@Override
-			public void execute(TaskManager taskManager, RepoFactory repoFactory, DockerApi docker, Database database, Config config) throws Exception {					
+			public void execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws Exception {					
 				Task t = taskManager.getTask(taskId);
 				TaskClone c = registered ? t.getRegisteredClone() : t.getTestingClone();
 				try {
@@ -139,11 +138,11 @@ public class Repo {
 					File validatorRoot = c.getValidatorRoot();
 					String image = c.getInfo().getImage();
 					
-					CompilationResponse compilationResponse = ContainerHelper.execCompilation(codeDir, compileRoot, image, docker,config);
+					CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, compileRoot, image);
 					currentSubmission.setCompilationResponse(compilationResponse);
-					HarnessResponse harnessResponse = ContainerHelper.execHarness(codeDir,harnessRoot,image,docker,config);
+					HarnessResponse harnessResponse = containerManager.execHarness(codeDir,harnessRoot,image);
 					currentSubmission.setHarnessResponse(harnessResponse);
-					ValidationResponse validationResponse = ContainerHelper.execValidator(validatorRoot,harnessResponse, image,docker,config);
+					ValidationResponse validationResponse = containerManager.execValidator(validatorRoot,harnessResponse, image);
 					currentSubmission.setValidationResponse(validationResponse);
 				}
 				finally {
@@ -502,7 +501,7 @@ public class Repo {
 	 * @return a repo object for this repository
 	 * @throws RepoException if the repository does not exist or if it can't be opened
 	 */
-	static Repo openRepo(String repoId, Config config, Database database) throws RepoException {
+	static Repo openRepo(String repoId, RepoConfig config, Database database) throws RepoException {
 		
 		File repoDirectory = new File(config.getRepoRoot(),repoId);
 		
@@ -536,7 +535,7 @@ public class Repo {
 	 * @return a repo object for this repository
 	 * @throws RepoException if the repository couldn't be created
 	 */
-	static Repo createRepo(String repoId, String taskId, boolean registered, Config config, Database database) throws RepoException {
+	static Repo createRepo(String repoId, String taskId, boolean registered, RepoConfig config, Database database) throws RepoException {
 		
 		File repoDirectory = new File(config.getRepoRoot(),repoId);
 		

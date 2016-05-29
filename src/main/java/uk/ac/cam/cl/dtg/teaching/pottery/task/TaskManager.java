@@ -16,10 +16,10 @@ import org.slf4j.LoggerFactory;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
-import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
@@ -34,13 +34,12 @@ public class TaskManager {
 	private Map<String,Task> retiredTasks;
 	private Map<String,Task> registeredTasks;
 
-	private DockerApi docker;
 	private TaskFactory taskFactory;
+	private ContainerManager containerManager;
 	
 	@Inject
-	public TaskManager(Config config, DockerApi docker, Database database, TaskFactory taskFactory) throws GitAPIException, IOException, SQLException, TaskException {
-//		this.config = config;
-		this.docker = docker;
+	public TaskManager(TaskConfig config, ContainerManager containerManager, Database database, TaskFactory taskFactory) throws GitAPIException, IOException, SQLException, TaskException {
+		this.containerManager = containerManager;
 		
 		this.taskFactory = taskFactory;
 		this.definedTasks = new HashMap<>();
@@ -84,7 +83,7 @@ public class TaskManager {
 	 */
 	public TaskInfo registerTask(String taskId, String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException {
 		Task task = definedTasks.get(taskId);
-		task.registerTask(sha1, docker);
+		task.registerTask(sha1, containerManager);
 		registeredTasks.put(taskId, task);
 		return task.getRegisteredClone().getInfo();
 	}
@@ -112,31 +111,9 @@ public class TaskManager {
 	public Task getTask(String taskId) {
 		return definedTasks.get(taskId);
 	}
-
 	
 	public void updateTesting(String taskID) throws TaskCloneException {
 		definedTasks.get(taskID).getTestingClone().update(Constants.HEAD);
 	}
-		
-//	public File getTaskRoot(TaskInfo t) {
-//		File root = t.isReleased() ? config.getTaskReleaseRoot() : config.getTaskTestingRoot();
-//		return new File(root,t.getTaskId());
-//	}
-//	
-//	public File getSkeletonRoot(TaskInfo t) {
-//		return new File(getTaskRoot(t),"skeleton");
-//	}
-//	
-//	public File getCompileRoot(TaskInfo t) {
-//		return new File(getTaskRoot(t),"compile");
-//	}
-//	
-//	public File getHarnessRoot(TaskInfo t) {
-//		return new File(getTaskRoot(t),"harness");
-//	}
-//
-//	public File getValidatorRoot(TaskInfo t) {
-//		return new File(getTaskRoot(t),"validator");
-//	}
 
 }

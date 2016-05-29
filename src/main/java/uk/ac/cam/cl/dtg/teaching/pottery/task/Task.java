@@ -10,12 +10,11 @@ import org.eclipse.jgit.lib.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
-import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
@@ -64,18 +63,15 @@ public class Task {
 	private File taskRegisteredRoot;
 
 	private File taskStagingRoot;
-
-	private Config config;
 	
-	private Task(String taskId, String registeredTag, boolean retired, Config config) throws TaskException {
+	private Task(String taskId, String registeredTag, boolean retired, TaskConfig config) throws TaskException {
 		this.taskId = taskId;
 		this.registeredTag = registeredTag;
 		this.retired = retired;
 		this.taskDefRoot = new File(config.getTaskDefinitionRoot(),taskId);
 		this.taskTestingRoot = new File(config.getTaskTestingRoot(),taskId);
-		this.taskRegisteredRoot = new File(config.getTaskReleaseRoot(),taskId);
+		this.taskRegisteredRoot = new File(config.getTaskRegisteredRoot(),taskId);
 		this.taskStagingRoot = new File(config.getTaskStagingRoot(),taskId);
-		this.config = config;
 		try {
 			this.testingClone = new TaskClone(taskDefRoot,taskTestingRoot,Constants.HEAD);
 		} catch (TaskCloneException e) {
@@ -101,27 +97,27 @@ public class Task {
 	
 	public TaskClone getRegisteredClone() { return registeredClone; }
 	
-	public synchronized void registerTask(String sha1,DockerApi docker) throws TaskException, TaskCloneException, IOException, TaskRegistrationException {
+	public synchronized void registerTask(String sha1,ContainerManager containerManager) throws TaskException, TaskCloneException, IOException, TaskRegistrationException {
 		
 		FileUtil.deleteRecursive(taskStagingRoot);
 		TaskClone newClone = new TaskClone(taskDefRoot,taskStagingRoot,sha1);
 		
 		String image = newClone.getInfo().getImage();
 		// Compile the testing code
-		ExecResponse r = ContainerHelper.execTaskCompilation(taskStagingRoot,image,docker,config);
+		ExecResponse r = containerManager.execTaskCompilation(taskStagingRoot,image);
 		if (!r.isSuccess()) {
 			throw new TaskRegistrationException("Failed to compile testing code in task. "+r.getResponse());
 		}
 		// Test it against the model answer
-		CompilationResponse r2 = ContainerHelper.execCompilation(new File(taskStagingRoot,"solution"), new File(taskStagingRoot,"compile"),image, docker,config);
+		CompilationResponse r2 = containerManager.execCompilation(new File(taskStagingRoot,"solution"), new File(taskStagingRoot,"compile"),image);
 		if (!r2.isSuccess()) {
 			throw new TaskRegistrationException("Failed to compile solution when testing task for release. "+r2.getFailMessage());
 		}
-		HarnessResponse r3 = ContainerHelper.execHarness(new File(taskStagingRoot,"solution"), new File(taskStagingRoot,"harness"), image, docker,config);
+		HarnessResponse r3 = containerManager.execHarness(new File(taskStagingRoot,"solution"), new File(taskStagingRoot,"harness"), image);
 		if (!r3.isSuccess()) {
 			throw new TaskRegistrationException("Failed to run harness when testing task for release. "+r3.getFailMessage());
 		}
-		ValidationResponse r4 = ContainerHelper.execValidator(new File(taskStagingRoot,"validator"), r3, image, docker,config);
+		ValidationResponse r4 = containerManager.execValidator(new File(taskStagingRoot,"validator"), r3, image);
 		if (!r4.isSuccess()) {
 			throw new TaskRegistrationException("Failed to validate harness results when testing task for release. "+r4.getFailMessage());
 		}
@@ -140,7 +136,7 @@ public class Task {
 	 * @return
 	 * @throws SQLException 
 	 */
-	static Task openTask(String taskId, Database database, Config config) throws TaskException {
+	static Task openTask(String taskId, Database database, TaskConfig config) throws TaskException {
 		try(TransactionQueryRunner q = database.getQueryRunner()) {
 			TaskDefInfo info = TaskDefInfo.getByTaskId(taskId, q);
 			if (info != null) {
@@ -160,7 +156,7 @@ public class Task {
 	 * @return
 	 * @throws IOException 
 	 */
-	static Task createTask(String taskId, Config config, Database database) throws TaskException {
+	static Task createTask(String taskId, TaskConfig config, Database database) throws TaskException {
 		File taskDefRoot = new File(config.getTaskDefinitionRoot(),taskId);
 		taskDefRoot.mkdir();
 

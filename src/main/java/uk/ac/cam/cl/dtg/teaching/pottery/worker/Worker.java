@@ -11,9 +11,8 @@ import org.slf4j.LoggerFactory;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 
@@ -28,20 +27,17 @@ public class Worker {
 	
 	private RepoFactory repoFactory;
 
-	private DockerApi docker;
-
-	private Config config;
-
+	private ContainerManager containerManager;
+	
 	private Database database;
 	
 	@Inject
-	public Worker(TaskManager taskManager, RepoFactory repoFactory, DockerApi docker, Config config, Database database) {
+	public Worker(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) {
 		super();
 		this.threadPool = Executors.newFixedThreadPool(2);
 		this.taskManager = taskManager;
 		this.repoFactory = repoFactory;
-		this.docker = docker;
-		this.config = config;
+		this.containerManager = containerManager;
 		this.database = database;
 	}
 
@@ -50,7 +46,7 @@ public class Worker {
 			@Override
 			public void run() {
 				try {
-					j.execute(taskManager,repoFactory,docker,database,config);
+					j.execute(taskManager,repoFactory,containerManager,database);
 				} catch (Exception e) {
 					LOG.error("Unhandled exception in worker",e);
 				}
