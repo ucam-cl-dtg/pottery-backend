@@ -1,6 +1,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -90,7 +91,7 @@ public class TasksController {
 	@POST
 	@Path("/{taskId}/register")
 	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.",response=Response.class)
-	public TaskInfo releaseTask(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException {
+	public TaskInfo releaseTask(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
 		return taskManager.registerTask(taskID, sha1);
 	}
 	

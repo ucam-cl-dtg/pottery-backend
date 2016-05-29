@@ -35,12 +35,14 @@ public class TaskManager {
 
 	private TaskFactory taskFactory;
 	private ContainerManager containerManager;
+	private Database database;
 	
 	@Inject
 	public TaskManager(ContainerManager containerManager, Database database, TaskFactory taskFactory) throws GitAPIException, IOException, SQLException, TaskException {
 		this.containerManager = containerManager;
 		
 		this.taskFactory = taskFactory;
+		this.database = database;
 		this.definedTasks = new HashMap<>();
 		this.registeredTasks = new HashMap<>();
 		this.retiredTasks = new HashMap<>();
@@ -84,10 +86,11 @@ public class TaskManager {
 	 * @throws IOException 
 	 * @throws TaskCloneException 
 	 * @throws TaskException 
+	 * @throws SQLException 
 	 */
-	public TaskInfo registerTask(String taskId, String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException {
+	public TaskInfo registerTask(String taskId, String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
 		Task task = definedTasks.get(taskId);
-		task.registerTask(sha1, containerManager);
+		task.registerTask(sha1, containerManager,database);
 		registeredTasks.put(taskId, task);
 		return task.getRegisteredClone().getInfo();
 	}

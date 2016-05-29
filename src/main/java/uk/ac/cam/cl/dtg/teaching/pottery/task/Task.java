@@ -97,7 +97,7 @@ public class Task {
 	
 	public TaskClone getRegisteredClone() { return registeredClone; }
 	
-	public synchronized void registerTask(String sha1,ContainerManager containerManager) throws TaskException, TaskCloneException, IOException, TaskRegistrationException {
+	public synchronized void registerTask(String sha1,ContainerManager containerManager, Database database) throws TaskException, TaskCloneException, IOException, TaskRegistrationException, SQLException {
 		
 		FileUtil.deleteRecursive(taskStagingRoot);
 		TaskClone newClone = new TaskClone(taskDefRoot,taskStagingRoot,sha1);
@@ -121,11 +121,15 @@ public class Task {
 		if (!r4.isSuccess()) {
 			throw new TaskRegistrationException("Failed to validate harness results when testing task for release. "+r4.getFailMessage());
 		}
-		
-		
+				
 		newClone.move(taskRegisteredRoot);		
-		this.registeredClone = newClone;
+		this.registeredClone = newClone;		
 		registeredTag = sha1;
+		
+		try (TransactionQueryRunner t = database.getQueryRunner()) {
+			t.update("UPDATE tasks set registered_tag=? where taskid = ?",sha1,taskId);
+			t.commit();
+		}
 	}
 
 	/**
