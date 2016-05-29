@@ -58,6 +58,7 @@ public class TaskClone {
 			if (p.isSuccessful()) {
 				g.reset().setMode(ResetType.HARD).setRef(tag).call();
 			}
+			info = TaskInfo.load(repo);
 		} catch (IOException | GitAPIException e) {
 			throw new TaskCloneException("Failed to update "+repo+" to tag "+tag,e);
 		}
