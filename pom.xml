@@ -95,7 +95,7 @@
     <dependency>
       <groupId>com.google.inject</groupId>
       <artifactId>guice</artifactId>
-      <version>3.0</version>
+      <version>4.0</version>
     </dependency>
 
     <!-- Java servlet api, CDDL + GPLv2 with classpath exception, https://glassfish.java.net/nonav/public/CDDL+GPL.html -->
