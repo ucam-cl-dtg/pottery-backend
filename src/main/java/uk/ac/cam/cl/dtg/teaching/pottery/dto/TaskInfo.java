@@ -154,4 +154,8 @@ public class TaskInfo {
 		return t;
 	}
 
+	public void save(File taskDirectory) throws IOException {
+		ObjectMapper o = new ObjectMapper();
+		o.writeValue(new File(taskDirectory,"task.json"), this);
+	}
 }
