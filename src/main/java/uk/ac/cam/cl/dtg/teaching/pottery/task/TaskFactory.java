@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
+
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -15,6 +18,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
 
 @Singleton
@@ -42,7 +46,7 @@ public class TaskFactory {
 	private Database database;
 	
 	@Inject
-	public TaskFactory(TaskConfig config, Database database) throws IOException {
+	public TaskFactory(TaskConfig config, Database database) throws IOException, GitAPIException {
 		this.config = config;
 		this.database = database;
 		FileUtil.mkdir(config.getTaskDefinitionRoot());
@@ -52,6 +56,20 @@ public class TaskFactory {
 		FileUtil.mkdir(config.getTaskStagingRoot());
 		FileUtil.mkdir(config.getTaskTemplateRoot());
 		FileUtil.mkdir(config.getTaskTestingRoot());
+		
+		// TODO: need to implement task template support. For the meantime we only use
+		// one template "standard" and if its not there use an empty stub
+		// We need to make a commit into it too because otherwise you can't clone it later
+		File stdTemplate = new File(config.getTaskTemplateRoot(),"standard");
+		if (!stdTemplate.exists()) {
+			try(Git g = Git.init().setDirectory(stdTemplate).call()) {
+				TaskInfo i = new TaskInfo("java", "Template", null, "template:java", "easy", 30, "java", "<p>Template task</p>");
+				i.save(stdTemplate);
+				g.add().addFilepattern("task.json").call();
+				g.commit().setMessage("Initial commit").call();
+			}
+		}
+		
 		for(File f : config.getTaskDefinitionRoot().listFiles()) {
 			if (f.getName().startsWith(".")) continue;
 			String uuid = f.getName();
