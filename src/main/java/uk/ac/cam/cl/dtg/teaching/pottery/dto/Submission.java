@@ -15,6 +15,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessStep;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationStep;
 
 public class Submission {
 

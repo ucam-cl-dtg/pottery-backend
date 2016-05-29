@@ -22,9 +22,9 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerStartConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.WaitResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
 
 public class ContainerHelper {
 

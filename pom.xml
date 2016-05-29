@@ -15,6 +15,14 @@
 
   <dependencies>
 
+	<!--  Java Pojos for json interface with the code running in containers, Apache license -->
+	<dependency>
+		<groupId>uk.ac.cam.cl.dtg.teaching</groupId>
+		<artifactId>pottery-container-interface</artifactId>
+		<version>1.0.0-SNAPSHOT</version>
+	</dependency>
+
+
     <!-- Postgresql JDBC driver, BSD licence https://jdbc.postgresql.org/about/license.html -->
     <dependency>
       <groupId>org.postgresql</groupId>

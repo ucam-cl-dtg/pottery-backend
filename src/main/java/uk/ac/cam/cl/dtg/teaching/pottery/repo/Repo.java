@@ -40,11 +40,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.app.Config;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerHelper;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.CompilationResponse;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.ValidationResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
@@ -52,6 +49,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskClone;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
 
 public class Repo {
 	
