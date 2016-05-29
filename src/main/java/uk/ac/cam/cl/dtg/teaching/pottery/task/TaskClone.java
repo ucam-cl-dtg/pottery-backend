@@ -24,8 +24,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
 
 public class TaskClone {
 	
-	private File upstreamRepo;
-	
 	private File repo;
 	
 	private TaskInfo info;
@@ -37,7 +35,6 @@ public class TaskClone {
 	 */
 	TaskClone(File upstreamRepo, File repo, String tag) throws TaskCloneException {
 		this.repo = repo;
-		this.upstreamRepo = upstreamRepo;
 		if (!repo.exists()) {
 			try (Git g = Git.cloneRepository().setURI(upstreamRepo.getPath()).setDirectory(repo).call()) {
 				g.reset().setMode(ResetType.HARD).setRef(tag).call();
