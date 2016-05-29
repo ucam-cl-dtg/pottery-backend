@@ -100,7 +100,7 @@ public class TasksController {
 	@ApiOperation(value="Update the checkout of the testing version of the task to HEAD.",response=Response.class)
 	public Response testTask(@PathParam("taskId") String taskID) throws TaskCloneException {
 		taskManager.updateTesting(taskID);
-		return Response.ok().build();
+		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
 	
