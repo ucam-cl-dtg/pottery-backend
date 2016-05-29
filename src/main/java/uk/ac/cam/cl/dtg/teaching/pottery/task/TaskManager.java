@@ -18,7 +18,6 @@ import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
-import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
@@ -38,7 +37,7 @@ public class TaskManager {
 	private ContainerManager containerManager;
 	
 	@Inject
-	public TaskManager(TaskConfig config, ContainerManager containerManager, Database database, TaskFactory taskFactory) throws GitAPIException, IOException, SQLException, TaskException {
+	public TaskManager(ContainerManager containerManager, Database database, TaskFactory taskFactory) throws GitAPIException, IOException, SQLException, TaskException {
 		this.containerManager = containerManager;
 		
 		this.taskFactory = taskFactory;
@@ -52,13 +51,18 @@ public class TaskManager {
 		}
 		
 		for(String taskId : taskIds) {
-			Task t = taskFactory.getInstance(taskId);
-			definedTasks.put(taskId, t);
-			if (t.isRetired()) {
-				retiredTasks.put(taskId,t);
+			try {
+				Task t = taskFactory.getInstance(taskId);
+				definedTasks.put(taskId, t);
+				if (t.isRetired()) {
+					retiredTasks.put(taskId,t);
+				}
+				if (t.getRegisteredClone() != null) {
+					registeredTasks.put(taskId, t);
+				}
 			}
-			if (t.getRegisteredClone() != null) {
-				registeredTasks.put(taskId, t);
+			catch (TaskException e) {
+				LOG.warn("Ignoring task "+taskId,e);
 			}
 		}
 	}
