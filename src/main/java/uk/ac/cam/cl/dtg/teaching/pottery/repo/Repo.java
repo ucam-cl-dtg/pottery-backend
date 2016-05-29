@@ -128,8 +128,10 @@ public class Repo {
 		}
 	}
 	
-	public synchronized Submission scheduleSubmission(String tag, Worker w) {
-		if (currentSubmission != null) return currentSubmission;		
+	public synchronized Submission scheduleSubmission(String tag, Worker w, Database db) throws SQLException {		
+		Submission s = getSubmission(tag, db);
+		if (s != null) return s;
+		
 		currentSubmission = new Submission(repoId, tag);
 		w.schedule(new Job() {
 			@Override

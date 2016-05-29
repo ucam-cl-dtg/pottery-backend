@@ -17,7 +17,6 @@ import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
@@ -53,7 +52,7 @@ public class SubmissionsController {
 			notes="A submission is created from a tag in the code repository used by the candidate.",position=0)
 	public Submission scheduleTest(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SubmissionAlreadyScheduledException, RepoException, IOException, SQLException {
 		Repo r = repoFactory.getInstance(repoId);
-		return r.scheduleSubmission(tag, worker);
+		return r.scheduleSubmission(tag, worker,database);
 	}
 	
 	@GET
