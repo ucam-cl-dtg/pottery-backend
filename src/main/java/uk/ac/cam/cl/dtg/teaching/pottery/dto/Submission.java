@@ -49,7 +49,7 @@ public class Submission {
 		this.tag = tag;
 	}
 
-	public int getSubmissionId() {
+	public Integer getSubmissionId() {
 		return submissionId;
 	}
 
