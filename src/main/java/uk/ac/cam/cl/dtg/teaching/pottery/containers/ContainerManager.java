@@ -5,6 +5,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.jetty.websocket.api.Session;
@@ -22,15 +28,18 @@ import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerStartConfig;
+import uk.ac.cam.cl.dtg.teaching.docker.model.Version;
 import uk.ac.cam.cl.dtg.teaching.docker.model.WaitResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
+import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerTimeOutException;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
 
 @Singleton
-public class ContainerManager {
+public class ContainerManager implements Stoppable {
 
 	public static final Logger LOG = LoggerFactory.getLogger(ContainerManager.class);
 	
@@ -38,11 +47,27 @@ public class ContainerManager {
 
 	private DockerApi docker;
 	
+	private ScheduledExecutorService scheduler;
+	
 	@Inject
 	public ContainerManager(ContainerEnvConfig config, DockerApi docker) throws IOException {
 		this.config = config;
 		this.docker = docker;
+		this.scheduler = Executors.newSingleThreadScheduledExecutor();
 		FileUtil.mkdir(config.getLibRoot());
+		
+		if (LOG.isInfoEnabled()) {
+			Version v = docker.getVersion();		
+			LOG.info("Connected to docker, API version: {}",v.getApiVersion());
+		}
+	}
+	
+	@Override
+	public void stop() {
+		LOG.info("Shutting down scheduler");
+		for(Runnable r : scheduler.shutdownNow()) {
+			r.run();
+		}
 	}
 	
 	static class PathPair {
@@ -103,7 +128,7 @@ public class ContainerManager {
 		}		
 	}
 	
-	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin) {				
+	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, int timeoutSec) throws ContainerTimeOutException {				
 		try {
 			String containerName = "pottery-"+counter.incrementAndGet();
 			LOG.info("Creating container {}",containerName);
@@ -128,10 +153,46 @@ public class ContainerManager {
 				}
 				startConfig.setBinds(binds);
 				docker.startContainer(containerId,startConfig);
+				
+				ScheduledFuture<Boolean> f = null;
+				if (timeoutSec > 0) {
+					f = scheduler.schedule(new Callable<Boolean>() {
+						@Override
+						public Boolean call() throws Exception {
+							try {
+								docker.killContainer(containerId, "SIGKILL");
+								return true;
+							} catch (RuntimeException e) {
+								if (!e.getMessage().contains("is not running")) {
+									LOG.error("Caught exception killing container",e);
+								} 
+								else {
+									LOG.error("SUPPRESSED");
+								}					
+							}
+							return false;
+						}					
+					}, timeoutSec,TimeUnit.SECONDS);
+				}
 				StringBuffer output = new StringBuffer();
 				AttachListener l = new AttachListener(output,stdin);
 				docker.attach(response.getId(),true,true,true,true,true,l);
 				WaitResponse waitResponse = docker.waitContainer(response.getId());
+				
+				if (f != null) {
+					boolean killed = false;				
+					if (!f.isDone()) {
+						f.cancel(false);
+					}
+					else {
+						try {
+							killed = f.get();
+						} catch (InterruptedException|ExecutionException e) {}
+					}
+					if (killed) {
+						throw new ContainerTimeOutException("Timed out after "+timeoutSec+" seconds");
+					}	
+				}
 				boolean success = waitResponse.statusCode == 0;
 				return new ExecResponse(success, output.toString());
 			}
@@ -144,37 +205,51 @@ public class ContainerManager {
 	}
 
 	public ExecResponse execTaskCompilation(File taskDirHost, String imageName) {
-		ExecResponse r = exec_container(new PathPair[] {
-				new PathPair(taskDirHost,"/task")
-		}, "/task/compile-test.sh /task/test /task/harness /task/validator", imageName, null);
-		return r;
+		try {
+			ExecResponse r = exec_container(new PathPair[] {
+					new PathPair(taskDirHost,"/task")
+			}, "/task/compile-test.sh /task/test /task/harness /task/validator", imageName, null, -1);
+			return r;
+		} catch (ContainerTimeOutException e) {
+			// Can't occur since we set timeout to -1
+			throw new Error(e);
+		}
 	}
 	
 	public CompilationResponse execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName) {
-		ExecResponse r = exec_container(new PathPair[] { 
-				new PathPair(codeDirHost,"/code"),
-				new PathPair(compilationRecipeDirHost,"/compile"),
-				new PathPair(config.getLibRoot(),"/testlib") },
-				"/compile/compile-solution.sh /code /testlib",
-				imageName,
-				null);			
-		return new CompilationResponse(r.isSuccess(),r.getResponse());
+		try {
+			ExecResponse r = exec_container(new PathPair[] { 
+					new PathPair(codeDirHost,"/code"),
+					new PathPair(compilationRecipeDirHost,"/compile"),
+					new PathPair(config.getLibRoot(),"/testlib") },
+					"/compile/compile-solution.sh /code /testlib",
+					imageName,
+					null, -1);			
+			return new CompilationResponse(r.isSuccess(),r.getResponse());
+		} catch (ContainerTimeOutException e) {
+			// Can't occur since we set timeout to -1
+			throw new Error(e);
+		}
 	}
 
-	public HarnessResponse execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName) {
-		ExecResponse r = exec_container(new PathPair[] { 
-				new PathPair(codeDirHost,"/code"),
-				new PathPair(harnessRecipeDirHost,"/harness"),
-				new PathPair(config.getLibRoot(),"/testlib") },
-				"/harness/run-harness.sh /code /harness /testlib",
-				imageName,
-				null);
-		
-		ObjectMapper objectMapper = new ObjectMapper();
+	public HarnessResponse execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, int timeoutSec) {
 		try {
-			return objectMapper.readValue(r.getResponse(),HarnessResponse.class);
-		} catch (IOException e) {
-			return new HarnessResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse());
+			ExecResponse r = exec_container(new PathPair[] { 
+					new PathPair(codeDirHost,"/code"),
+					new PathPair(harnessRecipeDirHost,"/harness"),
+					new PathPair(config.getLibRoot(),"/testlib") },
+					"/harness/run-harness.sh /code /harness /testlib",
+					imageName,
+					null, timeoutSec);
+			
+			ObjectMapper objectMapper = new ObjectMapper();
+			try {
+				return objectMapper.readValue(r.getResponse(),HarnessResponse.class);
+			} catch (IOException e) {
+				return new HarnessResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse());
+			}
+		} catch (ContainerTimeOutException e) {
+			return new HarnessResponse("Timeout occurred when running test harness");
 		}		
 	}
 
@@ -187,7 +262,7 @@ public class ContainerManager {
 					new PathPair(config.getLibRoot(),"/testlib") },
 					"/validator/run-validator.sh /validator /testlib",
 					imageName,
-					o.writeValueAsString(harnessResponse)+"\n\n");
+					o.writeValueAsString(harnessResponse)+"\n\n", -1);
 			try {
 				return o.readValue(r.getResponse(),ValidationResponse.class);
 			} catch (IOException e) {
@@ -195,6 +270,9 @@ public class ContainerManager {
 			}
 		} catch (JsonProcessingException e) {
 			return new ValidationResponse("Failed to serialise harness response: "+e.getMessage());
+		} catch (ContainerTimeOutException e) {
+			// Can't occur since we set timeout to -1
+			throw new Error(e);
 		}
 
 	}

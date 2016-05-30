@@ -149,10 +149,14 @@ public class Repo {
 					
 					CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, compileRoot, image);
 					currentSubmission.setCompilationResponse(compilationResponse);
-					HarnessResponse harnessResponse = containerManager.execHarness(codeDir,harnessRoot,image);
-					currentSubmission.setHarnessResponse(harnessResponse);
-					ValidationResponse validationResponse = containerManager.execValidator(validatorRoot,harnessResponse, image);
-					currentSubmission.setValidationResponse(validationResponse);
+					if (compilationResponse.isSuccess()) {
+						HarnessResponse harnessResponse = containerManager.execHarness(codeDir,harnessRoot,image,c.getInfo().getHarnessTimeoutSeconds());
+						currentSubmission.setHarnessResponse(harnessResponse);
+						if (harnessResponse.isSuccess()) {
+							ValidationResponse validationResponse = containerManager.execValidator(validatorRoot,harnessResponse, image);
+							currentSubmission.setValidationResponse(validationResponse);
+						}
+					}
 				}
 				finally {
 					synchronized (Repo.this) {

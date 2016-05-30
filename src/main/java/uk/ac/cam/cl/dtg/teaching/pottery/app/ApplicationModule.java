@@ -84,6 +84,7 @@ public class ApplicationModule implements Module {
 	public void preDestroy() {
 		Injector injector = GuiceResteasyBootstrapServletContextListenerV3.getInjector();
 		((Stoppable)injector.getInstance(Worker.class)).stop();
+		((Stoppable)injector.getInstance(ContainerManager.class)).stop();
 		((Stoppable)injector.getInstance(Database.class)).stop();
 				
 		// TODO: this is plausible but needs one of two possible fixes:

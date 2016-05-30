@@ -152,7 +152,7 @@ public class Task {
 						return;
 					}
 					HarnessResponse r3 = containerManager.execHarness(new File(taskStagingRoot, "solution"),
-							new File(taskStagingRoot, "harness"), image);
+							new File(taskStagingRoot, "harness"), image, newClone.getInfo().getHarnessTimeoutSeconds());
 					if (!r3.isSuccess()) {
 						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to run harness when testing task for release. " + r3.getFailMessage());
 						return;
