@@ -127,7 +127,7 @@ public class Task {
 		registeredTag = sha1;
 		
 		try (TransactionQueryRunner t = database.getQueryRunner()) {
-			t.update("UPDATE tasks set registered_tag=? where taskid = ?",sha1,taskId);
+			TaskDefInfo.updateRegisteredTag(taskId, registeredTag, t);
 			t.commit();
 		}
 	}

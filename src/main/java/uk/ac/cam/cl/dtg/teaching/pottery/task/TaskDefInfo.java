@@ -58,7 +58,7 @@ public class TaskDefInfo {
 	}
 	
 	public void insert(QueryRunner q) throws SQLException {
-		q.update("INSERT INTO tasks(taskid,registered_tag,retired) values (?,?,?)",taskId,registeredTag,retired);
+		q.update("INSERT INTO tasks(taskid,registeredtag,retired) values (?,?,?)",taskId,registeredTag,retired);
 	}
 
 	public static List<String> getAllTaskIds(QueryRunner q) throws SQLException {
@@ -72,6 +72,10 @@ public class TaskDefInfo {
 				return result;
 			}
 		});
+	}
+	
+	public static void updateRegisteredTag(String taskId, String tag, QueryRunner q) throws SQLException {
+		q.update("UPDATE tasks set registeredtag=? where taskid = ?",tag,taskId);
 	}
 	
 }
