@@ -97,7 +97,12 @@
       <artifactId>guice</artifactId>
       <version>4.0</version>
     </dependency>
-
+    <dependency>
+    	<groupId>com.google.inject.extensions</groupId>
+    	<artifactId>guice-grapher</artifactId>
+    	<version>4.0</version>
+	</dependency>
+    
     <!-- Java servlet api, CDDL + GPLv2 with classpath exception, https://glassfish.java.net/nonav/public/CDDL+GPL.html -->
     <dependency>
       <groupId>javax.servlet</groupId>

@@ -21,6 +21,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.CleanupController;
+import uk.ac.cam.cl.dtg.teaching.pottery.controllers.GuiceDependencyController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
@@ -56,6 +57,8 @@ public class ApplicationModule implements Module {
         binder.bind(Database.class).in(Singleton.class);
         binder.bind(CleanupController.class);
         binder.bind(Worker.class).in(Singleton.class);
+        
+        binder.bind(GuiceDependencyController.class);
 	}
 	
 	@Provides @Singleton
