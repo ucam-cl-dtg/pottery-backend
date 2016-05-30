@@ -17,6 +17,8 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.Ref;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
@@ -49,6 +51,15 @@ public class TaskClone {
 		}
 	}
 
+	public synchronized String getHeadSHA() throws TaskCloneException {
+		try (Git g = Git.open(repo)) {
+			Ref r = g.getRepository().findRef(Constants.HEAD);
+			return r.getObjectId().getName();
+		} catch (IOException e) {
+			throw new TaskCloneException("Failed to read Git repository for "+repo,e);	
+		}
+	}
+	
 	public synchronized void update(String tag) throws TaskCloneException {
 		try (Git g = Git.open(repo)) {
 			PullResult p = g.pull().setRemote("origin").call();
