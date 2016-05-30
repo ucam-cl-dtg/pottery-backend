@@ -30,25 +30,18 @@ public class TaskClone {
 	
 	private TaskInfo info;
 	
+	private File upstreamRepo;
+	
 	/** 
 	 * Do not create directly. Access through the members of the Task object
 	 * @throws GitAPIException 
 	 * @throws IOException 
 	 */
-	TaskClone(File upstreamRepo, File repo, String tag) throws TaskCloneException {
+	TaskClone(File upstreamRepo, File repo, String tag) throws TaskCloneException, IOException {
 		this.repo = repo;
-		if (!repo.exists()) {
-			try (Git g = Git.cloneRepository().setURI(upstreamRepo.getPath()).setDirectory(repo).call()) {
-				g.reset().setMode(ResetType.HARD).setRef(tag).call();
-			} catch (GitAPIException e) {
-				throw new TaskCloneException("Failed to create clone of "+upstreamRepo+" and reset to "+tag,e);
-			}
-		}
-		try {
-			this.info = TaskInfo.load(repo);
-		} catch (IOException e) {
-			throw new TaskCloneException("Failed to load TaskInfo from "+repo,e);
-		}
+		this.upstreamRepo = upstreamRepo;
+		update(tag,false);
+		this.info = TaskInfo.load(repo);
 	}
 
 	public synchronized String getHeadSHA() throws TaskCloneException {
@@ -60,15 +53,26 @@ public class TaskClone {
 		}
 	}
 	
-	public synchronized void update(String tag) throws TaskCloneException {
-		try (Git g = Git.open(repo)) {
-			PullResult p = g.pull().setRemote("origin").call();
-			if (p.isSuccessful()) {
+	public synchronized void update(String tag, boolean fromScratch) throws TaskCloneException, IOException {
+		if (fromScratch) FileUtil.deleteRecursive(repo);
+		
+		if (!repo.exists()) {
+			try (Git g = Git.cloneRepository().setURI(upstreamRepo.getPath()).setDirectory(repo).call()) {
 				g.reset().setMode(ResetType.HARD).setRef(tag).call();
+			} catch (GitAPIException e) {
+				throw new TaskCloneException("Failed to create clone of "+upstreamRepo+" and reset to "+tag,e);
+			}			
+		}
+		else {
+			try (Git g = Git.open(repo)) {
+				PullResult p = g.pull().setRemote("origin").call();
+				if (p.isSuccessful()) {
+					g.reset().setMode(ResetType.HARD).setRef(tag).call();
+				}
+				info = TaskInfo.load(repo);
+			} catch (IOException | GitAPIException e) {
+				throw new TaskCloneException("Failed to update "+repo+" to tag "+tag,e);
 			}
-			info = TaskInfo.load(repo);
-		} catch (IOException | GitAPIException e) {
-			throw new TaskCloneException("Failed to update "+repo+" to tag "+tag,e);
 		}
 	}
 	

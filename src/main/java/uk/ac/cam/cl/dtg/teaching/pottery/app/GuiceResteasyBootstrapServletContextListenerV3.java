@@ -20,7 +20,7 @@ public class GuiceResteasyBootstrapServletContextListenerV3 extends
 	
 	@Override
 	public void contextInitialized(ServletContextEvent event) {
-		JGitInitialiser.init();		
+//		JGitInitialiser.init();		
 		super.contextInitialized(event);
 	}
 

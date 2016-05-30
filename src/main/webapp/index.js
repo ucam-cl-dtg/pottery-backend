@@ -114,6 +114,22 @@ $(document).ready(
 						});
 					});
 
+
+			$("#pollRegistrationButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "GET",
+							url : "api/tasks/" + $("#taskId").val()+"/registering_status",
+							success : function(result) {
+								reportSuccess(result);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+
 			
 			
 			$("#startTaskForm").submit(function(event) {
