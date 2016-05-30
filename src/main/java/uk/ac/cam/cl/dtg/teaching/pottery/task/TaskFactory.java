@@ -63,7 +63,7 @@ public class TaskFactory {
 		File stdTemplate = new File(config.getTaskTemplateRoot(),"standard");
 		if (!stdTemplate.exists()) {
 			try(Git g = Git.init().setDirectory(stdTemplate).call()) {
-				TaskInfo i = new TaskInfo("java", "Template", null, "template:java", "easy", 30, "java", "<p>Template task</p>");
+				TaskInfo i = new TaskInfo("java", "Template", null, "template:java", "easy", 30, "java", "<p>Template task</p>",-1);
 				i.save(stdTemplate);
 				g.add().addFilepattern("task.json").call();
 				g.commit().setMessage("Initial commit").call();

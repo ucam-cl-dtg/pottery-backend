@@ -81,6 +81,9 @@ public class TaskInfo {
 	@ApiModelProperty("The problem statement as an HTML fragment")
 	private String problemStatement;
 	
+	@ApiModelProperty("The number of seconds to let the test harness run before killing it")
+	private int harnessTimeoutSeconds;
+	
 	@JsonCreator
 	public TaskInfo(@JsonProperty("type") String type, 
 				@JsonProperty("name") String name, 
@@ -89,7 +92,8 @@ public class TaskInfo {
 				@JsonProperty("difficulty") String difficulty,
 				@JsonProperty("recommendedTimeMinutes") int recommendedTimeMinutes, 
 				@JsonProperty("language") String language, 
-				@JsonProperty("problemStatement") String problemStatement) {
+				@JsonProperty("problemStatement") String problemStatement,
+				@JsonProperty("harnessTimeoutSeconds") int harnessTimeoutSeconds) {
 		super();
 		this.type = type;
 		this.name = name;
@@ -99,6 +103,12 @@ public class TaskInfo {
 		this.recommendedTimeMinutes = recommendedTimeMinutes;
 		this.language = language;
 		this.problemStatement = problemStatement;
+		this.harnessTimeoutSeconds = harnessTimeoutSeconds;
+	}
+
+
+	public int getHarnessTimeoutSeconds() {
+		return harnessTimeoutSeconds;
 	}
 
 
