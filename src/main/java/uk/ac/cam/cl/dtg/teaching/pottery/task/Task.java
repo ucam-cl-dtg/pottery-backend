@@ -123,8 +123,8 @@ public class Task {
 		}
 				
 		newClone.move(taskRegisteredRoot);		
-		this.registeredClone = newClone;		
-		registeredTag = sha1;
+		this.registeredClone = newClone;
+		registeredTag = newClone.getHeadSHA();
 		
 		try (TransactionQueryRunner t = database.getQueryRunner()) {
 			TaskDefInfo.updateRegisteredTag(taskId, registeredTag, t);
