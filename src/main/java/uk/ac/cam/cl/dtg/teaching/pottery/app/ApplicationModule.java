@@ -1,6 +1,9 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
+import javax.annotation.PreDestroy;
+
 import com.google.inject.Binder;
+import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -16,6 +19,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
@@ -72,6 +76,45 @@ public class ApplicationModule implements Module {
 		beanConfig.setBasePath("/pottery-backend/api");
 		beanConfig.setResourcePackage("uk.ac.cam.cl.dtg.teaching.pottery.controllers");
 		beanConfig.setScan(true);
+		
 	}
 	
+	
+	@PreDestroy
+	public void preDestroy() {
+		Injector injector = GuiceResteasyBootstrapServletContextListenerV3.getInjector();
+		((Stoppable)injector.getInstance(Worker.class)).stop();
+		((Stoppable)injector.getInstance(Database.class)).stop();
+				
+		// TODO: this is plausible but needs one of two possible fixes:
+		// 1) we need to avoid instantiating things that are not instanatiated already
+		// or 2) we need to tear things down in a sensible order, objects should be closed before their dependents
+		// Currently the issue is that we close e.g. Database and then instantiate e.g. Worker which in turn dependes on something with a constructor that needs a working database
+		/*
+		for (Map.Entry<Key<?>, Binding<?>> e : injector.getAllBindings().entrySet()) {
+			Class<?> rawType = e.getKey().getTypeLiteral().getRawType();
+			Binding<?> binding = e.getValue();			
+			if (Stoppable.class.isAssignableFrom(rawType)) {
+				binding.acceptScopingVisitor(new DefaultBindingScopingVisitor<Void>() {
+
+					@Override
+					public Void visitScope(Scope scope) {
+						if (scope == Scopes.SINGLETON) {
+							// TODO: this instantiates the singleton if it hasn't been already ;-(
+							((Stoppable) (binding.getProvider().get())).stop();
+						}
+						return null;
+					}
+
+					@Override
+					public Void visitEagerSingleton() {
+						((Stoppable) (binding.getProvider().get())).stop();
+						return null;
+					}
+				});
+			}
+			
+		}
+		*/
+	}
 }

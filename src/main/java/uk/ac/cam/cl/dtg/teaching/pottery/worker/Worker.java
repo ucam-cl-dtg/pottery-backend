@@ -3,8 +3,6 @@ package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.annotation.PreDestroy;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,12 +10,13 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 
 @Singleton
-public class Worker {
+public class Worker implements Stoppable {
 
 	public static Logger LOG = LoggerFactory.getLogger(Worker.class);
 	
@@ -54,9 +53,10 @@ public class Worker {
 		});
 	}
 	
-	@PreDestroy
+	@Override
 	public void stop() {
-		threadPool.shutdownNow();
+		LOG.info("Shutting down thread pool");
+		threadPool.shutdownNow();		
 	}
 
 }
