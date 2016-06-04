@@ -110,12 +110,15 @@ public class Submission {
 					+ "compilationsuccess,"
 					+ "compilationresponse,"
 					+ "compilationfailmessage,"
+					+ "compilationTimeMs,"
 					+ "harnesssuccess,"
 					+ "harnessresponse,"
 					+ "harnessfailmessage,"
+					+ "harnessTimeMs,"
 					+ "validationsuccess,"
 					+ "validationresponse,"
-					+ "validationfailmessage) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+					+ "validationfailmessage,"
+					+ "validationTimeMs) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
 					s,
 					repoId,
 					tag,
@@ -123,12 +126,15 @@ public class Submission {
 					compilationResponse == null ? null : compilationResponse.isSuccess(),
 					compilationResponse == null ? null : mapper.writeValueAsString(compilationResponse.getResponse()),
 					compilationResponse == null ? null : compilationResponse.getFailMessage(),
+					compilationResponse == null ? null :compilationResponse.getExecutionTimeMs(),
 					harnessResponse == null ? null : harnessResponse.isSuccess(),
 					harnessResponse == null ? null : mapper.writeValueAsString(harnessResponse.getResponse()),
 					harnessResponse == null ? null : harnessResponse.getFailMessage(),
+					harnessResponse == null ? null : harnessResponse.getExecutionTimeMs(),
 					validationResponse == null ? null : validationResponse.isSuccess(),
 					validationResponse == null ? null : mapper.writeValueAsString(validationResponse.getResponse()),
-					validationResponse == null ? null : validationResponse.getFailMessage()
+					validationResponse == null ? null : validationResponse.getFailMessage(),
+					validationResponse == null ? null : validationResponse.getExecutionTimeMs()
 					);
 		} catch (JsonProcessingException e) {
 			throw new SQLException("Failed to serialise object",e);
@@ -147,12 +153,15 @@ public class Submission {
 					+ "compilationsuccess=?,"
 					+ "compilationresponse=?,"
 					+ "compilationfailmessage=?,"
+					+ "compilationTimeMs=?"
 					+ "harnesssuccess=?,"
 					+ "harnessresponse=?,"
 					+ "harnessfailmessage=?,"
+					+ "harnessTimeMs=?"
 					+ "validationsuccess=?,"
 					+ "validationresponse=?,"
 					+ "validationfailmessage=?"
+					+ "validationTimeMs=?"
 					+ " where "
 					+ "submissionid=?",
 					repoId,
@@ -161,12 +170,15 @@ public class Submission {
 					compilationResponse == null ? null :compilationResponse.isSuccess(),
 					compilationResponse == null ? null :mapper.writeValueAsString(compilationResponse.getResponse()),
 					compilationResponse == null ? null :compilationResponse.getFailMessage(),
+					compilationResponse == null ? null :compilationResponse.getExecutionTimeMs(),
 					harnessResponse == null ? null : harnessResponse.isSuccess(),
 					harnessResponse == null ? null : mapper.writeValueAsString(harnessResponse.getResponse()),
 					harnessResponse == null ? null : harnessResponse.getFailMessage(),
+					harnessResponse == null ? null : harnessResponse.getExecutionTimeMs(),
 					validationResponse == null ? null : validationResponse.isSuccess(),
 					validationResponse == null ? null : mapper.writeValueAsString(validationResponse.getResponse()),
 					validationResponse == null ? null : validationResponse.getFailMessage(),
+					validationResponse == null ? null : validationResponse.getExecutionTimeMs(),					
 					submissionId
 					);
 		} catch (JsonProcessingException e) {
@@ -188,7 +200,8 @@ public class Submission {
 				s.setCompilationResponse(new CompilationResponse(
 						compilationSuccess,
 						rs.getString("compilationfailmessage"),
-						rs.getString("compilationresponse")));
+						rs.getString("compilationresponse"),
+						rs.getLong("compilationTimeMs")));
 			}
 
 			boolean harnessSuccess = rs.getBoolean("harnessSuccess");
@@ -196,7 +209,8 @@ public class Submission {
 				s.setHarnessResponse(new HarnessResponse(
 						harnessSuccess,
 						o.readValue(rs.getString("harnessresponse"),new TypeReference<List<HarnessStep>>() {}),
-						rs.getString("harnessfailmessage")));
+						rs.getString("harnessfailmessage"),
+						rs.getLong("harnessTimeMs")));
 			}
 
 			boolean validationSuccess = rs.getBoolean("validationSuccess");
@@ -204,8 +218,8 @@ public class Submission {
 				s.setValidationResponse(new ValidationResponse(
 						validationSuccess,
 						o.readValue(rs.getString("validationresponse"),new TypeReference<List<ValidationStep>>() {}),
-						rs.getString("validationfailmessage")));
-
+						rs.getString("validationfailmessage"),
+						rs.getLong("validationTimeMs")));
 			}
 
 			s.setStatus(rs.getString("status"));

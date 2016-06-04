@@ -128,11 +128,19 @@ public class ContainerManager implements Stoppable {
 		}		
 	}
 	
-	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, int timeoutSec) throws ContainerTimeOutException {				
+	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, int timeoutSec) throws ContainerTimeOutException {
+
+		String containerName = "pottery-"+counter.incrementAndGet();
+		LOG.info("Creating container {}",containerName);
+			
 		try {
-			String containerName = "pottery-"+counter.incrementAndGet();
-			LOG.info("Creating container {}",containerName);
 			DockerUtil.deleteContainerByName(containerName,docker);
+		} catch (RuntimeException e) {
+			return new ExecResponse(false,e.getMessage(),-1);
+		}	
+		
+		long startTime = System.currentTimeMillis();
+		try {
 			ContainerConfig config = new ContainerConfig();
 			config.setOpenStdin(true);
 			config.setCmd(Arrays.asList("/usr/bin/sudo","-u","#"+this.config.getUid(),"/bin/bash","-c",command));
@@ -141,10 +149,13 @@ public class ContainerManager implements Stoppable {
 			for(ContainerManager.PathPair p : mapping) {
 				volumes.put(p.getContainer().getPath(), new HashMap<String,String>());
 			}
-			config.setVolumes(volumes);
-			ContainerResponse response = docker.createContainer(containerName,config);
+			config.setVolumes(volumes);			
+			ContainerResponse response = docker.createContainer(containerName,config);			
 			try {
 				String containerId = response.getId();
+				
+				System.out.println(docker.inspectContainer(containerId).getHostConfig());
+				
 				ContainerStartConfig startConfig = new ContainerStartConfig();
 				String[] binds = new String[mapping.length];
 				for(int i=0;i<mapping.length;++i) {
@@ -190,17 +201,17 @@ public class ContainerManager implements Stoppable {
 						} catch (InterruptedException|ExecutionException e) {}
 					}
 					if (killed) {
-						throw new ContainerTimeOutException("Timed out after "+timeoutSec+" seconds");
+						throw new ContainerTimeOutException("Timed out after "+timeoutSec+" seconds", System.currentTimeMillis() - startTime);
 					}	
 				}
 				boolean success = waitResponse.statusCode == 0;
-				return new ExecResponse(success, output.toString());
+				return new ExecResponse(success, output.toString(),System.currentTimeMillis()-startTime);
 			}
 			finally {
 				docker.deleteContainer(response.getId(), true, true);
 			}
 		} catch (RuntimeException e) {
-			return new ExecResponse(false,e.getMessage());
+			return new ExecResponse(false,e.getMessage(),System.currentTimeMillis() - startTime);
 		}
 	}
 
@@ -225,7 +236,7 @@ public class ContainerManager implements Stoppable {
 					"/compile/compile-solution.sh /code /testlib",
 					imageName,
 					null, -1);			
-			return new CompilationResponse(r.isSuccess(),r.getResponse());
+			return new CompilationResponse(r.isSuccess(),r.getResponse(),r.getExecutionTimeMs());
 		} catch (ContainerTimeOutException e) {
 			// Can't occur since we set timeout to -1
 			throw new Error(e);
@@ -246,10 +257,10 @@ public class ContainerManager implements Stoppable {
 			try {
 				return objectMapper.readValue(r.getResponse(),HarnessResponse.class);
 			} catch (IOException e) {
-				return new HarnessResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse());
+				return new HarnessResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse(),r.getExecutionTimeMs());
 			}
 		} catch (ContainerTimeOutException e) {
-			return new HarnessResponse("Timeout occurred when running test harness");
+			return new HarnessResponse("Timeout occurred when running test harness",e.getExecutionTimeMs());
 		}		
 	}
 
@@ -266,10 +277,10 @@ public class ContainerManager implements Stoppable {
 			try {
 				return o.readValue(r.getResponse(),ValidationResponse.class);
 			} catch (IOException e) {
-				return new ValidationResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse());
+				return new ValidationResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse(),r.getExecutionTimeMs());
 			}
 		} catch (JsonProcessingException e) {
-			return new ValidationResponse("Failed to serialise harness response: "+e.getMessage());
+			return new ValidationResponse("Failed to serialise harness response: "+e.getMessage(),-1);
 		} catch (ContainerTimeOutException e) {
 			// Can't occur since we set timeout to -1
 			throw new Error(e);
