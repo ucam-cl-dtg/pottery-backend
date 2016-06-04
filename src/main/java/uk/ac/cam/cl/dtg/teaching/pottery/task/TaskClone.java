@@ -78,6 +78,7 @@ public class TaskClone {
 	
 	public synchronized List<String> copySkeleton(File destination) throws IOException {
 		File sourceLocation = getSkeletonRoot();
+		if (!sourceLocation.exists()) { return new LinkedList<>(); }
 		List<String> copiedFiles = new LinkedList<>();
 		Files.walkFileTree(sourceLocation.toPath(), new SimpleFileVisitor<Path>() {
 			@Override
