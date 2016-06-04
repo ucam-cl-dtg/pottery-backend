@@ -17,6 +17,7 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.RevertCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.JGitInternalException;
 import org.eclipse.jgit.errors.AmbiguousObjectException;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
@@ -98,15 +99,17 @@ public class Repo {
 			try (Git git = Git.open(repoDirectory)) {
 				try {
 					List<String> copiedFiles = task.copySkeleton(repoDirectory);
-					for(String f : copiedFiles) {
-						git.add().addFilepattern(f).call();
+					if (!copiedFiles.isEmpty()) {
+						for(String f : copiedFiles) {
+							git.add().addFilepattern(f).call();
+						}
+						git.commit().setMessage("Copied files").call();
 					}
-					git.commit().setMessage("Copied files").call();
 				} catch (IOException | GitAPIException e) {
 					try {
 						git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
 						throw new RepoException("An error occurred when copying and adding to repository. Rolled back",e);
-					} catch (GitAPIException e1) {
+					} catch (GitAPIException|JGitInternalException e1) {
 						e1.addSuppressed(e);
 						throw new RepoException("Failed to rollback failed update",e1);
 					}
