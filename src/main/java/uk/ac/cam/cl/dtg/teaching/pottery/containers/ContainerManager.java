@@ -154,8 +154,6 @@ public class ContainerManager implements Stoppable {
 			try {
 				String containerId = response.getId();
 				
-				System.out.println(docker.inspectContainer(containerId).getHostConfig());
-				
 				ContainerStartConfig startConfig = new ContainerStartConfig();
 				String[] binds = new String[mapping.length];
 				for(int i=0;i<mapping.length;++i) {
@@ -211,6 +209,7 @@ public class ContainerManager implements Stoppable {
 				docker.deleteContainer(response.getId(), true, true);
 			}
 		} catch (RuntimeException e) {
+			LOG.error("Error executing container",e);
 			return new ExecResponse(false,e.getMessage(),System.currentTimeMillis() - startTime);
 		}
 	}
