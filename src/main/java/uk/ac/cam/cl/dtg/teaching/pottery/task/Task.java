@@ -16,6 +16,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskRegistrationException;
@@ -136,13 +137,13 @@ public class Task {
 				synchronized (Task.this) {
 					FileUtil.deleteRecursive(taskStagingRoot);
 					TaskClone newClone = new TaskClone(taskDefRoot, taskStagingRoot, sha1);
-	
-					String image = newClone.getInfo().getImage();
+					TaskInfo newTaskInfo = newClone.getInfo();
+					String image = newTaskInfo.getImage();
 					// Compile the testing code
 					ExecResponse r = containerManager.execTaskCompilation(
 							taskStagingRoot, 
 							image, 
-							newClone.getInfo().getCompilationRestrictions());
+							newTaskInfo.getCompilationRestrictions());
 					if (!r.isSuccess()) {
 						registrationRequest = new RegistrationRequest(sha1, "FAILED","Failed to compile testing code in task. "+r.getResponse());
 						return;
@@ -152,7 +153,7 @@ public class Task {
 							new File(taskStagingRoot, "solution"),
 							new File(taskStagingRoot, "compile"), 
 							image,
-							newClone.getInfo().getCompilationRestrictions());
+							newTaskInfo.getCompilationRestrictions());
 					if (!r2.isSuccess()) {
 						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to compile solution when testing task for release. " + r2.getFailMessage());
 						return;
@@ -161,7 +162,7 @@ public class Task {
 							new File(taskStagingRoot, "solution"),
 							new File(taskStagingRoot, "harness"), 
 							image, 
-							newClone.getInfo().getHarnessRestrictions());
+							newTaskInfo.getHarnessRestrictions());
 					if (!r3.isSuccess()) {
 						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to run harness when testing task for release. " + r3.getFailMessage());
 						return;
@@ -170,7 +171,7 @@ public class Task {
 							new File(taskStagingRoot, "validator"), 
 							r3, 
 							image,
-							newClone.getInfo().getValidatorRestrictions());
+							newTaskInfo.getValidatorRestrictions());
 					if (!r4.isSuccess()) {
 						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to validate harness results when testing task for release. " + r4.getFailMessage());
 						return;
