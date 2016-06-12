@@ -157,7 +157,7 @@ public class ContainerManager implements Stoppable {
 				ContainerStartConfig startConfig = new ContainerStartConfig();
 				String[] binds = new String[mapping.length];
 				for(int i=0;i<mapping.length;++i) {
-					LOG.info("Added mapping {} -> {}",mapping[i].getHost().getPath(),mapping[i].getContainer().getPath());
+					LOG.debug("Added mapping {} -> {}",mapping[i].getHost().getPath(),mapping[i].getContainer().getPath());
 					binds[i] = DockerUtil.bind(mapping[i].getHost(),mapping[i].getContainer());
 				}
 				startConfig.setBinds(binds);
