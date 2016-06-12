@@ -164,7 +164,6 @@ public class Repo {
 				finally {
 					synchronized (Repo.this) {
 						currentSubmission.setStatus(Submission.STATUS_COMPLETE);
-						log.error("Saving {}:{}",repoId,tag);
 						try (TransactionQueryRunner q = database.getQueryRunner()) {
 							currentSubmission.insert(q);
 							q.commit();
