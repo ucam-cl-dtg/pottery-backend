@@ -25,6 +25,7 @@ import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
+import uk.ac.cam.cl.dtg.teaching.docker.model.Container;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerStartConfig;
@@ -60,6 +61,26 @@ public class ContainerManager implements Stoppable {
 			Version v = docker.getVersion();		
 			LOG.info("Connected to docker, API version: {}",v.getApiVersion());
 		}
+		
+		for(Container i : docker.listContainers(true, null, null, null, null)) {
+			String matchedName = getPotteryTransientName(i);
+			if (matchedName != null) {
+				LOG.warn("Deleting old container named {}",matchedName);
+				try {
+					docker.deleteContainer(i.getId(), true, true);
+				} catch (RuntimeException e) {
+					LOG.error("Error deleting old container",e);
+				}
+			}
+		}
+	}
+	
+	private String getPotteryTransientName(Container i) {
+		final String prefix = "/"+config.getContainerPrefix();
+		for (String name : i.getNames()) {
+			if (name.startsWith(prefix)) { return name; }
+		}
+		return null;
 	}
 	
 	@Override
