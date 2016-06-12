@@ -33,7 +33,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.WaitResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerTimeOutException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerKilledException;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
@@ -128,7 +128,7 @@ public class ContainerManager implements Stoppable {
 		}		
 	}
 	
-	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, int timeoutSec) throws ContainerTimeOutException {
+	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, int timeoutSec) throws ContainerKilledException {
 
 		String containerName = "pottery-"+counter.incrementAndGet();
 		LOG.info("Creating container {}",containerName);
@@ -152,7 +152,7 @@ public class ContainerManager implements Stoppable {
 			config.setVolumes(volumes);			
 			ContainerResponse response = docker.createContainer(containerName,config);			
 			try {
-				String containerId = response.getId();
+				final String containerId = response.getId();
 				
 				ContainerStartConfig startConfig = new ContainerStartConfig();
 				String[] binds = new String[mapping.length];
@@ -163,48 +163,54 @@ public class ContainerManager implements Stoppable {
 				startConfig.setBinds(binds);
 				docker.startContainer(containerId,startConfig);
 				
-				ScheduledFuture<Boolean> f = null;
+				ScheduledFuture<Boolean> timeoutKiller = null;
 				if (timeoutSec > 0) {
-					f = scheduler.schedule(new Callable<Boolean>() {
+					timeoutKiller = scheduler.schedule(new Callable<Boolean>() {
 						@Override
 						public Boolean call() throws Exception {
 							try {
-								docker.killContainer(containerId, "SIGKILL");
-								return true;
+								return DockerUtil.killContainer(containerId,docker);
 							} catch (RuntimeException e) {
-								if (e.getMessage().contains("is not running")) {
-									// the container might have already stopped due to completing execution
-									// so just ignore this 
-								} 
-								else {
-									LOG.error("Caught exception killing container",e);
-								}					
+								LOG.error("Caught exception killing container",e);
+								return false;
 							}
-							return false;
 						}					
 					}, timeoutSec,TimeUnit.SECONDS);
 				}
-				StringBuffer output = new StringBuffer();
-				AttachListener l = new AttachListener(output,stdin);
-				docker.attach(response.getId(),true,true,true,true,true,l);
-				WaitResponse waitResponse = docker.waitContainer(response.getId());
 				
-				if (f != null) {
-					boolean killed = false;				
-					if (!f.isDone()) {
-						f.cancel(false);
+				DiskUsageKiller diskUsageKiller = new DiskUsageKiller(containerId,docker,this.config.getDiskWriteLimitBytes());
+				ScheduledFuture<?> diskUsageKillerFuture = scheduler.scheduleAtFixedRate(diskUsageKiller,10L, 10L, TimeUnit.SECONDS);
+				try {
+					StringBuffer output = new StringBuffer();
+					AttachListener l = new AttachListener(output,stdin);
+					docker.attach(containerId,true,true,true,true,true,l);
+					
+					// Wait for container to finish (or be killed)
+					WaitResponse waitResponse = docker.waitContainer(containerId);
+				
+					if (timeoutKiller != null) {
+						boolean killed = false;				
+						if (!timeoutKiller.isDone()) {
+							timeoutKiller.cancel(false);
+						}
+						else {
+							try {
+								killed = timeoutKiller.get();
+							} catch (InterruptedException|ExecutionException e) {}
+						}
+						if (killed) {
+							throw new ContainerKilledException("Timed out after "+timeoutSec+" seconds", System.currentTimeMillis() - startTime);
+						}	
 					}
-					else {
-						try {
-							killed = f.get();
-						} catch (InterruptedException|ExecutionException e) {}
+					if (diskUsageKiller.isKilled()) {
+						throw new ContainerKilledException("Excessive disk usage. Recorded "+diskUsageKiller.getBytesWritten()+" bytes written", System.currentTimeMillis() - startTime);
 					}
-					if (killed) {
-						throw new ContainerTimeOutException("Timed out after "+timeoutSec+" seconds", System.currentTimeMillis() - startTime);
-					}	
+					boolean success = waitResponse.statusCode == 0;
+					return new ExecResponse(success, output.toString(),System.currentTimeMillis()-startTime);
 				}
-				boolean success = waitResponse.statusCode == 0;
-				return new ExecResponse(success, output.toString(),System.currentTimeMillis()-startTime);
+				finally {
+					diskUsageKillerFuture.cancel(false);
+				}
 			}
 			finally {
 				docker.deleteContainer(response.getId(), true, true);
@@ -221,9 +227,8 @@ public class ContainerManager implements Stoppable {
 					new PathPair(taskDirHost,"/task")
 			}, "/task/compile-test.sh /task/test /task/harness /task/validator", imageName, null, -1);
 			return r;
-		} catch (ContainerTimeOutException e) {
-			// Can't occur since we set timeout to -1
-			throw new Error(e);
+		} catch (ContainerKilledException e) {
+			return new ExecResponse(false,e.getMessage(),e.getExecutionTimeMs());
 		}
 	}
 	
@@ -237,9 +242,8 @@ public class ContainerManager implements Stoppable {
 					imageName,
 					null, -1);			
 			return new CompilationResponse(r.isSuccess(),r.getResponse(),r.getExecutionTimeMs());
-		} catch (ContainerTimeOutException e) {
-			// Can't occur since we set timeout to -1
-			throw new Error(e);
+		} catch (ContainerKilledException e) {
+			return new CompilationResponse(false,e.getMessage(),e.getExecutionTimeMs());
 		}
 	}
 
@@ -259,8 +263,8 @@ public class ContainerManager implements Stoppable {
 			} catch (IOException e) {
 				return new HarnessResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse(),r.getExecutionTimeMs());
 			}
-		} catch (ContainerTimeOutException e) {
-			return new HarnessResponse("Timeout occurred when running test harness",e.getExecutionTimeMs());
+		} catch (ContainerKilledException e) {
+			return new HarnessResponse(e.getMessage(),e.getExecutionTimeMs());
 		}		
 	}
 
@@ -281,9 +285,8 @@ public class ContainerManager implements Stoppable {
 			}
 		} catch (JsonProcessingException e) {
 			return new ValidationResponse("Failed to serialise harness response: "+e.getMessage(),-1);
-		} catch (ContainerTimeOutException e) {
-			// Can't occur since we set timeout to -1
-			throw new Error(e);
+		} catch (ContainerKilledException e) {
+			return new ValidationResponse(e.getMessage(),e.getExecutionTimeMs());
 		}
 
 	}
