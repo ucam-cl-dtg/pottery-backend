@@ -5,7 +5,6 @@ import javax.annotation.PreDestroy;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Module;
-import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.wordnik.swagger.jaxrs.config.BeanConfig;
 import com.wordnik.swagger.jaxrs.listing.ApiDeclarationProvider;
@@ -15,8 +14,6 @@ import com.wordnik.swagger.jaxrs.listing.ResourceListingProvider;
 
 import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
-import uk.ac.cam.cl.dtg.teaching.docker.Docker;
-import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
@@ -63,11 +60,6 @@ public class ApplicationModule implements Module {
         binder.bind(Worker.class).in(Singleton.class);
         
         binder.bind(GuiceDependencyController.class);
-	}
-	
-	@Provides @Singleton
-	DockerApi provideDockerApi() {
-		return new Docker("localhost",2375).api();
 	}
 	
 	public ApplicationModule() {

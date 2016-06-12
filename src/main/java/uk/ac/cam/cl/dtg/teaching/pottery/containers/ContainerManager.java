@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Container;
@@ -51,9 +52,9 @@ public class ContainerManager implements Stoppable {
 	private ScheduledExecutorService scheduler;
 	
 	@Inject
-	public ContainerManager(ContainerEnvConfig config, DockerApi docker) throws IOException {
+	public ContainerManager(ContainerEnvConfig config) throws IOException {
 		this.config = config;
-		this.docker = docker;
+		this.docker = new Docker("localhost",2375).api();
 		this.scheduler = Executors.newSingleThreadScheduledExecutor();
 		FileUtil.mkdir(config.getLibRoot());
 		
