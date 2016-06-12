@@ -172,11 +172,12 @@ public class ContainerManager implements Stoppable {
 								docker.killContainer(containerId, "SIGKILL");
 								return true;
 							} catch (RuntimeException e) {
-								if (!e.getMessage().contains("is not running")) {
-									LOG.error("Caught exception killing container",e);
+								if (e.getMessage().contains("is not running")) {
+									// the container might have already stopped due to completing execution
+									// so just ignore this 
 								} 
 								else {
-									LOG.error("SUPPRESSED");
+									LOG.error("Caught exception killing container",e);
 								}					
 							}
 							return false;
