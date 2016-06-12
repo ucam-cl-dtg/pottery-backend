@@ -62,6 +62,11 @@ public class ContainerManager implements Stoppable {
 			LOG.info("Connected to docker, API version: {}",v.getApiVersion());
 		}
 		
+		SystemInfo info = docker.systemInfo();
+		if (info.getSwapLimit() == null || !info.getSwapLimit().booleanValue()) {
+			LOG.warn("WARNING: swap limits are disabled for this kernel. Add \"cgroup_enable=memory swapaccount=1\" to your kernel command line");
+		}
+		
 		for(Container i : docker.listContainers(true, null, null, null, null)) {
 			String matchedName = getPotteryTransientName(i);
 			if (matchedName != null) {
