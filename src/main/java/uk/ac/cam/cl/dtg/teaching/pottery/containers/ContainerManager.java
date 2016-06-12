@@ -95,6 +95,7 @@ public class ContainerManager implements Stoppable {
 		for(Runnable r : scheduler.shutdownNow()) {
 			r.run();
 		}
+		docker.close();
 	}
 	
 	static class PathPair {
