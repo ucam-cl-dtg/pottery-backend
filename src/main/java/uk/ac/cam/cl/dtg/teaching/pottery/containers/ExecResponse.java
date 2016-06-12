@@ -8,11 +8,11 @@ public class ExecResponse {
 	
 	public ExecResponse() {}
 	
-	public ExecResponse(boolean success, String response, long exeuctionTimeMs) {
+	public ExecResponse(boolean success, String response, long executionTimeMs) {
 		super();
 		this.success = success;
 		this.response = response;
-		this.executionTimeMs = exeuctionTimeMs;
+		this.executionTimeMs = executionTimeMs;
 	}
 	
 	
