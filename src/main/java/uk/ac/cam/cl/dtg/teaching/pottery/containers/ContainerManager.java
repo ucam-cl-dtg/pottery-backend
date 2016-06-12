@@ -6,13 +6,16 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,11 +151,10 @@ public class ContainerManager implements Stoppable {
 				volumes.put(p.getContainer().getPath(), new HashMap<String,String>());
 			}
 			config.setVolumes(volumes);			
-			ContainerResponse response = docker.createContainer(containerName,config);			
-			try {
-				final String containerId = response.getId();
-				
+			ContainerResponse response = docker.createContainer(containerName,config);		
+			final String containerId = response.getId();
 			runningContainers.add(containerId);
+			try {				
 				ContainerStartConfig startConfig = new ContainerStartConfig();
 				String[] binds = new String[mapping.length];
 				for(int i=0;i<mapping.length;++i) {
@@ -221,9 +223,10 @@ public class ContainerManager implements Stoppable {
 					diskUsageKillerFuture.cancel(false);
 				}
 			}
+			
 			finally {
 				runningContainers.remove(containerId);
-				docker.deleteContainer(response.getId(), true, true);
+				docker.deleteContainer(containerId, true, true);
 			}
 		} catch (RuntimeException e) {
 			LOG.debug("Error executing container",e);
