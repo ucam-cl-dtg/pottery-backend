@@ -66,4 +66,8 @@ public class ContainerEnvConfig {
 	public int getDiskWriteLimitBytes() {
 		return 20*1024*1024;
 	}
+	
+	public String getContainerPrefix() {
+		return "pottery-transient-";
+	}
 }

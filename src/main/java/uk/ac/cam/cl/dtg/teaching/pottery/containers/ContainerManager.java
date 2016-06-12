@@ -130,8 +130,8 @@ public class ContainerManager implements Stoppable {
 	
 	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, int timeoutSec) throws ContainerKilledException {
 
-		String containerName = "pottery-"+counter.incrementAndGet();
-		LOG.info("Creating container {}",containerName);
+		String containerName = this.config.getContainerPrefix()+counter.incrementAndGet();
+		LOG.debug("Creating container {}",containerName);
 			
 		try {
 			DockerUtil.deleteContainerByName(containerName,docker);
