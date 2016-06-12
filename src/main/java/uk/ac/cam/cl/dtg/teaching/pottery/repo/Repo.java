@@ -42,6 +42,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
+import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
@@ -148,15 +149,16 @@ public class Repo {
 					File compileRoot = c.getCompileRoot();
 					File harnessRoot = c.getHarnessRoot();
 					File validatorRoot = c.getValidatorRoot();
-					String image = c.getInfo().getImage();
+					TaskInfo taskInfo = c.getInfo();
+					String image = taskInfo.getImage();
 					
-					CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, compileRoot, image);
+					CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, compileRoot, image, taskInfo.getCompilationRestrictions());
 					currentSubmission.setCompilationResponse(compilationResponse);
 					if (compilationResponse.isSuccess()) {
-						HarnessResponse harnessResponse = containerManager.execHarness(codeDir,harnessRoot,image,c.getInfo().getHarnessTimeoutSeconds());
+						HarnessResponse harnessResponse = containerManager.execHarness(codeDir,harnessRoot,image,taskInfo.getHarnessRestrictions());
 						currentSubmission.setHarnessResponse(harnessResponse);
 						if (harnessResponse.isSuccess()) {
-							ValidationResponse validationResponse = containerManager.execValidator(validatorRoot,harnessResponse, image);
+							ValidationResponse validationResponse = containerManager.execValidator(validatorRoot,harnessResponse, image,taskInfo.getValidatorRestrictions());
 							currentSubmission.setValidationResponse(validationResponse);
 						}
 					}

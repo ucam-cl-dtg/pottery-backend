@@ -27,8 +27,10 @@ import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Container;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
+import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerHostConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerStartConfig;
+import uk.ac.cam.cl.dtg.teaching.docker.model.SystemInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Version;
 import uk.ac.cam.cl.dtg.teaching.docker.model.WaitResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
@@ -154,7 +156,7 @@ public class ContainerManager implements Stoppable {
 		}		
 	}
 	
-	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, int timeoutSec) throws ContainerKilledException {
+	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, ContainerRestrictions restrictions) throws ContainerKilledException {
 
 		String containerName = this.config.getContainerPrefix()+counter.incrementAndGet();
 		LOG.debug("Creating container {}",containerName);
@@ -171,6 +173,10 @@ public class ContainerManager implements Stoppable {
 			config.setOpenStdin(true);
 			config.setCmd(Arrays.asList("/usr/bin/sudo","-u","#"+this.config.getUid(),"/bin/bash","-c",command));
 			config.setImage(imageName);
+			ContainerHostConfig hc = new ContainerHostConfig();			
+			hc.setMemory(restrictions.getRamLimitMegabytes() * 1024 * 1024);
+			hc.setMemorySwap(hc.getMemory()); // disable swap
+			config.setHostConfig(hc);
 			Map<String,Map<String,String>> volumes = new HashMap<String,Map<String,String>>();
 			for(ContainerManager.PathPair p : mapping) {
 				volumes.put(p.getContainer().getPath(), new HashMap<String,String>());
@@ -190,7 +196,7 @@ public class ContainerManager implements Stoppable {
 				docker.startContainer(containerId,startConfig);
 				
 				ScheduledFuture<Boolean> timeoutKiller = null;
-				if (timeoutSec > 0) {
+				if (restrictions.getTimeoutSec() > 0) {
 					timeoutKiller = scheduler.schedule(new Callable<Boolean>() {
 						@Override
 						public Boolean call() throws Exception {
@@ -201,10 +207,10 @@ public class ContainerManager implements Stoppable {
 								return false;
 							}
 						}					
-					}, timeoutSec,TimeUnit.SECONDS);
+					}, restrictions.getTimeoutSec(),TimeUnit.SECONDS);
 				}
 				
-				DiskUsageKiller diskUsageKiller = new DiskUsageKiller(containerId,docker,this.config.getDiskWriteLimitBytes());
+				DiskUsageKiller diskUsageKiller = new DiskUsageKiller(containerId,docker,restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024);
 				ScheduledFuture<?> diskUsageKillerFuture = scheduler.scheduleAtFixedRate(diskUsageKiller,10L, 10L, TimeUnit.SECONDS);
 				try {
 					StringBuffer output = new StringBuffer();
@@ -225,7 +231,7 @@ public class ContainerManager implements Stoppable {
 							} catch (InterruptedException|ExecutionException e) {}
 						}
 						if (killed) {
-							throw new ContainerKilledException("Timed out after "+timeoutSec+" seconds", System.currentTimeMillis() - startTime);
+							throw new ContainerKilledException("Timed out after "+restrictions.getTimeoutSec()+" seconds", System.currentTimeMillis() - startTime);
 						}	
 					}
 					if (diskUsageKiller.isKilled()) {
@@ -242,23 +248,23 @@ public class ContainerManager implements Stoppable {
 				docker.deleteContainer(response.getId(), true, true);
 			}
 		} catch (RuntimeException e) {
-			LOG.error("Error executing container",e);
+			LOG.debug("Error executing container",e);
 			return new ExecResponse(false,e.getMessage(),System.currentTimeMillis() - startTime);
 		}
 	}
 
-	public ExecResponse execTaskCompilation(File taskDirHost, String imageName) {
+	public ExecResponse execTaskCompilation(File taskDirHost, String imageName, ContainerRestrictions restrictions) {
 		try {
 			ExecResponse r = exec_container(new PathPair[] {
 					new PathPair(taskDirHost,"/task")
-			}, "/task/compile-test.sh /task/test /task/harness /task/validator", imageName, null, -1);
+			}, "/task/compile-test.sh /task/test /task/harness /task/validator", imageName, null,restrictions);
 			return r;
 		} catch (ContainerKilledException e) {
 			return new ExecResponse(false,e.getMessage(),e.getExecutionTimeMs());
 		}
 	}
 	
-	public CompilationResponse execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName) {
+	public CompilationResponse execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
 		try {
 			ExecResponse r = exec_container(new PathPair[] { 
 					new PathPair(codeDirHost,"/code"),
@@ -266,14 +272,14 @@ public class ContainerManager implements Stoppable {
 					new PathPair(config.getLibRoot(),"/testlib") },
 					"/compile/compile-solution.sh /code /testlib",
 					imageName,
-					null, -1);			
+					null, restrictions);			
 			return new CompilationResponse(r.isSuccess(),r.getResponse(),r.getExecutionTimeMs());
 		} catch (ContainerKilledException e) {
 			return new CompilationResponse(false,e.getMessage(),e.getExecutionTimeMs());
 		}
 	}
 
-	public HarnessResponse execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, int timeoutSec) {
+	public HarnessResponse execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
 		try {
 			ExecResponse r = exec_container(new PathPair[] { 
 					new PathPair(codeDirHost,"/code"),
@@ -281,7 +287,7 @@ public class ContainerManager implements Stoppable {
 					new PathPair(config.getLibRoot(),"/testlib") },
 					"/harness/run-harness.sh /code /harness /testlib",
 					imageName,
-					null, timeoutSec);
+					null, restrictions);
 			
 			ObjectMapper objectMapper = new ObjectMapper();
 			try {
@@ -295,7 +301,7 @@ public class ContainerManager implements Stoppable {
 	}
 
 	public ValidationResponse execValidator(File validatorDirectory, HarnessResponse harnessResponse,
-			String imageName) {
+			String imageName, ContainerRestrictions restrictions) {
 		ObjectMapper o = new ObjectMapper();
 		try {
 			ExecResponse r = exec_container(new PathPair[] { 
@@ -303,7 +309,7 @@ public class ContainerManager implements Stoppable {
 					new PathPair(config.getLibRoot(),"/testlib") },
 					"/validator/run-validator.sh /validator /testlib",
 					imageName,
-					o.writeValueAsString(harnessResponse)+"\n\n", -1);
+					o.writeValueAsString(harnessResponse)+"\n\n", restrictions);
 			try {
 				return o.readValue(r.getResponse(),ValidationResponse.class);
 			} catch (IOException e) {

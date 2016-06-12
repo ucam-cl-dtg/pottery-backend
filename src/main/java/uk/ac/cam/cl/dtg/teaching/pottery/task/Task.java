@@ -139,25 +139,38 @@ public class Task {
 	
 					String image = newClone.getInfo().getImage();
 					// Compile the testing code
-					ExecResponse r = containerManager.execTaskCompilation(taskStagingRoot, image);
+					ExecResponse r = containerManager.execTaskCompilation(
+							taskStagingRoot, 
+							image, 
+							newClone.getInfo().getCompilationRestrictions());
 					if (!r.isSuccess()) {
 						registrationRequest = new RegistrationRequest(sha1, "FAILED","Failed to compile testing code in task. "+r.getResponse());
 						return;
 					}
 					// Test it against the model answer
-					CompilationResponse r2 = containerManager.execCompilation(new File(taskStagingRoot, "solution"),
-							new File(taskStagingRoot, "compile"), image);
+					CompilationResponse r2 = containerManager.execCompilation(
+							new File(taskStagingRoot, "solution"),
+							new File(taskStagingRoot, "compile"), 
+							image,
+							newClone.getInfo().getCompilationRestrictions());
 					if (!r2.isSuccess()) {
 						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to compile solution when testing task for release. " + r2.getFailMessage());
 						return;
 					}
-					HarnessResponse r3 = containerManager.execHarness(new File(taskStagingRoot, "solution"),
-							new File(taskStagingRoot, "harness"), image, newClone.getInfo().getHarnessTimeoutSeconds());
+					HarnessResponse r3 = containerManager.execHarness(
+							new File(taskStagingRoot, "solution"),
+							new File(taskStagingRoot, "harness"), 
+							image, 
+							newClone.getInfo().getHarnessRestrictions());
 					if (!r3.isSuccess()) {
 						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to run harness when testing task for release. " + r3.getFailMessage());
 						return;
 					}
-					ValidationResponse r4 = containerManager.execValidator(new File(taskStagingRoot, "validator"), r3, image);
+					ValidationResponse r4 = containerManager.execValidator(
+							new File(taskStagingRoot, "validator"), 
+							r3, 
+							image,
+							newClone.getInfo().getValidatorRestrictions());
 					if (!r4.isSuccess()) {
 						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to validate harness results when testing task for release. " + r4.getFailMessage());
 						return;

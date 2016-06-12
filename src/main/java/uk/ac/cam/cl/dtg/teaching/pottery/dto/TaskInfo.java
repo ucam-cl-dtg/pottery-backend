@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wordnik.swagger.annotations.ApiModelProperty;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
 
 public class TaskInfo {
 
@@ -80,9 +81,16 @@ public class TaskInfo {
 	
 	@ApiModelProperty("The problem statement as an HTML fragment")
 	private String problemStatement;
+
+	@ApiModelProperty("Container restrictions on the compilation step")
+	private ContainerRestrictions compilationRestrictions;
 	
-	@ApiModelProperty("The number of seconds to let the test harness run before killing it")
-	private int harnessTimeoutSeconds;
+	@ApiModelProperty("Container restrictions on the test harness")
+	private ContainerRestrictions harnessRestrictions;
+
+	@ApiModelProperty("Container restrictions on the validator")
+	private ContainerRestrictions validatorRestrictions;
+
 	
 	@JsonCreator
 	public TaskInfo(@JsonProperty("type") String type, 
@@ -93,7 +101,9 @@ public class TaskInfo {
 				@JsonProperty("recommendedTimeMinutes") int recommendedTimeMinutes, 
 				@JsonProperty("language") String language, 
 				@JsonProperty("problemStatement") String problemStatement,
-				@JsonProperty("harnessTimeoutSeconds") int harnessTimeoutSeconds) {
+				@JsonProperty("compilationRestrictions") ContainerRestrictions compilationRestrictions,
+				@JsonProperty("harnessRestrictions") ContainerRestrictions harnessRestrictions,
+				@JsonProperty("validatorRestrictions") ContainerRestrictions validatorRestrictions) {
 		super();
 		this.type = type;
 		this.name = name;
@@ -103,13 +113,23 @@ public class TaskInfo {
 		this.recommendedTimeMinutes = recommendedTimeMinutes;
 		this.language = language;
 		this.problemStatement = problemStatement;
-		this.harnessTimeoutSeconds = harnessTimeoutSeconds;
+		this.compilationRestrictions = compilationRestrictions != null ? compilationRestrictions : new ContainerRestrictions(); 
+		this.harnessRestrictions = harnessRestrictions != null ? harnessRestrictions : new ContainerRestrictions();
+		this.validatorRestrictions = validatorRestrictions != null ? validatorRestrictions : new ContainerRestrictions();
 	}
 
-
-	public int getHarnessTimeoutSeconds() {
-		return harnessTimeoutSeconds;
+	public ContainerRestrictions getCompilationRestrictions() {
+		return compilationRestrictions;
 	}
+
+	public ContainerRestrictions getHarnessRestrictions() {
+		return harnessRestrictions;
+	}
+
+	public ContainerRestrictions getValidatorRestrictions() {
+		return validatorRestrictions;
+	}
+
 
 
 	public String getTaskId() {

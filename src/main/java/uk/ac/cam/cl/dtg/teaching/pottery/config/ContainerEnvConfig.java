@@ -58,15 +58,6 @@ public class ContainerEnvConfig {
 		return libDir;
 	}
 	
-	/**
-	 * Returns the maximum number of bytes a container is allowed to write before it is killed
-	 * 
-	 * @return maximum size in bytes
-	 */
-	public int getDiskWriteLimitBytes() {
-		return 20*1024*1024;
-	}
-	
 	public String getContainerPrefix() {
 		return "pottery-transient-";
 	}

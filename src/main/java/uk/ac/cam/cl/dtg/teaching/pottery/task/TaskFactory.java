@@ -18,6 +18,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
 
@@ -63,7 +64,18 @@ public class TaskFactory {
 		File stdTemplate = new File(config.getTaskTemplateRoot(),"standard");
 		if (!stdTemplate.exists()) {
 			try(Git g = Git.init().setDirectory(stdTemplate).call()) {
-				TaskInfo i = new TaskInfo("java", "Template", null, "template:java", "easy", 30, "java", "<p>Template task</p>",-1);
+				TaskInfo i = new TaskInfo(
+						"java", 
+						"Template", 
+						null, 
+						"template:java", 
+						"easy", 
+						30, 
+						"java", 
+						"<p>Template task</p>",
+						new ContainerRestrictions(),
+						new ContainerRestrictions(),
+						new ContainerRestrictions());
 				i.save(stdTemplate);
 				g.add().addFilepattern("task.json").call();
 				g.commit().setMessage("Initial commit").call();
