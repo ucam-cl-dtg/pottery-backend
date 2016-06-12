@@ -51,6 +51,8 @@ public class ContainerManager implements Stoppable {
 	
 	private ScheduledExecutorService scheduler;
 	
+	private ConcurrentSkipListSet<String> runningContainers = new ConcurrentSkipListSet<>();
+	
 	@Inject
 	public ContainerManager(ContainerEnvConfig config) throws IOException {
 		this.config = config;
@@ -94,6 +96,10 @@ public class ContainerManager implements Stoppable {
 		LOG.info("Shutting down scheduler");
 		for(Runnable r : scheduler.shutdownNow()) {
 			r.run();
+		}
+		LOG.info("Killing remaining containers");
+		for(String containerId : runningContainers) {
+			DockerUtil.killContainer(containerId, docker);
 		}
 		docker.close();
 	}
@@ -146,6 +152,7 @@ public class ContainerManager implements Stoppable {
 			try {
 				final String containerId = response.getId();
 				
+			runningContainers.add(containerId);
 				ContainerStartConfig startConfig = new ContainerStartConfig();
 				String[] binds = new String[mapping.length];
 				for(int i=0;i<mapping.length;++i) {
@@ -175,7 +182,7 @@ public class ContainerManager implements Stoppable {
 				try {
 					StringBuffer output = new StringBuffer();
 					AttachListener l = new AttachListener(output,stdin);
-					docker.attach(containerId,true,true,true,true,true,l);
+					Future<Session> session = docker.attach(containerId,true,true,true,true,true,l);
 					
 					// Wait for container to finish (or be killed)
 					WaitResponse waitResponse = docker.waitContainer(containerId);
@@ -197,6 +204,16 @@ public class ContainerManager implements Stoppable {
 					if (diskUsageKiller.isKilled()) {
 						throw new ContainerKilledException("Excessive disk usage. Recorded "+diskUsageKiller.getBytesWritten()+" bytes written", System.currentTimeMillis() - startTime);
 					}
+					
+					try {
+						session.get().disconnect();
+					} catch (IOException e) {
+						LOG.error("Failed to disconnect from websocket session with container "+containerId,e);
+					} catch (InterruptedException e) {
+					} catch (ExecutionException e) {
+						LOG.error("An exception occurred collecting the websocket session from the future",e.getCause());
+					}
+					
 					boolean success = waitResponse.statusCode == 0;
 					return new ExecResponse(success, output.toString(),System.currentTimeMillis()-startTime);
 				}
@@ -205,6 +222,7 @@ public class ContainerManager implements Stoppable {
 				}
 			}
 			finally {
+				runningContainers.remove(containerId);
 				docker.deleteContainer(response.getId(), true, true);
 			}
 		} catch (RuntimeException e) {
