@@ -27,7 +27,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 @Singleton
 public class TaskManager {
 
-	public static final Logger LOG = LoggerFactory.getLogger(TaskManager.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(TaskManager.class);
 			
 	private Map<String,Task> definedTasks;
 

@@ -30,7 +30,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 @Api(value = "/submissions", description = "Manages requests for testing",position=2)
 public class SubmissionsController {
 
-	public static final Logger log = LoggerFactory.getLogger(SubmissionsController.class);	
+	protected static final Logger log = LoggerFactory.getLogger(SubmissionsController.class);	
 	
 	private Worker worker;
 	

@@ -44,8 +44,7 @@ public class RepoController {
 	private RepoFactory repoFactory;
 	private TaskManager taskManager;
 	
-	@SuppressWarnings("unused")
-	private static final Logger log = LoggerFactory.getLogger(RepoController.class);
+	protected static final Logger log = LoggerFactory.getLogger(RepoController.class);
 
 	@Inject
 	public RepoController(RepoFactory repoFactory, TaskManager taskManager) {

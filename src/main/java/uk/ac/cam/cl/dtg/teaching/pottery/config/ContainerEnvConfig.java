@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 public class ContainerEnvConfig {
 
-	public static final Logger LOG = LoggerFactory.getLogger(ContainerEnvConfig.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(ContainerEnvConfig.class);
 		
 	private String userName;
 

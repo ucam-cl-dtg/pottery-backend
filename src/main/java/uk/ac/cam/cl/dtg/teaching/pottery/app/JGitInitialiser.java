@@ -13,7 +13,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 
 public class JGitInitialiser {
 
-	private static final Logger log =  LoggerFactory.getLogger(JGitInitialiser.class);
+	protected static final Logger log =  LoggerFactory.getLogger(JGitInitialiser.class);
 		
 	public static void init() {
 		File t = com.google.common.io.Files.createTempDir();

@@ -38,7 +38,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 @Api(value = "/tasks", description = "Manages the descriptions of the programming questions.",position=0)
 public class TasksController {
 
-	public static final Logger log = LoggerFactory.getLogger(TasksController.class);
+	protected static final Logger log = LoggerFactory.getLogger(TasksController.class);
 
 	private TaskManager taskManager;
 	

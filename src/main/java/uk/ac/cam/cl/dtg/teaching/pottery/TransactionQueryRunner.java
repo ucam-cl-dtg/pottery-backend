@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 
 public class TransactionQueryRunner extends QueryRunner implements Closeable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TransactionQueryRunner.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(TransactionQueryRunner.class);
 	
 	private Connection db;
 	

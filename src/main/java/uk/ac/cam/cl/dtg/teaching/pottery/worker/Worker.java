@@ -18,7 +18,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 @Singleton
 public class Worker implements Stoppable {
 
-	public static Logger LOG = LoggerFactory.getLogger(Worker.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(Worker.class);
 	
 	private ExecutorService threadPool;
 	

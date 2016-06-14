@@ -9,7 +9,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerInfo;
 
 public class DiskUsageKiller implements Runnable {
 
-	public static final Logger LOG = LoggerFactory.getLogger(DiskUsageKiller.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(DiskUsageKiller.class);
 	
 	private final DockerApi docker;
 	private final String containerId;

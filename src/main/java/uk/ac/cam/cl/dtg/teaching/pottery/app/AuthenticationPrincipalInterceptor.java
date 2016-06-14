@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 @ServerInterceptor
 public class AuthenticationPrincipalInterceptor implements ContainerRequestFilter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AuthenticationPrincipalInterceptor.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(AuthenticationPrincipalInterceptor.class);
 	
 	@Override
 	public void filter(ContainerRequestContext requestContext)

@@ -21,7 +21,7 @@ public class Database implements Stoppable {
 	
 	private ComboPooledDataSource connectionPool;
 	
-	private static final Logger log = LoggerFactory.getLogger(Database.class);
+	protected static final Logger log = LoggerFactory.getLogger(Database.class);
 
 	public Database() {
 		try {

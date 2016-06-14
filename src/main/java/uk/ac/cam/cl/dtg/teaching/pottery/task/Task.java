@@ -48,7 +48,7 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
  */
 public class Task {
 
-	public static final Logger LOG = LoggerFactory.getLogger(Task.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
 	private String taskId;
 

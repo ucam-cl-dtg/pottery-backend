@@ -46,7 +46,7 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
 @Singleton
 public class ContainerManager implements Stoppable {
 
-	public static final Logger LOG = LoggerFactory.getLogger(ContainerManager.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(ContainerManager.class);
 	
 	private ContainerEnvConfig config;
 
