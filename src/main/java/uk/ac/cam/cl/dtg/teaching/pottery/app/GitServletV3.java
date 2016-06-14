@@ -1,9 +1,27 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
+import java.io.IOException;
+import java.util.Collection;
+
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
 import javax.servlet.annotation.WebInitParam;
 import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServletRequest;
 
 import org.eclipse.jgit.http.server.GitServlet;
+import org.eclipse.jgit.http.server.resolver.DefaultReceivePackFactory;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.transport.PostReceiveHook;
+import org.eclipse.jgit.transport.ReceiveCommand;
+import org.eclipse.jgit.transport.ReceivePack;
+import org.eclipse.jgit.transport.resolver.ServiceNotAuthorizedException;
+import org.eclipse.jgit.transport.resolver.ServiceNotEnabledException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 
 @SuppressWarnings("serial")
 @WebServlet(urlPatterns = { "/git/*" }, 
@@ -13,4 +31,38 @@ initParams = {
 })
 public class GitServletV3 extends GitServlet {
 
+	protected static final Logger LOG = LoggerFactory.getLogger(GitServletV3.class);
+	
+	@Override
+	public void init(ServletConfig config) throws ServletException {
+	
+		setReceivePackFactory(new DefaultReceivePackFactory() {
+			@Override
+			public ReceivePack create(HttpServletRequest req, Repository db)
+					throws ServiceNotEnabledException, ServiceNotAuthorizedException {
+				ReceivePack pack = super.create(req, db);
+				pack.setPostReceiveHook(new PostReceiveHook() {
+					@Override
+					public void onPostReceive(ReceivePack rp, Collection<ReceiveCommand> commands) {
+						String repoName = req.getPathInfo().substring(1);
+						LOG.info("Received push to {}",repoName);
+						TaskManager t = GuiceResteasyBootstrapServletContextListenerV3.getInjector().getInstance(TaskManager.class);
+						try {
+							t.updateTesting(repoName);
+						} catch (TaskCloneException|IOException e) {
+							LOG.error("Failed to update testing checkout in {}",repoName,e);
+						}
+					}
+				});
+				return pack;
+			}
+			
+		});
+		
+		super.init(config);
+	}
+
+	
+	
 }
+
