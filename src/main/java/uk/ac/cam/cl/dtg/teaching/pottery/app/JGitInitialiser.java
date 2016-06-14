@@ -13,7 +13,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 
 public class JGitInitialiser {
 
-	protected static final Logger log =  LoggerFactory.getLogger(JGitInitialiser.class);
+	protected static final Logger LOG =  LoggerFactory.getLogger(JGitInitialiser.class);
 		
 	public static void init() {
 		File t = com.google.common.io.Files.createTempDir();
@@ -38,7 +38,7 @@ public class JGitInitialiser {
 				.setRemote("origin")
 				.call();
 			} catch (GitAPIException |IOException e) {
-				log.error("Error bootstrapping git library",e);
+				LOG.error("Error bootstrapping git library",e);
 			}	
 
 			try {
@@ -50,15 +50,15 @@ public class JGitInitialiser {
 				.setRemote("origin")
 				.call();
 			} catch (GitAPIException e) {
-				log.error("Error bootstrapping git library",e);
+				LOG.error("Error bootstrapping git library",e);
 			}
 		} finally {
 			try {
 				FileUtil.deleteRecursive(t);
 			} catch (IOException e) {
-				log.error("Failed to delete temp directory {}",t.getPath(),e);
+				LOG.error("Failed to delete temp directory {}",t.getPath(),e);
 			}
 		}
-		log.info("Initialised jGit");
+		LOG.info("Initialised jGit");
 	}
 }

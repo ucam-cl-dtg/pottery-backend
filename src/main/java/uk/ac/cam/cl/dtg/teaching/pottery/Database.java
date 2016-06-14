@@ -21,7 +21,7 @@ public class Database implements Stoppable {
 	
 	private ComboPooledDataSource connectionPool;
 	
-	protected static final Logger log = LoggerFactory.getLogger(Database.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(Database.class);
 
 	public Database() {
 		try {
@@ -32,7 +32,7 @@ public class Database implements Stoppable {
 			connectionPool.setPassword("pottery");
 
 		} catch (PropertyVetoException e) {
-			log.error("Failed to open database",e);
+			LOG.error("Failed to open database",e);
 		}
 	}
 		
@@ -52,12 +52,12 @@ public class Database implements Stoppable {
 
 	@Override
 	public void stop() {		
-		log.info("Closing connection pool");
+		LOG.info("Closing connection pool");
 		connectionPool.close();
 		try {
 			DataSources.destroy(connectionPool);
 		} catch (SQLException e) {
-			log.error("Error destroying connection pool",e);
+			LOG.error("Error destroying connection pool",e);
 		}
 		
 		String driverClass = connectionPool.getDriverClass();
@@ -66,10 +66,10 @@ public class Database implements Stoppable {
 	    	Driver driver = drivers.nextElement();
 	    	if (driver.getClass().getName().equals(driverClass)) {
 	    		try {
-	    			log.info("Deregistering {}",driverClass);
+	    			LOG.info("Deregistering {}",driverClass);
 	    			DriverManager.deregisterDriver(driver);
 	    		} catch (SQLException ex) {
-	    			log.error("Error deregistering JDBC driver {}", driver, ex);
+	    			LOG.error("Error deregistering JDBC driver {}", driver, ex);
 	    		}
 	    	} 
 	    }

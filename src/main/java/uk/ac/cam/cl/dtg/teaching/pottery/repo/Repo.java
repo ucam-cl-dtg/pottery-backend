@@ -56,7 +56,7 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
 
 public class Repo {
 	
-	protected static final Logger log = LoggerFactory.getLogger(Repo.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(Repo.class);
 
 	private String repoId;
 	

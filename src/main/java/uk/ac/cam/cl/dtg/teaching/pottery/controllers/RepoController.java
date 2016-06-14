@@ -44,7 +44,7 @@ public class RepoController {
 	private RepoFactory repoFactory;
 	private TaskManager taskManager;
 	
-	protected static final Logger log = LoggerFactory.getLogger(RepoController.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(RepoController.class);
 
 	@Inject
 	public RepoController(RepoFactory repoFactory, TaskManager taskManager) {
