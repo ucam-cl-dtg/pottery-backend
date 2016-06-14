@@ -19,12 +19,16 @@ import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.Ref;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
 
 public class TaskClone {
+
+	protected static final Logger LOG = LoggerFactory.getLogger(TaskClone.class);
 	
 	private File repo;
 	
@@ -54,6 +58,7 @@ public class TaskClone {
 	}
 	
 	public synchronized void update(String tag, boolean fromScratch) throws TaskCloneException, IOException {
+		LOG.debug("Updating {} to {}",repo,tag);
 		if (fromScratch) FileUtil.deleteRecursive(repo);
 		
 		if (!repo.exists()) {
@@ -69,11 +74,11 @@ public class TaskClone {
 				if (p.isSuccessful()) {
 					g.reset().setMode(ResetType.HARD).setRef(tag).call();
 				}
-				info = TaskInfo.load(repo);
 			} catch (IOException | GitAPIException e) {
 				throw new TaskCloneException("Failed to update "+repo+" to tag "+tag,e);
 			}
 		}
+		info = TaskInfo.load(repo);
 	}
 	
 	public synchronized List<String> copySkeleton(File destination) throws IOException {
