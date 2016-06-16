@@ -58,28 +58,29 @@ public class Repo {
 	
 	protected static final Logger LOG = LoggerFactory.getLogger(Repo.class);
 
-	private String repoId;
+	private final String repoId;
 	
-	private String taskId;
-	
-	/**
-	 * The directory holding this repository. This object is also used as a mutex protecting concurrent modification.
-	 */
-	private File repoDirectory;
-
-	private File repoTestingDirectory;
-
-	private String webtagPrefix;
+	private final String taskId;
 	
 	/**
-	 * The currently scheduled submission for testing - you can only have one at a time per repo
+	 * The directory holding this repository.
 	 */
-	private Submission currentSubmission;
+	private final File repoDirectory;
 
+	private final File repoTestingDirectory;
+
+	private final String webtagPrefix;
+	
 	/**
 	 * Set to true if this repo is for the testing version of a task rather than the registered version
 	 */
-	private boolean usingTestingVersion;
+	private final boolean usingTestingVersion;
+	
+	/**
+	 * The currently scheduled submission for testing - you can only have one at a time per repo. 
+	 * Proected by the instance mutex
+	 */
+	private Submission currentSubmission;	
 	
 	private Repo(String repoId, RepoConfig c, String taskId, boolean usingTestingVersion) {
 		this.repoId = repoId;
@@ -132,45 +133,59 @@ public class Repo {
 		}
 	}
 	
+	private synchronized void updateSubmission(Submission.Builder builder) {
+		currentSubmission = builder != null ? builder.build() : null;
+	}
+	
 	public synchronized Submission scheduleSubmission(String tag, Worker w, Database db) throws SQLException {		
 		Submission s = getSubmission(tag, db);
 		if (s != null) return s;
 		
-		currentSubmission = new Submission(repoId, tag);
+		Submission.Builder builder = Submission.builder()
+				.withRepoId(repoId)
+				.withTag(tag);
+		
+		currentSubmission = builder.build();
 		w.schedule(new Job() {
 			@Override
 			public void execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws Exception {					
 				Task t = taskManager.getTask(taskId);
 				TaskClone c = usingTestingVersion ? t.getTestingClone() : t.getRegisteredClone();
 				try {
-					setVersionToTest(tag);
+					synchronized(c) {
+						synchronized(repoDirectory) {
 
-					File codeDir = repoTestingDirectory;
-					File compileRoot = c.getCompileRoot();
-					File harnessRoot = c.getHarnessRoot();
-					File validatorRoot = c.getValidatorRoot();
-					TaskInfo taskInfo = c.getInfo();
-					String image = taskInfo.getImage();
-					
-					CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, compileRoot, image, taskInfo.getCompilationRestrictions());
-					currentSubmission.setCompilationResponse(compilationResponse);
-					if (compilationResponse.isSuccess()) {
-						HarnessResponse harnessResponse = containerManager.execHarness(codeDir,harnessRoot,image,taskInfo.getHarnessRestrictions());
-						currentSubmission.setHarnessResponse(harnessResponse);
-						if (harnessResponse.isSuccess()) {
-							ValidationResponse validationResponse = containerManager.execValidator(validatorRoot,harnessResponse, image,taskInfo.getValidatorRestrictions());
-							currentSubmission.setValidationResponse(validationResponse);
+							setVersionToTest(tag);
+
+							File codeDir = repoTestingDirectory;
+							File compileRoot = c.getCompileRoot();
+							File harnessRoot = c.getHarnessRoot();
+							File validatorRoot = c.getValidatorRoot();
+							TaskInfo taskInfo = c.getInfo();
+							String image = taskInfo.getImage();
+										
+							CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, compileRoot, image, taskInfo.getCompilationRestrictions());
+							updateSubmission(builder.withCompilationResponse(compilationResponse));
+							if (compilationResponse.isSuccess()) {
+								HarnessResponse harnessResponse = containerManager.execHarness(codeDir,harnessRoot,image,taskInfo.getHarnessRestrictions());
+								updateSubmission(builder.withHarnessResponse(harnessResponse));
+								if (harnessResponse.isSuccess()) {
+									ValidationResponse validationResponse = containerManager.execValidator(validatorRoot,harnessResponse, image,taskInfo.getValidatorRestrictions());
+									updateSubmission(builder.withValidationResponse(validationResponse));
+								}
+							}
 						}
 					}
 				}
 				finally {
 					synchronized (Repo.this) {
-						currentSubmission.setStatus(Submission.STATUS_COMPLETE);
+						builder.withStatus(Submission.STATUS_COMPLETE);
+						Submission s = builder.build();
 						try (TransactionQueryRunner q = database.getQueryRunner()) {
-							currentSubmission.insert(q);
+							s.insert(q);
 							q.commit();
 						}
-						currentSubmission = null;
+						updateSubmission(null);
 					}
 				}
 			}			
@@ -185,7 +200,7 @@ public class Repo {
 	 * @throws RepoException if something goes wrong
 	 */
 	public void setVersionToTest(String tag) throws RepoException {
-		synchronized (repoTestingDirectory) {
+		synchronized (repoDirectory) {
 			if (repoTestingDirectory.exists()) {
 				try {
 					FileUtil.deleteRecursive(repoTestingDirectory);

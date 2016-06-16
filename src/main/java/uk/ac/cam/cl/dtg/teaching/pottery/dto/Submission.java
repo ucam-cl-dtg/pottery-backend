@@ -3,7 +3,6 @@ package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.dbutils.QueryRunner;
@@ -26,27 +25,24 @@ public class Submission {
 	public static final String STATUS_PENDING = "PENDING";
 	public static final String STATUS_COMPLETE = "COMPLETE";
 	
-	private Integer submissionId;
-	private String repoId;
-	private String tag;
-	private CompilationResponse compilationResponse;
-	private HarnessResponse harnessResponse;
-	private ValidationResponse validationResponse;
-	
-	private String status = STATUS_PENDING;
-	
-	public Submission() {}
-	
-	public Submission(String repoId, String tag) {
-		this.repoId = repoId;
-		this.tag = tag;
-	}	
-	
-	public Submission(Integer submissionId, String repoId, String tag) {
+	private final Integer submissionId;
+	private final String repoId;
+	private final String tag;
+	private final CompilationResponse compilationResponse;
+	private final HarnessResponse harnessResponse;
+	private final ValidationResponse validationResponse;	
+	private final String status;
+
+	private Submission(Integer submissionId, String repoId, String tag, CompilationResponse compilationResponse,
+			HarnessResponse harnessResponse, ValidationResponse validationResponse, String status) {
 		super();
 		this.submissionId = submissionId;
 		this.repoId = repoId;
 		this.tag = tag;
+		this.compilationResponse = compilationResponse;
+		this.harnessResponse = harnessResponse;
+		this.validationResponse = validationResponse;
+		this.status = status;
 	}
 
 	public Integer getSubmissionId() {
@@ -65,43 +61,79 @@ public class Submission {
 		return status;
 	}
 
-	public void setStatus(String status) {
-		this.status = status;
-	}
-
 	public CompilationResponse getCompilationResponse() {
 		return compilationResponse;
-	}
-
-	public void setCompilationResponse(CompilationResponse compilationResponse) {
-		this.compilationResponse = compilationResponse;
 	}
 
 	public HarnessResponse getHarnessResponse() {
 		return harnessResponse;
 	}
 
-	public void setHarnessResponse(HarnessResponse harnessResponse) {
-		this.harnessResponse = harnessResponse;
-	}
-
 	public ValidationResponse getValidationResponse() {
 		return validationResponse;
 	}
 
-	public void setValidationResponse(ValidationResponse validationResponse) {
-		this.validationResponse = validationResponse;
+	public static Builder builder() {
+		return new Builder();
 	}
-
-	public void setSubmissionId(Integer submissionId) {
-		this.submissionId = submissionId;
+	
+	public static class Builder {
+		
+		private String repoId;
+		private String tag;
+		private int submissionId;
+		private CompilationResponse compilationResponse;
+		private ValidationResponse validationResponse;
+		private HarnessResponse harnessResponse;
+		private String status = STATUS_PENDING;
+		
+		private Builder() {}
+		
+		public Builder withRepoId(String repoId) {
+			this.repoId = repoId;
+			return this;
+		}
+		
+		public Builder withTag(String tag) {
+			this.tag = tag;
+			return this;
+		}
+		
+		public Builder withSubmissionId(int submissionId) {
+			this.submissionId = submissionId;
+			return this;
+		}
+		
+		public Builder withCompilationResponse(CompilationResponse r) {
+			this.compilationResponse = r;
+			return this;
+		}
+		
+		public Builder withHarnessResponse(HarnessResponse r) {
+			this.harnessResponse = r;
+			return this;
+		}
+		
+		public Builder withValidationResponse(ValidationResponse r) {
+			this.validationResponse = r;
+			return this;
+		}
+		
+		public Builder withStatus(String status) {
+			this.status = status;
+			return this;
+		}
+		
+		public Submission build() {
+			return new Submission(submissionId,repoId,tag,compilationResponse,harnessResponse,validationResponse,status);
+		}	
 	}
-
-	public void insert(TransactionQueryRunner q) throws SQLException {
+	
+	public Submission insert(TransactionQueryRunner q) throws SQLException {
 		if (submissionId != null) throw new SQLException("Submission already exists in database with submissionid="+submissionId);
 		int s = Database.nextVal("seqsubmission", q);
 		ObjectMapper mapper = new ObjectMapper();
-		try {
+		try {		
 			q.update("INSERT into submissions ("
 					+ "submissionid,"
 					+ "repoid,"
@@ -140,7 +172,8 @@ public class Submission {
 			throw new SQLException("Failed to serialise object",e);
 		}
 		q.commit();
-		submissionId = s;
+		
+		return new Submission(s,repoId,tag,compilationResponse,harnessResponse,validationResponse,status);
 	}
 	
 	public void update(TransactionQueryRunner q) throws SQLException {
@@ -190,14 +223,15 @@ public class Submission {
 	
 	private static Submission resultSetToSubmission(ResultSet rs) throws SQLException {
 		try {
-			Submission s = new Submission(
-					rs.getInt("submissionid"),
-					rs.getString("repoid"),
-					rs.getString("tag"));
+			Builder b = builder()
+					.withRepoId(rs.getString("repoId"))
+					.withTag(rs.getString("tag"))
+					.withSubmissionId(rs.getInt("submissionId"));
+					
 			ObjectMapper o = new ObjectMapper();
 			boolean compilationSuccess = rs.getBoolean("compilationSuccess");
 			if (!rs.wasNull()) {
-				s.setCompilationResponse(new CompilationResponse(
+				b.withCompilationResponse(new CompilationResponse(
 						compilationSuccess,
 						rs.getString("compilationfailmessage"),
 						rs.getString("compilationresponse"),
@@ -206,7 +240,7 @@ public class Submission {
 
 			boolean harnessSuccess = rs.getBoolean("harnessSuccess");
 			if (!rs.wasNull()) {
-				s.setHarnessResponse(new HarnessResponse(
+				b.withHarnessResponse(new HarnessResponse(
 						harnessSuccess,
 						o.readValue(rs.getString("harnessresponse"),new TypeReference<List<HarnessStep>>() {}),
 						rs.getString("harnessfailmessage"),
@@ -215,16 +249,16 @@ public class Submission {
 
 			boolean validationSuccess = rs.getBoolean("validationSuccess");
 			if (!rs.wasNull()) {
-				s.setValidationResponse(new ValidationResponse(
+				b.withValidationResponse(new ValidationResponse(
 						validationSuccess,
 						o.readValue(rs.getString("validationresponse"),new TypeReference<List<ValidationStep>>() {}),
 						rs.getString("validationfailmessage"),
 						rs.getLong("validationTimeMs")));
 			}
 
-			s.setStatus(rs.getString("status"));
+			b.withStatus(rs.getString("status"));
 
-			return s;
+			return b.build();
 		} catch (IOException e) {
 			throw new SQLException("Failed to deserialise json object",e);
 		}
@@ -244,19 +278,4 @@ public class Submission {
 			
 		},repoId,tag);
 	}
-	
-	public static List<Submission> getPending(QueryRunner q) throws SQLException {
-		return q.query("SELECT * from submissions where status = ?",new ResultSetHandler<List<Submission>>() {
-			@Override
-			public List<Submission> handle(ResultSet rs) throws SQLException {
-				List<Submission> result = new LinkedList<>();
-				while(rs.next()) {
-					result.add(resultSetToSubmission(rs));
-				}
-				return result;
-			}
-			
-		},Submission.STATUS_PENDING);
-	}
-
 }
