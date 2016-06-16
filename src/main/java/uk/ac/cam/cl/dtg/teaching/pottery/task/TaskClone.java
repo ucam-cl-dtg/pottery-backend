@@ -34,7 +34,7 @@ public class TaskClone {
 	
 	private TaskInfo info;
 	
-	private File upstreamRepo;
+	private final File upstreamRepo;
 	
 	/** 
 	 * Do not create directly. Access through the members of the Task object
