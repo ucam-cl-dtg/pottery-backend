@@ -25,11 +25,7 @@ public class TaskConfig {
 	public File getTaskRegisteredRoot() {
 		return new File(taskPrefix,"registered");
 	}
-	
-	public File getTaskRetiredRoot() {
-		return new File(taskPrefix,"retired");
-	}
-	
+		
 	public File getTaskTemplateRoot() {
 		return new File(taskPrefix,"template");
 	}

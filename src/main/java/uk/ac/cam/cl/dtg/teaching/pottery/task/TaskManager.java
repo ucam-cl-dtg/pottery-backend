@@ -71,13 +71,6 @@ public class TaskManager {
 				.collect(Collectors.toList());
 	}
 
-	public Collection<TaskInfo> getRetiredTasks() {
-		return definedTasks.values().stream()
-				.filter(t -> t.isRetired())
-				.map(t -> t.getTestingClone().getInfo())
-				.collect(Collectors.toList());
-	}
-
 	public TaskInfo getTestingTask(String taskId) {
 		return definedTasks.get(taskId).getTestingClone().getInfo();
 	}

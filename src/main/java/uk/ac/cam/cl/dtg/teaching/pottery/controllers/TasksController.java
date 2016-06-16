@@ -50,14 +50,7 @@ public class TasksController {
 		this.taskManager = taskManager;
 		this.worker = worker;
 	}
-	
-	@GET
-	@Path("/retired")
-	@ApiOperation(value="Lists all retired tasks",response=TaskInfo.class,responseContainer="List",position=0)
-	public Collection<TaskInfo> listRetired() {
-		return taskManager.getRetiredTasks();
-	}	
-	
+		
 	@GET
 	@Path("/registered")
 	@ApiOperation(value="Lists all released tasks",response=TaskInfo.class,responseContainer="List",position=0)

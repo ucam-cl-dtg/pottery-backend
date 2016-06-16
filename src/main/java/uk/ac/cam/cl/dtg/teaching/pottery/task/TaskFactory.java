@@ -53,7 +53,6 @@ public class TaskFactory {
 		FileUtil.mkdir(config.getTaskDefinitionRoot());
 		FileUtil.mkdir(config.getTaskOutgoingRoot());
 		FileUtil.mkdir(config.getTaskRegisteredRoot());
-		FileUtil.mkdir(config.getTaskRetiredRoot());
 		FileUtil.mkdir(config.getTaskStagingRoot());
 		FileUtil.mkdir(config.getTaskTemplateRoot());
 		FileUtil.mkdir(config.getTaskTestingRoot());
