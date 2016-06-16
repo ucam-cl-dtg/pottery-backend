@@ -65,23 +65,6 @@ $(document).ready(
 						});
 					});
 			
-			$("#testTaskButton").click(
-					function(e) {
-						e.preventDefault();
-						$.ajax({
-							type : "POST",
-							url : "api/tasks/" + $("#taskId").val()+"/test",
-							data : {'sha1' : $("#tasksha1").val() },
-							success : function(result) {
-								reportSuccess(result);
-							},
-							error : function(xhr,textStatus,errorThrown) {
-								reportError(xhr);
-							}
-						});
-					});
-
-			
 			$("#registerTaskButton").click(
 					function(e) {
 						e.preventDefault();

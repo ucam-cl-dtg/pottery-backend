@@ -93,16 +93,6 @@ public class TasksController {
 		return taskManager.getTask(taskID).getRegistrationRequest();		
 	}
 	
-	// TODO: we should be able to remove this and replace it with a hook in the gitservlet
-	@POST
-	@Path("/{taskId}/test")
-	@ApiOperation(value="Update the checkout of the testing version of the task to HEAD.",response=Response.class)
-	public Response testTask(@PathParam("taskId") String taskID) throws TaskCloneException, IOException {
-		taskManager.updateTesting(taskID);
-		return Response.ok().entity("{\"message\":\"OK\"}").build();
-	}
-	
-	
 	@GET
 	@Path("/types")
 	@ApiOperation(value="Lists defined task types and their description",position=1)
