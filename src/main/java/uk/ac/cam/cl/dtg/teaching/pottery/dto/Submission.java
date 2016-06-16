@@ -81,7 +81,7 @@ public class Submission {
 		
 		private String repoId;
 		private String tag;
-		private int submissionId;
+		private Integer submissionId;
 		private CompilationResponse compilationResponse;
 		private ValidationResponse validationResponse;
 		private HarnessResponse harnessResponse;
