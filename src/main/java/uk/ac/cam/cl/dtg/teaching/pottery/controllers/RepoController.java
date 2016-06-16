@@ -62,7 +62,7 @@ public class RepoController {
 		TaskClone c = t.getRegisteredClone();
 		if (t == null || c == null) throw new TaskNotFoundException();
 		
-		Repo r = repoFactory.createInstance(taskId,true /* registered */);
+		Repo r = repoFactory.createInstance(taskId,false /* not using testing version */);
 		r.copyFiles(c);
 		return r.toRepoInfo();
 	}

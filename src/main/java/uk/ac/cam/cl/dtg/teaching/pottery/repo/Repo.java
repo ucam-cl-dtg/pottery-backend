@@ -61,11 +61,6 @@ public class Repo {
 	private String repoId;
 	
 	private String taskId;
-
-	/**
-	 * Is this repo for the registered version of a task or the testing version
-	 */
-	private boolean registered;
 	
 	/**
 	 * The directory holding this repository. This object is also used as a mutex protecting concurrent modification.
@@ -80,14 +75,19 @@ public class Repo {
 	 * The currently scheduled submission for testing - you can only have one at a time per repo
 	 */
 	private Submission currentSubmission;
+
+	/**
+	 * Set to true if this repo is for the testing version of a task rather than the registered version
+	 */
+	private boolean usingTestingVersion;
 	
-	private Repo(String repoId, RepoConfig c, String taskId, boolean registered) {
+	private Repo(String repoId, RepoConfig c, String taskId, boolean usingTestingVersion) {
 		this.repoId = repoId;
 		this.repoDirectory = new File(c.getRepoRoot(),repoId);
 		this.repoTestingDirectory = new File(c.getRepoTestingRoot(),repoId);
 		this.webtagPrefix = c.getWebtagPrefix();
 		this.taskId = taskId;
-		this.registered = registered;
+		this.usingTestingVersion = usingTestingVersion;
 	}
 
 	/** 
@@ -141,7 +141,7 @@ public class Repo {
 			@Override
 			public void execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws Exception {					
 				Task t = taskManager.getTask(taskId);
-				TaskClone c = registered ? t.getRegisteredClone() : t.getTestingClone();
+				TaskClone c = usingTestingVersion ? t.getTestingClone() : t.getRegisteredClone();
 				try {
 					setVersionToTest(tag);
 
@@ -529,7 +529,7 @@ public class Repo {
 		try(TransactionQueryRunner q = database.getQueryRunner()) {
 			RepoInfo r = RepoInfo.getByRepoId(repoId, q);
 			if (r != null) {
-				return new Repo(repoId,config, r.getTaskId(),r.isRelease());
+				return new Repo(repoId,config, r.getTaskId(),r.isUsingTestingVersion());
 			}
 			else {
 				throw new RepoException("Repository with ID "+repoId+" does not exist in database");
@@ -546,13 +546,13 @@ public class Repo {
 	 * 
 	 * @param repoId the ID of the repo to open
 	 * @param taskId is the ID of the task to begin
-	 * @param registered indicates if we should use the registered version of the task or the testing version
+	 * @param usingTestingVersion indicates if we should use the registered version of the task or the testing version
 	 * @param config server configuration
 	 * @param database database connection
 	 * @return a repo object for this repository
 	 * @throws RepoException if the repository couldn't be created
 	 */
-	static Repo createRepo(String repoId, String taskId, boolean registered, RepoConfig config, Database database) throws RepoException {
+	static Repo createRepo(String repoId, String taskId, boolean usingTestingVersion, RepoConfig config, Database database) throws RepoException {
 		
 		File repoDirectory = new File(config.getRepoRoot(),repoId);
 		
@@ -574,7 +574,7 @@ public class Repo {
 			throw t;
 		}
 
-		RepoInfo r = new RepoInfo(repoId, taskId,registered);
+		RepoInfo r = new RepoInfo(repoId, taskId,usingTestingVersion);
 		
 		try (TransactionQueryRunner t = database.getQueryRunner()){
 			r.insert(t);
@@ -589,7 +589,7 @@ public class Repo {
 			throw t;
 		}
 		
-		return new Repo(repoId,config, taskId,registered);
+		return new Repo(repoId,config, taskId,usingTestingVersion);
 	}
 
 	public String getRepoId() {
@@ -600,8 +600,8 @@ public class Repo {
 		return taskId;
 	}
 
-	public boolean isRegistered() {
-		return registered;
+	public boolean isUsingTestingVersion() {
+		return usingTestingVersion;
 	}
 
 	public File getTestingDirectory() {
@@ -609,7 +609,7 @@ public class Repo {
 	}
 
 	public RepoInfo toRepoInfo() {
-		return new RepoInfo(repoId,taskId,registered);
+		return new RepoInfo(repoId,taskId,usingTestingVersion);
 	}
 	
 }

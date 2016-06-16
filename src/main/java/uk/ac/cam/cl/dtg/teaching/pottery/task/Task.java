@@ -35,7 +35,7 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
  * repository. This is stored in [task_root]/test
  * 
  * Tasks can also have a registered version which corresponds to a chosen tag in
- * the definition repository. This is stored in [task_root]/release
+ * the definition repository. This is stored in [task_root]/registered
  * 
  * A task can only be deleted if there are no repositories which are attempts at
  * the task
@@ -155,7 +155,7 @@ public class Task {
 							image,
 							newTaskInfo.getCompilationRestrictions());
 					if (!r2.isSuccess()) {
-						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to compile solution when testing task for release. " + r2.getFailMessage());
+						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to compile solution when testing task during registration. " + r2.getFailMessage());
 						return;
 					}
 					HarnessResponse r3 = containerManager.execHarness(
@@ -164,7 +164,7 @@ public class Task {
 							image, 
 							newTaskInfo.getHarnessRestrictions());
 					if (!r3.isSuccess()) {
-						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to run harness when testing task for release. " + r3.getFailMessage());
+						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to run harness when testing task during registration. " + r3.getFailMessage());
 						return;
 					}
 					ValidationResponse r4 = containerManager.execValidator(
@@ -173,7 +173,7 @@ public class Task {
 							image,
 							newTaskInfo.getValidatorRestrictions());
 					if (!r4.isSuccess()) {
-						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to validate harness results when testing task for release. " + r4.getFailMessage());
+						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to validate harness results when testing task during registration. " + r4.getFailMessage());
 						return;
 					}
 	

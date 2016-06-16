@@ -70,13 +70,13 @@ public class RepoFactory {
 		}
 	}
 
-	public Repo createInstance(String taskId, boolean registered) throws RepoException {
+	public Repo createInstance(String taskId, boolean usingTestingVersion) throws RepoException {
 		final String newRepoId = uuidGenerator.generate();
 		try {
 			return cache.get(newRepoId, new Callable<Repo>() {
 				@Override
 				public Repo call() throws Exception {
-					return Repo.createRepo(newRepoId, taskId,registered, config, database);			
+					return Repo.createRepo(newRepoId, taskId,usingTestingVersion, config, database);			
 				}
 			});
 		} catch (ExecutionException e) {

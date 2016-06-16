@@ -53,7 +53,7 @@ public class TasksController {
 		
 	@GET
 	@Path("/registered")
-	@ApiOperation(value="Lists all released tasks",response=TaskInfo.class,responseContainer="List",position=0)
+	@ApiOperation(value="Lists all registered tasks",response=TaskInfo.class,responseContainer="List",position=0)
 	public Collection<TaskInfo> listRegistered() {
 		return taskManager.getRegisteredTasks();
 	}

@@ -9,15 +9,15 @@ public class RepoInfo {
 	
 	private String repoId;
 	private String taskId;
-	private boolean release;
+	private boolean usingTestingVersion;
 	
 	public RepoInfo() {}
 	
-	public RepoInfo(String repoId, String taskId, boolean release) {
+	public RepoInfo(String repoId, String taskId, boolean usingTestingVersion) {
 		super();
 		this.repoId = repoId;
 		this.taskId = taskId;
-		this.release = release;
+		this.usingTestingVersion = usingTestingVersion;
 	}
 	
 	
@@ -29,10 +29,6 @@ public class RepoInfo {
 		this.taskId = taskId;
 	}
 
-	public void setRelease(boolean release) {
-		this.release = release;
-	}
-
 	public String getRepoId() {
 		return repoId;
 	}
@@ -41,8 +37,12 @@ public class RepoInfo {
 		return taskId;
 	}
 	
-	public boolean isRelease() {
-		return release;
+	public boolean isUsingTestingVersion() {
+		return usingTestingVersion;
+	}
+
+	public void setUsingTestingVersion(boolean usingTestingVersion) {
+		this.usingTestingVersion = usingTestingVersion;
 	}
 
 	public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
@@ -50,6 +50,6 @@ public class RepoInfo {
 	}
 	
 	public void insert(QueryRunner q) throws SQLException {
-		q.update("INSERT INTO repos(repoid,taskid,release) values (?,?,?)",repoId,taskId,release);
+		q.update("INSERT INTO repos(repoid,taskid,using_testing_version) values (?,?,?)",repoId,taskId,usingTestingVersion);
 	}
 }
