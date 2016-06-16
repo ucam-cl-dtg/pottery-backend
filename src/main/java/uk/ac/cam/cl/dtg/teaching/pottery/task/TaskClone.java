@@ -125,19 +125,26 @@ public class TaskClone {
 		repo = taskRegisteredRoot;
 	}
 	
-	public File getSkeletonRoot() {
+	private File getSkeletonRoot() {
 		return new File(repo,"skeleton");
 	}
 
-	public File getCompileRoot() {
+	private File getCompileRoot() {
 		return new File(repo,"compile");
 	}
 
-	public File getHarnessRoot() {
+	private File getHarnessRoot() {
 		return new File(repo,"harness");
 	}
 
-	public File getValidatorRoot() {
+	private File getValidatorRoot() {
 		return new File(repo,"validator");
 	}
+	
+	public void runInContext(RunnableWithinTask t) {
+		synchronized (repo) {
+			t.run(getCompileRoot(), getHarnessRoot(), getValidatorRoot());
+		}
+	}
+	
 }
