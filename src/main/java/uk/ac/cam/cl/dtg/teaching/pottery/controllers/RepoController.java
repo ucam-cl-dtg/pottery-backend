@@ -57,12 +57,13 @@ public class RepoController {
 	@Path("/")
 	@ApiOperation(value="Start a new repository",
 		notes="Starts a new repository for solving the specified task",position=0)
-	public RepoInfo makeRepo(@FormParam("taskId") String taskId) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException {
+	public RepoInfo makeRepo(@FormParam("taskId") String taskId,@FormParam("usingTestingVersion") Boolean usingTestingVersion) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException {
+		if (usingTestingVersion == null) usingTestingVersion = false;
 		Task t = taskManager.getTask(taskId);
 		TaskClone c = t.getRegisteredClone();
 		if (t == null || c == null) throw new TaskNotFoundException();
 		
-		Repo r = repoFactory.createInstance(taskId,false /* not using testing version */);
+		Repo r = repoFactory.createInstance(taskId,usingTestingVersion);
 		r.copyFiles(c);
 		return r.toRepoInfo();
 	}
