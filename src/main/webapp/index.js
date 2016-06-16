@@ -49,22 +49,6 @@ $(document).ready(
 						});
 					});
 
-			$("#listRetiredTasksButton").click(
-					function(e) {
-						e.preventDefault();
-						$.ajax({
-							type : "GET",
-							url : "api/tasks/retired",
-							success : function(result) {
-								reportSuccess(result);
-								$("#taskId").val(result[0].taskId);
-							},
-							error : function(xhr,textStatus,errorThrown) {
-								reportError(xhr);
-							}
-						});
-					});
-
 			$("#createTaskButton").click(
 					function(e) {
 						e.preventDefault();

@@ -80,13 +80,6 @@ public class TasksController {
 	}
 	
 	@POST
-	@Path("/{taskId}/retire")
-	@ApiOperation(value="Retires a task and removes it from the list of available ones. This doesn't delete it (because people might have tried solving it).",response=Response.class)
-	public Response retireTask(@PathParam("taskId") String taskID) {
-		return null;
-	}
-	
-	@POST
 	@Path("/{taskId}/register")
 	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.",response=RegistrationRequest.class)
 	public RegistrationRequest scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
