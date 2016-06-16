@@ -75,6 +75,8 @@ public class TaskClone {
 					g.reset().setMode(ResetType.HARD).setRef(tag).call();
 				}
 			} catch (IOException | GitAPIException e) {
+				// if we failed to do the lightweight update then try again with a full delete and clone
+				if (!fromScratch) update(tag,true);
 				throw new TaskCloneException("Failed to update "+repo+" to tag "+tag,e);
 			}
 		}
