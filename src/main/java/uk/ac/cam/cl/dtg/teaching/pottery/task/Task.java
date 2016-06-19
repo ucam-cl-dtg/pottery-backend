@@ -60,13 +60,13 @@ public class Task {
 
 	private boolean retired;
 
-	private File taskDefRoot;
+	private final File taskDefRoot;
 
-	private File taskTestingRoot;
+	private final File taskTestingRoot;
 
-	private File taskRegisteredRoot;
+	private final File taskRegisteredRoot;
 
-	private File taskStagingRoot;
+	private final File taskStagingRoot;
 
 	/**
 	 * If not-null this either represents that a version of task is presently
@@ -74,7 +74,7 @@ public class Task {
 	 * registration attempt. You can only have one registration request in the
 	 * queue at a time.
 	 */
-	private volatile RegistrationRequest registrationRequest;
+	private volatile TaskCompilation registrationRequest;
 
 	private Task(String taskId, String registeredTag, boolean retired, TaskConfig config) throws TaskException, IOException {
 		this.taskId = taskId;
@@ -98,7 +98,7 @@ public class Task {
 		}
 	}
 	
-	public RegistrationRequest getRegistrationRequest() {
+	public TaskCompilation getRegistrationRequest() {
 		return registrationRequest;
 	}
 
@@ -122,13 +122,16 @@ public class Task {
 		return registeredClone;
 	}
 
-	public synchronized RegistrationRequest scheduleRegistration(String sha1, Worker w)
+	public synchronized TaskCompilation scheduleRegistration(String sha1, Worker w)
 			throws TaskException, TaskCloneException, IOException, TaskRegistrationException, SQLException {
 
 		if (registrationRequest != null && registrationRequest.getStatus().equals("PENDING")) {
 			return registrationRequest;
 		}
-		registrationRequest = new RegistrationRequest(sha1,"PENDING",null);
+		registrationRequest = new TaskCompilation(sha1,"PENDING",null);
+		
+		// TODO: move registrationRequest and this worker into TaskClone where it can
+		// be protected by the right mutex
 		
 		w.schedule(new Job() {
 			@Override
@@ -145,7 +148,7 @@ public class Task {
 							image, 
 							newTaskInfo.getCompilationRestrictions());
 					if (!r.isSuccess()) {
-						registrationRequest = new RegistrationRequest(sha1, "FAILED","Failed to compile testing code in task. "+r.getResponse());
+						registrationRequest = new TaskCompilation(sha1, "FAILED","Failed to compile testing code in task. "+r.getResponse());
 						return;
 					}
 					// Test it against the model answer
@@ -155,7 +158,7 @@ public class Task {
 							image,
 							newTaskInfo.getCompilationRestrictions());
 					if (!r2.isSuccess()) {
-						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to compile solution when testing task during registration. " + r2.getFailMessage());
+						registrationRequest = new TaskCompilation(sha1,"FAILED","Failed to compile solution when testing task during registration. " + r2.getFailMessage());
 						return;
 					}
 					HarnessResponse r3 = containerManager.execHarness(
@@ -164,7 +167,7 @@ public class Task {
 							image, 
 							newTaskInfo.getHarnessRestrictions());
 					if (!r3.isSuccess()) {
-						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to run harness when testing task during registration. " + r3.getFailMessage());
+						registrationRequest = new TaskCompilation(sha1,"FAILED","Failed to run harness when testing task during registration. " + r3.getFailMessage());
 						return;
 					}
 					ValidationResponse r4 = containerManager.execValidator(
@@ -173,14 +176,14 @@ public class Task {
 							image,
 							newTaskInfo.getValidatorRestrictions());
 					if (!r4.isSuccess()) {
-						registrationRequest = new RegistrationRequest(sha1,"FAILED","Failed to validate harness results when testing task during registration. " + r4.getFailMessage());
+						registrationRequest = new TaskCompilation(sha1,"FAILED","Failed to validate harness results when testing task during registration. " + r4.getFailMessage());
 						return;
 					}
 	
 					newClone.move(taskRegisteredRoot);
 					Task.this.registeredClone = newClone;
 					registeredTag = newClone.getHeadSHA();
-					Task.this.registrationRequest = new RegistrationRequest(registeredTag,"COMPLETE",null);	
+					Task.this.registrationRequest = new TaskCompilation(registeredTag,"COMPLETE",null);	
 					
 					try (TransactionQueryRunner t = database.getQueryRunner()) {
 						TaskDefInfo.updateRegisteredTag(taskId, registeredTag, t);

@@ -1,6 +1,6 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
-public class RegistrationRequest {
+public class TaskCompilation {
 
 	private String requestedTag;
 	
@@ -8,7 +8,7 @@ public class RegistrationRequest {
 
 	private String message;
 	
-	public RegistrationRequest(String requestedTag, String status, String message) {
+	public TaskCompilation(String requestedTag, String status, String message) {
 		this.requestedTag = requestedTag;
 		this.status = status;
 		this.message = message;

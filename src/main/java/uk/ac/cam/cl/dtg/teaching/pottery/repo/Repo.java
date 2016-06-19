@@ -7,7 +7,6 @@ import java.io.OutputStream;
 import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.WebApplicationException;
@@ -38,6 +37,8 @@ import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
+import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock;
+import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock.AutoCloseableLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
@@ -89,29 +90,12 @@ public class Repo {
 	 * lock. Do not hold this lock whilst executing a long running task since
 	 * there are api calls for polling these fields.
 	 */
-	private Object lockFields  = new Object();
+	private final Object lockFields  = new Object();
 	
 	/**
-	 * Permits multiple concurrent 'readers' and exclusive 'writers'
-	 * 
-	 * If you are using api calls only on the git database then take a reader
-	 * lock - these are concurrency safe
-	 * 
-	 * If you are doing something that will trash the git database (i.e. delete
-	 * and reclone) then take a writer lock
-	 * 
+	 * Protects access to the git repo and working directory
 	 */
-	private ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();	
-
-	/**
-	 * If you are doing something with the filesystem then you need a reader
-	 * lock and the filesystem lock - this is because its permissible to be
-	 * doing concurrent git database commands even whilst you are modifying the 
-	 * files in the working directory. Always acquire this lock last.
-	 * 
-	 * If you are doing something that needs the writer lock then you don't need this one too.
-	 */
-	private Object fileSystemLock = new Object();
+	private final FourLevelLock lock = new FourLevelLock();
 	
 	private Repo(String repoId, RepoConfig c, String taskId, boolean usingTestingVersion) {
 		this.repoId = repoId;
@@ -123,13 +107,12 @@ public class Repo {
 	}
 
 	/** 
-	 * Recursively copy all files from this sourceLocation and add them to the repository 
+	 * Recursively copy all files from the given sourceLocation and add them to the repository 
 	 * @param sourceLocation the location to copy from
 	 * @throws RepoException
 	 */
 	public void copyFiles(TaskClone task) throws RepoException {
-		readWriteLock.writeLock().lock();
-		try {
+		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				try {
 					List<String> copiedFiles = task.copySkeleton(repoDirectory);
@@ -151,12 +134,21 @@ public class Repo {
 			} catch (IOException e2) {
 				throw new RepoException("Failed to open repository",e2);
 			}
-		}
-		finally {
-			readWriteLock.writeLock().unlock();
+		} catch (InterruptedException e) {
+			throw new RepoException("Interrupted whilst waiting for file writing lock",e);
 		}
 	}
 	
+	/**
+	 * Return the submission object for the given tag. Each tagged version in the repository can
+	 * only be submitted at most once. Poll this method to get updates on the submission testing process
+	 * for the tag under test or submitted for testing.
+	 * 
+	 * @param tag
+	 * @param database
+	 * @return
+	 * @throws SQLException
+	 */
 	public Submission getSubmission(String tag, Database database) throws SQLException {
 		synchronized (lockFields) {
 				if (currentSubmission != null && currentSubmission.getTag().equals(tag)) {
@@ -168,18 +160,33 @@ public class Repo {
 		}
 	}
 	
+	/**
+	 * Internal method to update the submission whilst maintaining the lock policy
+	 * @param s
+	 */
 	private void updateSubmission(Submission s) {
 		synchronized (lockFields) {
 			currentSubmission = s;
 		}
 	}
 	
+	/**
+	 * Convenience method for updating a submission from a builder
+	 * @param builder
+	 */
 	private void updateSubmission(Submission.Builder builder) {
-		synchronized (lockFields) {
-			currentSubmission = builder != null ? builder.build() : null;
-		}
+		updateSubmission(builder != null ? builder.build() : null);
 	}
 	
+	/**
+	 * Schedule a particular version of the repo for testing later
+	 * 
+	 * @param tag
+	 * @param w
+	 * @param db
+	 * @return
+	 * @throws SQLException
+	 */
 	public Submission scheduleSubmission(String tag, Worker w, Database db) throws SQLException {
 		synchronized (lockFields) {
 			Submission s = getSubmission(tag, db);
@@ -197,8 +204,7 @@ public class Repo {
 				public void execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws Exception {					
 					Task t = taskManager.getTask(taskId);
 					TaskClone c = usingTestingVersion ? t.getTestingClone() : t.getRegisteredClone();
-					readWriteLock.writeLock().lock();
-					try {						
+					try (AutoCloseableLock l = lock.takeFileWritingLock()) {						
 						setVersionToTest(tag);
 
 						File codeDir = repoTestingDirectory;
@@ -221,7 +227,6 @@ public class Repo {
 						});
 					}
 					finally {
-						readWriteLock.writeLock().unlock();
 						builder.withStatus(Submission.STATUS_COMPLETE);
 						Submission s = builder.build();
 						try (TransactionQueryRunner q = database.getQueryRunner()) {
@@ -243,8 +248,7 @@ public class Repo {
 	 * @throws RepoException if something goes wrong
 	 */
 	private void setVersionToTest(String tag) throws RepoException {
-		readWriteLock.writeLock().lock();
-		try {
+		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			if (repoTestingDirectory.exists()) {
 				try {
 					FileUtil.deleteRecursive(repoTestingDirectory);
@@ -264,9 +268,8 @@ public class Repo {
 			} catch (GitAPIException e) {
 				throw new RepoException("Failed to clone repository",e);
 			}
-		}
-		finally {
-			readWriteLock.writeLock().unlock();
+		} catch (InterruptedException e) {
+			throw new RepoException("Inerrupted whilst waiting for file writing lock",e);
 		}
 	}
 
@@ -278,16 +281,14 @@ public class Repo {
 	 * @throws RepoException if something goes wrong
 	 */
 	public boolean existsTag(String tag) throws RepoException {
-		readWriteLock.readLock().lock();
-		try {
+		try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				return git.getRepository().resolve(Constants.R_TAGS+tag) != null;
 			} catch (IOException e) {
 				throw new RepoException("Failed to lookup tag in repository "+repoId,e);
 			}
-		}
-		finally {
-			readWriteLock.readLock().unlock();
+		} catch (InterruptedException e) {
+			throw new RepoException("Interrupted whilst waiting for git operation lock",e);
 		}
 	}
 	
@@ -299,8 +300,7 @@ public class Repo {
 	 * @throws RepoException
 	 */
 	public List<String> listFiles(String tag) throws RepoException {
-		readWriteLock.readLock().lock();
-		try {
+		try (AutoCloseableLock l = lock.takeFileReadingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				Repository repo = git.getRepository();
 				RevWalk revWalk = new RevWalk(repo);
@@ -324,9 +324,8 @@ public class Repo {
 			} catch (IOException e) {
 				throw new RepoException("Failed to access files in repository "+repoId+" under tag "+tag,e);
 			}
-		}
-		finally {
-			readWriteLock.readLock().unlock();
+		} catch (InterruptedException e ) {
+			throw new RepoException("Interrupted whilst waiting for file reading lock",e);
 		}
 	}
 
@@ -337,8 +336,7 @@ public class Repo {
 	 * @throws RepoException
 	 */
 	public String createNewTag() throws RepoException {
-		readWriteLock.readLock().lock();
-		try {
+		try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				List<Ref> tagList;
 				try {
@@ -374,9 +372,8 @@ public class Repo {
 			catch (IOException e) {
 				throw new RepoException("Failed to open repository "+repoId,e);
 			}
-		}
-		finally {
-			readWriteLock.readLock().unlock();
+		} catch (InterruptedException e) {
+			throw new RepoException("Interrupted whilst waiting for git operation lock",e);
 		}
 	}
 	
@@ -387,8 +384,7 @@ public class Repo {
 	 */
 	public List<String> listTags() throws RepoException {
 		String prefix = Constants.R_TAGS+webtagPrefix;
-		readWriteLock.readLock().lock();
-		try {
+		try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
 			try (Git g = Git.open(repoDirectory)) {
 				return g.tagList().call().stream().
 						filter(t -> t.getName().startsWith(prefix)).
@@ -398,8 +394,8 @@ public class Repo {
 			catch (IOException|GitAPIException e) {
 				throw new RepoException("Failed to get tag list",e);
 			}
-		} finally {
-			readWriteLock.readLock().unlock();
+		} catch (InterruptedException e) {
+			throw new RepoException("Interrupted whilst waiting for git operation lock",e);
 		}
 	}
 
@@ -411,29 +407,26 @@ public class Repo {
 	 * @throws RepoException if something goes wrong
 	 */
 	public void reset(String tag) throws RepoException {
-		readWriteLock.readLock().lock();
-		try {
-			synchronized (fileSystemLock) {
-				try (Git git = Git.open(repoDirectory)) {
-					Repository r = git.getRepository();
-					Ref tagRef = r.findRef(tag);
-					Ref peeled = r.peel(tagRef);
-					ObjectId tagObjectId = peeled != null ? peeled.getPeeledObjectId() : tagRef.getObjectId();
-					ObjectId headObjectId = r.findRef("HEAD").getObjectId();
-	
-					RevertCommand rev = git.revert();
-					for(RevCommit c : git.log().addRange(tagObjectId,headObjectId).call()) {
-						rev = rev.include(c);
-					}
-					rev.call();
+		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+			try (Git git = Git.open(repoDirectory)) {
+				Repository r = git.getRepository();
+				Ref tagRef = r.findRef(tag);
+				Ref peeled = r.peel(tagRef);
+				ObjectId tagObjectId = peeled != null ? peeled.getPeeledObjectId() : tagRef.getObjectId();
+				ObjectId headObjectId = r.findRef("HEAD").getObjectId();
+
+				RevertCommand rev = git.revert();
+				for(RevCommit c : git.log().addRange(tagObjectId,headObjectId).call()) {
+					rev = rev.include(c);
 				}
-				catch (GitAPIException|IOException e) {
-					throw new RepoException("Failed to reset repo to tag "+tag,e);
-				}
+				rev.call();
 			}
-		}			
-		finally {
-			readWriteLock.readLock().unlock();
+			catch (GitAPIException|IOException e) {
+				throw new RepoException("Failed to reset repo to tag "+tag,e);
+			}
+		}
+		catch (InterruptedException e) {
+			throw new RepoException("Interrupted whilst waiting for file writing lock",e);
 		}
 	}
 	
@@ -444,31 +437,27 @@ public class Repo {
 	 * @throws RepoException if we fail to delete the file
 	 */
 	public void deleteFile(String fileName) throws RepoException {
-		readWriteLock.readLock().lock();
-		try {
-			synchronized(fileSystemLock) {
-				try (Git git = Git.open(repoDirectory)) {
-					try {
-						git.rm().addFilepattern(fileName).call();
-						git.commit().setMessage("Removing file: "+fileName).call();
-					}
-					catch (GitAPIException e) {
-						try {
-							git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
-							throw new RepoException("Failed to commit delete of "+fileName+". Rolled back",e);
-						} catch (GitAPIException e1) {
-							e1.addSuppressed(e);
-							throw new RepoException("Failed to rollback delete of "+fileName,e1);
-						}
-					}
+		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+			try (Git git = Git.open(repoDirectory)) {
+				try {
+					git.rm().addFilepattern(fileName).call();
+					git.commit().setMessage("Removing file: "+fileName).call();
 				}
-				catch (IOException e) {
-					throw new RepoException("Failed to open repository "+repoId,e);
+				catch (GitAPIException e) {
+					try {
+						git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
+						throw new RepoException("Failed to commit delete of "+fileName+". Rolled back",e);
+					} catch (GitAPIException e1) {
+						e1.addSuppressed(e);
+						throw new RepoException("Failed to rollback delete of "+fileName,e1);
+					}
 				}
 			}
-		}
-		finally {
-			readWriteLock.readLock().unlock();
+			catch (IOException e) {
+				throw new RepoException("Failed to open repository "+repoId,e);
+			}
+		} catch (InterruptedException e) {
+			throw new RepoException("Interrupted whilst waiting for file writing lock",e);
 		}
 	}
 
@@ -480,56 +469,52 @@ public class Repo {
 	 * @throws RepoException
 	 */
 	public void updateFile(String fileName, byte[] data) throws RepoException {
-		readWriteLock.readLock().lock();
-		try {
-			synchronized (fileSystemLock) {
-				File f = new File(repoDirectory,fileName);
-				try {
-					if (!FileUtil.isParent(repoDirectory, f)) {
-						throw new RepoException("Invalid fileName "+fileName);
-					}
-				} catch (IOException e) {
-					throw new RepoException("Failed to perform security check on requested filename",e);
+		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+			File f = new File(repoDirectory,fileName);
+			try {
+				if (!FileUtil.isParent(repoDirectory, f)) {
+					throw new RepoException("Invalid fileName "+fileName);
 				}
+			} catch (IOException e) {
+				throw new RepoException("Failed to perform security check on requested filename",e);
+			}
 
-				if (f.isDirectory()) {
-					throw new RepoException("File already exists and is a directory");
-				}
+			if (f.isDirectory()) {
+				throw new RepoException("File already exists and is a directory");
+			}
 
-				File parentFile = f.getParentFile();
+			File parentFile = f.getParentFile();
 
-				if (!parentFile.exists()) {
-					if (!parentFile.mkdirs()) {
-						throw new RepoException("Failed to create directories for "+fileName);
-					}
-				}
-				try(FileOutputStream fos = new FileOutputStream(f)) {
-					IOUtils.write(data, fos);
-				} 
-				catch (IOException e) {
-					throw new RepoException("Failed to write data to file "+fileName,e);
-				}
-				try (Git git = Git.open(repoDirectory)) {
-					try {
-						git.add().addFilepattern(fileName).call();
-						git.commit().setMessage("Updating file "+fileName).call();
-					} catch (GitAPIException e) {
-						try {
-							git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
-							throw new RepoException("Failed to commit update to "+fileName+". Rolled back",e);
-						} catch (GitAPIException e1) {
-							e1.addSuppressed(e);
-							throw new RepoException("Failed to rollback failed update to "+fileName,e1);
-						}
-					}
-				}
-				catch (IOException e) {
-					throw new RepoException("Failed to open repository",e);
+			if (!parentFile.exists()) {
+				if (!parentFile.mkdirs()) {
+					throw new RepoException("Failed to create directories for "+fileName);
 				}
 			}
-		} 
-		finally {
-			readWriteLock.readLock().unlock();
+			try(FileOutputStream fos = new FileOutputStream(f)) {
+				IOUtils.write(data, fos);
+			} 
+			catch (IOException e) {
+				throw new RepoException("Failed to write data to file "+fileName,e);
+			}
+			try (Git git = Git.open(repoDirectory)) {
+				try {
+					git.add().addFilepattern(fileName).call();
+					git.commit().setMessage("Updating file "+fileName).call();
+				} catch (GitAPIException e) {
+					try {
+						git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
+						throw new RepoException("Failed to commit update to "+fileName+". Rolled back",e);
+					} catch (GitAPIException e1) {
+						e1.addSuppressed(e);
+						throw new RepoException("Failed to rollback failed update to "+fileName,e1);
+					}
+				}
+			}
+			catch (IOException e) {
+				throw new RepoException("Failed to open repository",e);
+			}
+		} catch (InterruptedException e) {
+			throw new RepoException("Interrupted whilst waiting for file writing lock",e);
 		}
 	}
 
@@ -542,8 +527,7 @@ public class Repo {
 	 * @throws RepoException if something goes wrong
 	 */
 	public StreamingOutput readFile(String tag, String fileName) throws RepoException {
-		readWriteLock.readLock().lock();
-		try {
+		try (AutoCloseableLock l = lock.takeFileReadingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				Repository repo = git.getRepository();
 				RevWalk revWalk = new RevWalk(repo);
@@ -579,8 +563,8 @@ public class Repo {
 				throw new RepoException("Failed to read file from repository",e);
 			}
 		}
-		finally {
-			readWriteLock.readLock().unlock();
+		catch (InterruptedException e) {
+			throw new RepoException("Interrupted whilst waiting for file reading lock",e);
 		}
   	}
 	

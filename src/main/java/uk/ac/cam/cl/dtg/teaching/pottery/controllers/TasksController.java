@@ -28,7 +28,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskRegistrationException;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.RegistrationRequest;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCompilation;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
@@ -80,15 +80,15 @@ public class TasksController {
 	
 	@POST
 	@Path("/{taskId}/register")
-	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.",response=RegistrationRequest.class)
-	public RegistrationRequest scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
+	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.",response=TaskCompilation.class)
+	public TaskCompilation scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
 		return taskManager.getTask(taskID).scheduleRegistration(sha1, worker);
 	}
 	
 	@GET
 	@Path("/{taskId}/registering_status")
-	@ApiOperation(value="Polls the progress of the current registration process.",response=RegistrationRequest.class)
-	public RegistrationRequest pollTaskRegistraionStatus(@PathParam("taskId") String taskID) {
+	@ApiOperation(value="Polls the progress of the current registration process.",response=TaskCompilation.class)
+	public TaskCompilation pollTaskRegistraionStatus(@PathParam("taskId") String taskID) {
 		return taskManager.getTask(taskID).getRegistrationRequest();		
 	}
 	
