@@ -129,58 +129,7 @@ public class Task {
 			return registrationRequest;
 		}
 		registrationRequest = new TaskCompilation(sha1,"PENDING",null);
-		
-		// TODO: move registrationRequest and this worker into TaskClone where it can
-		// be protected by the right mutex
-		
-		w.schedule(new Job() {
-			@Override
-			public void execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
-					Database database) throws Exception {
-				synchronized (Task.this) {
-					FileUtil.deleteRecursive(taskStagingRoot);
-					TaskClone newClone = new TaskClone(taskDefRoot, taskStagingRoot, sha1);
-					TaskInfo newTaskInfo = newClone.getInfo();
-					String image = newTaskInfo.getImage();
-					// Compile the testing code
-					ExecResponse r = containerManager.execTaskCompilation(
-							taskStagingRoot, 
-							image, 
-							newTaskInfo.getCompilationRestrictions());
-					if (!r.isSuccess()) {
-						registrationRequest = new TaskCompilation(sha1, "FAILED","Failed to compile testing code in task. "+r.getResponse());
-						return;
-					}
-					// Test it against the model answer
-					CompilationResponse r2 = containerManager.execCompilation(
-							new File(taskStagingRoot, "solution"),
-							new File(taskStagingRoot, "compile"), 
-							image,
-							newTaskInfo.getCompilationRestrictions());
-					if (!r2.isSuccess()) {
-						registrationRequest = new TaskCompilation(sha1,"FAILED","Failed to compile solution when testing task during registration. " + r2.getFailMessage());
-						return;
-					}
-					HarnessResponse r3 = containerManager.execHarness(
-							new File(taskStagingRoot, "solution"),
-							new File(taskStagingRoot, "harness"), 
-							image, 
-							newTaskInfo.getHarnessRestrictions());
-					if (!r3.isSuccess()) {
-						registrationRequest = new TaskCompilation(sha1,"FAILED","Failed to run harness when testing task during registration. " + r3.getFailMessage());
-						return;
-					}
-					ValidationResponse r4 = containerManager.execValidator(
-							new File(taskStagingRoot, "validator"), 
-							r3, 
-							image,
-							newTaskInfo.getValidatorRestrictions());
-					if (!r4.isSuccess()) {
-						registrationRequest = new TaskCompilation(sha1,"FAILED","Failed to validate harness results when testing task during registration. " + r4.getFailMessage());
-						return;
-					}
-	
-					newClone.move(taskRegisteredRoot);
+						newClone.move(taskRegisteredRoot);
 					Task.this.registeredClone = newClone;
 					registeredTag = newClone.getHeadSHA();
 					Task.this.registrationRequest = new TaskCompilation(registeredTag,"COMPLETE",null);	
@@ -190,9 +139,8 @@ public class Task {
 						t.commit();
 					}
 				}
-			}});
-
-			return registrationRequest;
+		
+		return registrationRequest;
 	}
 
 	/**

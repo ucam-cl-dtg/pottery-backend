@@ -22,12 +22,26 @@ import org.eclipse.jgit.lib.Ref;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock.AutoCloseableLock;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
 
+/**
+ * A taskclone is a checkout of the task definition at a particular version. 
+ * @author acr31
+ *
+ */
 public class TaskClone {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(TaskClone.class);
@@ -38,6 +52,8 @@ public class TaskClone {
 
 	private final File upstreamRepo;
 
+	private volatile TaskCompilation compilation;
+	
 	/**
 	 * Lock controlling access to the repo and files
 	 */
@@ -222,6 +238,10 @@ public class TaskClone {
 		return new File(repo, "harness");
 	}
 
+	private File getSolutionRoot() {
+		return new File(repo,"solution");
+	}
+	
 	private File getValidatorRoot() {
 		return new File(repo, "validator");
 	}
@@ -237,5 +257,68 @@ public class TaskClone {
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			t.run(getCompileRoot(), getHarnessRoot(), getValidatorRoot());
 		} 
+	}
+	
+	public TaskCompilation scheduleCompilation(Worker w) {
+		synchronized(this) {
+			if (compilation != null) {
+				return compilation;
+			}
+			
+			compilation = new TaskCompilation("PENDING",null);
+	
+			w.schedule(new Job() {
+				@Override
+				public void execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
+						Database database) throws Exception {					
+					try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+						// Compile the testing code						
+						File codeDir = repo;
+						TaskInfo taskInfo = getInfo();
+						String image = taskInfo.getImage();
+
+						ExecResponse r = containerManager.execTaskCompilation(codeDir,image,taskInfo.getCompilationRestrictions());
+						if (!r.isSuccess()) {
+							compilation = new TaskCompilation("FAILED","Failed to compile testing code in task. "+r.getResponse());
+							return;
+						}
+						
+						// Test it against the model answer
+						CompilationResponse r2 = containerManager.execCompilation(
+								getSolutionRoot(),
+								getCompileRoot(), 
+								image,
+								taskInfo.getCompilationRestrictions());
+						if (!r2.isSuccess()) {
+							compilation = new TaskCompilation("FAILED","Failed to compile solution when testing task during registration. " + r2.getFailMessage());
+							return;
+						}
+						
+						HarnessResponse r3 = containerManager.execHarness(
+								getSolutionRoot(),
+								getHarnessRoot(), 
+								image, 
+								taskInfo.getHarnessRestrictions());
+						if (!r3.isSuccess()) {
+							compilation = new TaskCompilation("FAILED","Failed to run harness when testing task during registration. " + r3.getFailMessage());
+							return;
+						}
+						
+						ValidationResponse r4 = containerManager.execValidator(
+								getValidatorRoot(), 
+								r3, 
+								image,
+								taskInfo.getValidatorRestrictions());
+						if (!r4.isSuccess()) {
+							compilation = new TaskCompilation("FAILED","Failed to validate harness results when testing task during registration. " + r4.getFailMessage());
+							return;
+						}
+
+						compilation = new TaskCompilation("COMPLETE",null);	
+					}
+				}});
+
+			return compilation;
+		}
 	}
 }
