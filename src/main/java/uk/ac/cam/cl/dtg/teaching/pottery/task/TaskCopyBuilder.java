@@ -65,8 +65,9 @@ public class TaskCopyBuilder {
 	 *            the ID of the copy
 	 * @param taskConfig
 	 *            config information for tasks
+	 * @throws IOException 
 	 */
-	TaskCopyBuilder(String sha1, String taskId, String copyId, TaskConfig taskConfig) {
+	TaskCopyBuilder(String sha1, String taskId, String copyId, TaskConfig taskConfig) throws IOException {
 		final File taskDefDir = taskConfig.getTaskDefinitionDir(taskId);				
 
 
@@ -90,90 +91,19 @@ public class TaskCopyBuilder {
 		this.copyFiles = new Job() {
 			@Override
 			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
-					Database database) throws Exception {
-				
-				// We are the only object writing to this directory (we have a unique id)
-				// As many threads as you like can read from the bare git repo
-				// Assignments to builderInfo are atomic
-				// => No locks needed
-				
-				builderInfo.setStatus(BuilderInfo.STATUS_COPYING_FILES);
-				LOG.info("Copying files for {} into {}",taskDefDir,copyId);
-				File location = taskConfig.getTaskCopyDir(copyId);
-				
-				// copy the files from the repo
-				try (Git g = Git.cloneRepository().setURI(taskDefDir.getPath()).setDirectory(location).call()) {
-						g.reset().setMode(ResetType.HARD).setRef(sha1).call();
-				} catch (GitAPIException e) {
-					builderInfo.setException(new TaskCloneException("Failed to create clone of " + taskDefDir + " and reset to " + sha1,e));
-					return false;
-				}
-				
-				try {
-					taskCopy = new TaskCopy(taskId,copyId,sha1,taskConfig);
-				} catch (IOException e) {
-					builderInfo.setException(new TaskCloneException("Failed to load task info",e));
-					return false;
-				}
-				
-				return true;
-			}
+					Database database) throws Exception {				
+				return copyFiles(sha1, taskId, copyId, taskConfig, taskDefDir);
+			}			
 		};
 		this.compileTests = new Job() {
 			@Override
 			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
 					Database database) throws Exception {
 				
-				String copyId = taskCopy.getCopyId();		
-
-				LOG.info("Compiling tests for {} into {}",taskDefDir,copyId);
-				TaskInfo taskInfo = taskCopy.getInfo();
-				String image = taskInfo.getImage();
-
-				builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TEST);
-				ExecResponse r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
-				if (!r.isSuccess()) {
-					builderInfo.setException(new TaskCloneException("Failed to compile testing code in task. "+r.getResponse()));
-					return false;
-				}
-				
-				builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_SOLUTION);
-				// Test it against the model answer
-				CompilationResponse r2 = containerManager.execCompilation(
-						taskConfig.getSolutionDir(copyId),
-						taskConfig.getCompileDir(copyId), 
-						image,
-						taskInfo.getCompilationRestrictions());
-				if (!r2.isSuccess()) {
-					builderInfo.setException(new TaskCloneException("Failed to compile solution when testing task during registration. " + r2.getFailMessage()));
-					return false;
-				}
-				
-				builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTION);
-				HarnessResponse r3 = containerManager.execHarness(
-						taskConfig.getSolutionDir(copyId),
-						taskConfig.getHarnessDir(copyId), 
-						image, 
-						taskInfo.getHarnessRestrictions());
-				if (!r3.isSuccess()) {
-					builderInfo.setException(new TaskCloneException("Failed to run harness when testing task during registration. " + r3.getFailMessage()));
-					return false;
-				}
-				
-				ValidationResponse r4 = containerManager.execValidator(
-						taskConfig.getValidatorDir(copyId), 
-						r3, 
-						image,
-						taskInfo.getValidatorRestrictions());
-				if (!r4.isSuccess()) {
-					builderInfo.setException(new TaskCloneException("Failed to validate harness results when testing task during registration. " + r4.getFailMessage()));
-					return false;
-				}
-				
-				builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
-				
-				return true;
+				return compileFiles(taskConfig, taskDefDir, containerManager);
 			}
+
+			
 		};
 	}
 	
@@ -213,6 +143,85 @@ public class TaskCopyBuilder {
 				BuilderInfo.STATUS_SUCCESS.equals(status) ||
 				BuilderInfo.STATUS_FAILURE.equals(status);
 	}
-	
 
+	private boolean copyFiles(String sha1, String taskId, String copyId, TaskConfig taskConfig,
+			final File taskDefDir) {
+		// We are the only object writing to this directory (we have a unique id)
+		// As many threads as you like can read from the bare git repo
+		// Assignments to builderInfo are atomic
+		// => No locks needed
+		
+		builderInfo.setStatus(BuilderInfo.STATUS_COPYING_FILES);
+		LOG.info("Copying files for {} into {}",taskDefDir,copyId);
+		File location = taskConfig.getTaskCopyDir(copyId);
+		
+		// copy the files from the repo
+		try (Git g = Git.cloneRepository().setURI(taskDefDir.getPath()).setDirectory(location).call()) {
+				g.reset().setMode(ResetType.HARD).setRef(sha1).call();
+		} catch (GitAPIException e) {
+			builderInfo.setException(new TaskCloneException("Failed to create clone of " + taskDefDir + " and reset to " + sha1,e));
+			return false;
+		}
+		
+		try {
+			taskCopy = new TaskCopy(taskId,copyId,sha1,taskConfig);
+		} catch (IOException e) {
+			builderInfo.setException(new TaskCloneException("Failed to load task info",e));
+			return false;
+		}
+		
+		return true;
+	}
+	private boolean compileFiles(TaskConfig taskConfig, final File taskDefDir,
+			ContainerManager containerManager) {
+		String copyId = taskCopy.getCopyId();		
+
+		LOG.info("Compiling tests for {} into {}",taskDefDir,copyId);
+		TaskInfo taskInfo = taskCopy.getInfo();
+		String image = taskInfo.getImage();
+
+		builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TEST);
+		ExecResponse r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
+		if (!r.isSuccess()) {
+			builderInfo.setException(new TaskCloneException("Failed to compile testing code in task. "+r.getResponse()));
+			return false;
+		}
+		
+		builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_SOLUTION);
+		// Test it against the model answer
+		CompilationResponse r2 = containerManager.execCompilation(
+				taskConfig.getSolutionDir(copyId),
+				taskConfig.getCompileDir(copyId), 
+				image,
+				taskInfo.getCompilationRestrictions());
+		if (!r2.isSuccess()) {
+			builderInfo.setException(new TaskCloneException("Failed to compile solution when testing task during registration. " + r2.getFailMessage()));
+			return false;
+		}
+		
+		builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTION);
+		HarnessResponse r3 = containerManager.execHarness(
+				taskConfig.getSolutionDir(copyId),
+				taskConfig.getHarnessDir(copyId), 
+				image, 
+				taskInfo.getHarnessRestrictions());
+		if (!r3.isSuccess()) {
+			builderInfo.setException(new TaskCloneException("Failed to run harness when testing task during registration. " + r3.getFailMessage()));
+			return false;
+		}
+		
+		ValidationResponse r4 = containerManager.execValidator(
+				taskConfig.getValidatorDir(copyId), 
+				r3, 
+				image,
+				taskInfo.getValidatorRestrictions());
+		if (!r4.isSuccess()) {
+			builderInfo.setException(new TaskCloneException("Failed to validate harness results when testing task during registration. " + r4.getFailMessage()));
+			return false;
+		}
+		
+		builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
+		
+		return true;
+	}	
 }
