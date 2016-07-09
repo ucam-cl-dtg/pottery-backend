@@ -35,7 +35,7 @@ public class TaskCopy {
 		super();
 		this.copyId = copyId;
 		this.config = config;
-		this.info = TaskInfo.load(taskId,config.getTaskCopyRoot(copyId));
+		this.info = TaskInfo.load(taskId,config.getTaskCopyDir(copyId));
 	}
 
 	public String getCopyId() {
@@ -47,7 +47,7 @@ public class TaskCopy {
 	}
 
 	public File getLocation() {
-		return config.getTaskCopyRoot(copyId);
+		return config.getTaskCopyDir(copyId);
 	}
 	
 	/**
@@ -58,7 +58,7 @@ public class TaskCopy {
 	 * @throws IOException
 	 */
 	public List<String> copySkeleton(File destination) throws IOException {
-		File sourceLocation = config.getSkeletonRoot(copyId);
+		File sourceLocation = config.getSkeletonDir(copyId);
 		if (!sourceLocation.exists()) {
 			return new LinkedList<>();
 		}
@@ -93,14 +93,14 @@ public class TaskCopy {
 	public void destroy() {}
 
 	public File getCompileRoot() {
-		return config.getCompileRoot(copyId);
+		return config.getCompileDir(copyId);
 	}
 
 	public File getHarnessRoot() {
-		return config.getHarnessRoot(copyId);
+		return config.getHarnessDir(copyId);
 	}
 
 	public File getValidatorRoot() {
-		return config.getValidatorRoot(copyId);
+		return config.getValidatorDir(copyId);
 	}
 }

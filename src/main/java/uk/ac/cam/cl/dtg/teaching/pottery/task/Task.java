@@ -96,7 +96,7 @@ public class Task {
 		this.registeredCopy = registeredCopy;
 		this.registeredTag = registeredTag;
 		this.retired = retired;
-		this.taskDefDir = config.getTaskDefinitionRoot(taskId);
+		this.taskDefDir = config.getTaskDefinitionDir(taskId);
 		this.config = config;
 		this.uuidGenerator = uuidGenerator;		
 	}
@@ -294,7 +294,7 @@ public class Task {
 	static Task createTask(String taskId, UUIDGenerator uuidGenerator, TaskConfig config, Database database) throws TaskException, IOException {
 
 		// create the task directory and clone the template
-		File taskDefDir = config.getTaskDefinitionRoot(taskId);
+		File taskDefDir = config.getTaskDefinitionDir(taskId);
 		
 		taskDefDir.mkdir();
 			

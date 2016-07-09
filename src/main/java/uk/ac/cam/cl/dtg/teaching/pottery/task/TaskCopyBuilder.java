@@ -53,7 +53,7 @@ public class TaskCopyBuilder {
 	
 	public TaskCopyBuilder(String sha1, String taskId, TaskConfig taskConfig, UUIDGenerator uuidGenerator) {
 		this.builderInfo = new TaskCopyBuilderInfo(sha1);
-		File taskDefDir = taskConfig.getTaskDefinitionRoot(taskId);
+		File taskDefDir = taskConfig.getTaskDefinitionDir(taskId);
 		this.copyFiles = new Job() {
 			@Override
 			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
@@ -62,7 +62,7 @@ public class TaskCopyBuilder {
 				builderInfo.setStatus(STATUS_COPYING_FILES);
 				String copyId = uuidGenerator.generate();
 				LOG.info("Copying files for {} into {}",taskDefDir,copyId);
-				File location = taskConfig.getTaskCopyRoot(copyId);
+				File location = taskConfig.getTaskCopyDir(copyId);
 				
 				// copy the files from the repo
 				try (Git g = Git.cloneRepository().setURI(taskDefDir.getPath()).setDirectory(location).call()) {
@@ -102,8 +102,8 @@ public class TaskCopyBuilder {
 				builderInfo.setStatus(STATUS_COMPILING_SOLUTION);
 				// Test it against the model answer
 				CompilationResponse r2 = containerManager.execCompilation(
-						taskConfig.getSolutionRoot(copyId),
-						taskConfig.getCompileRoot(copyId), 
+						taskConfig.getSolutionDir(copyId),
+						taskConfig.getCompileDir(copyId), 
 						image,
 						taskInfo.getCompilationRestrictions());
 				if (!r2.isSuccess()) {
@@ -113,8 +113,8 @@ public class TaskCopyBuilder {
 				
 				builderInfo.setStatus(STATUS_TESTING_SOLUTION);
 				HarnessResponse r3 = containerManager.execHarness(
-						taskConfig.getSolutionRoot(copyId),
-						taskConfig.getHarnessRoot(copyId), 
+						taskConfig.getSolutionDir(copyId),
+						taskConfig.getHarnessDir(copyId), 
 						image, 
 						taskInfo.getHarnessRestrictions());
 				if (!r3.isSuccess()) {
@@ -123,7 +123,7 @@ public class TaskCopyBuilder {
 				}
 				
 				ValidationResponse r4 = containerManager.execValidator(
-						taskConfig.getValidatorRoot(copyId), 
+						taskConfig.getValidatorDir(copyId), 
 						r3, 
 						image,
 						taskInfo.getValidatorRestrictions());
@@ -146,7 +146,7 @@ public class TaskCopyBuilder {
 		this.builderInfo = new TaskCopyBuilderInfo(sha1);
 		this.builderInfo.setStatus(STATUS_SUCCESS);
 		this.taskCopy = new TaskCopy(taskId,copyId,taskConfig);
-		File taskDefDir = taskConfig.getTaskDefinitionRoot(taskId);
+		File taskDefDir = taskConfig.getTaskDefinitionDir(taskId);
 		// Its invalid to try building this so just return false
 		this.copyFiles = new Job() {
 			@Override
