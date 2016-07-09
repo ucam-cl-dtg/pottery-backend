@@ -1,5 +1,6 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
+import java.io.IOException;
 import java.util.Collection;
 
 import javax.servlet.ServletConfig;
@@ -50,7 +51,7 @@ public class GitServletV3 extends GitServlet {
 						Worker w = GuiceResteasyBootstrapServletContextListenerV3.getInjector().getInstance(Worker.class);
 						try {
 							t.getTask(repoName).scheduleBuildTestingCopy(w);
-						} catch (TaskCloneException e) {
+						} catch (TaskCloneException|IOException e) {
 							LOG.error("Failed to update testing checkout in {}",repoName,e);
 						}
 					}
