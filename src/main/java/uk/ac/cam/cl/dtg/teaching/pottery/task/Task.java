@@ -87,7 +87,10 @@ public class Task {
 
 	private final TaskConfig config;
 	
-	private UUIDGenerator uuidGenerator;
+	/**
+	 * Used to generate unique taskIds and unique copyIds
+	 */
+	private final UUIDGenerator uuidGenerator;
 
 	private Task(String taskId, TaskCopyBuilder testingBuilder, TaskCopy testingCopy, TaskCopyBuilder registeredBuilder,
 			TaskCopy registeredCopy, String registeredTag, boolean retired, TaskConfig config, UUIDGenerator uuidGenerator) {
