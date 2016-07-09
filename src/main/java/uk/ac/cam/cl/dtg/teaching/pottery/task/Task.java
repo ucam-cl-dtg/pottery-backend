@@ -110,18 +110,26 @@ public class Task {
 	 * Mutex for managing access to the registration fields (registeredbuilder and registeredcopy)
 	 */
 	private final Object registeredMutex = new Object();
-	
-	public TaskCopy getRegisteredCopy() {
-		// no synchronization needed since registeredCopy is volatile and assignments are atomic
-		return registeredCopy;
+		
+	/**
+	 * Get a reference to the RegisteredCopy object. You must call release/close when finished
+	 */
+	public TaskCopy acquireRegisteredCopy() {
+		TaskCopy tc = registeredCopy;
+		if (tc != null && tc.acquire()) {
+			return tc;
+		}
+		else {
+			return null;
+		}
 	}
-
+	
 	public BuilderInfo getRegisteredCopyBuilderInfo() {
 		// no synchronization needed since registeredbuilder is volatile and assignments are atomic
 		return registeredBuilder.getBuilderInfo(); 
 	}
 
-	public BuilderInfo scheduleBuildRegisteredCopy(String sha1, Worker w) throws TaskCloneException {
+	public BuilderInfo scheduleBuildRegisteredCopy(String sha1, Worker w) throws TaskCloneException, IOException {
 		if ("HEAD".equals(sha1)) {
 			sha1 = getHeadSHA();
 		}
@@ -203,9 +211,14 @@ public class Task {
 	 */
 	private final Object testingMutex = new Object();
 	
-	public TaskCopy getTestingCopy() { 
-		// No mutex needed since testingCopy is volatile and updates to it are atomic
-		return testingCopy; 
+	public TaskCopy acquireTestingCopy() { 
+		TaskCopy tc = testingCopy;
+		if (tc != null && tc.acquire()) {
+			return tc;
+		}
+		else {
+			return null;
+		}
 	}
 	
 	public BuilderInfo getTestingCopyBuilderInfo() {
@@ -213,7 +226,7 @@ public class Task {
 		return testingBuilder.getBuilderInfo(); 
 	}
 	
-	public BuilderInfo scheduleBuildTestingCopy(Worker w) throws TaskCloneException {
+	public BuilderInfo scheduleBuildTestingCopy(Worker w) throws TaskCloneException, IOException {
 		// We need to ensure there is only one thread in this region at a time
 		// or else we have a race between deciding that we should start a new copy and updating 
 		// testingBuilder to record it
@@ -318,10 +331,7 @@ public class Task {
 					// The test version has been built before
 					testingBuilder = new TaskCopyBuilder("HEAD", taskId, info.getTestingCopyId(),config);
 				}
-				
-				// Mark the status as SUCCESS so we don't try to compile it
-				testingBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
-				
+								
 				TaskCopyBuilder registeredBuilder;
 				if (info.getRegisteredCopyId() == null) {
 					registeredBuilder = new TaskCopyBuilder("HEAD",taskId,null, config);
@@ -329,10 +339,7 @@ public class Task {
 				else {
 					registeredBuilder = new TaskCopyBuilder(info.getRegisteredTag(),taskId, info.getRegisteredCopyId(),config);
 				}
-				
-				// Mark the status as SUCCESS so we don't try to compile it
-				registeredBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
-				
+								
 				return new Task(info.getTaskId(),
 						testingBuilder,testingBuilder.getTaskCopy(),
 						registeredBuilder,registeredBuilder.getTaskCopy(),

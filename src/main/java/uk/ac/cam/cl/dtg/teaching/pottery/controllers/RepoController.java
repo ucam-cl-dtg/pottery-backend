@@ -60,12 +60,13 @@ public class RepoController {
 	public RepoInfo makeRepo(@FormParam("taskId") String taskId,@FormParam("usingTestingVersion") Boolean usingTestingVersion) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException {
 		if (usingTestingVersion == null) usingTestingVersion = false;
 		Task t = taskManager.getTask(taskId);
-		TaskCopy c = t.getRegisteredCopy();
-		if (t == null || c == null) throw new TaskNotFoundException();
-		
-		Repo r = repoFactory.createInstance(taskId,usingTestingVersion);
-		r.copyFiles(c);
-		return r.toRepoInfo();
+		if (t == null) throw new TaskNotFoundException("Failed to find task with ID " + taskId);
+		try (TaskCopy c = t.acquireRegisteredCopy()) { 
+			if (c == null) throw new TaskNotFoundException("Failed to find a registered task for task with ID "+ taskId);
+			Repo r = repoFactory.createInstance(taskId,usingTestingVersion);
+			r.copyFiles(c);
+			return r.toRepoInfo();
+		}
 	}
 	
 	@GET

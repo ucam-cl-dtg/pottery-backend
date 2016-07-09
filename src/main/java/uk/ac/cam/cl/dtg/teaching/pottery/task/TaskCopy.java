@@ -14,6 +14,8 @@ import java.util.List;
 
 import org.apache.commons.io.IOUtils;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
+import uk.ac.cam.cl.dtg.teaching.pottery.TwoPhaseLatch;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 
@@ -25,14 +27,25 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
  * @author acr31
  *
  */
-public class TaskCopy {
+public class TaskCopy implements AutoCloseable {
 	
 	private String copyId;
 	private TaskConfig config;
 	private TaskInfo info;
 	private String sha1;
 	
-	public TaskCopy(String taskId, String copyId, String sha1, TaskConfig config) throws IOException {
+	/**
+	 * Instances of this object are created by the TaskCopyBuilder object. Its 
+	 * up to the TaskCopyBuilder object to ensure that there is only instance
+	 * of this object for each copyId
+	 * 
+	 * @param taskId the ID of the task itself
+	 * @param copyId the unique ID for this copy
+	 * @param sha1 the SHA1 of the copy we made from the parent repo
+	 * @param config information for tasks
+	 * @throws IOException if we can't load the task information from the filesystem
+	 */
+	TaskCopy(String taskId, String copyId, String sha1, TaskConfig config) throws IOException {
 		super();
 		this.copyId = copyId;
 		this.config = config;
@@ -95,9 +108,6 @@ public class TaskCopy {
 		return copiedFiles;		
 	}
 	
-	
-	public void destroy() {}
-
 	public File getCompileRoot() {
 		return config.getCompileDir(copyId);
 	}
@@ -108,5 +118,25 @@ public class TaskCopy {
 
 	public File getValidatorRoot() {
 		return config.getValidatorDir(copyId);
+	}
+	
+	private TwoPhaseLatch latch = new TwoPhaseLatch();
+	
+	public boolean acquire() { return latch.acquire(); }
+	public void release() { latch.release(); }
+	
+	/**
+	 * Delete this copy from the disk
+	 * @throws IOException 
+	 * @throws InterruptedException 
+	 */
+	void destroy() throws IOException, InterruptedException {
+		latch.await();
+		FileUtil.deleteRecursive(config.getTaskCopyDir(copyId));
+	}
+
+	@Override
+	public void close() {
+		release();
 	}
 }

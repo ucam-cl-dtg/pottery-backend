@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
@@ -59,29 +59,41 @@ public class TaskManager {
 	}
 	
 	public Collection<TaskInfo> getTestingTasks() {
-		return definedTasks.values().stream()
-				.filter(t -> t.getTestingCopy() != null)
-				.map(t -> t.getTestingCopy().getInfo())
-				.collect(Collectors.toList());
+		List<TaskInfo> r = new LinkedList<>();
+		for (Task t : definedTasks.values()) {
+			try(TaskCopy c = t.acquireTestingCopy()) {
+				if (c != null) {
+					r.add(c.getInfo());
+				}
+			}
+		}
+		return r;
 	}
 	
 	public Collection<TaskInfo> getRegisteredTasks() {
-		return definedTasks.values().stream()
-				.filter(t -> t.getRegisteredCopy() != null)
-				.map(t -> t.getRegisteredCopy().getInfo())
-				.collect(Collectors.toList());
+		List<TaskInfo> r = new LinkedList<>();
+		for (Task t : definedTasks.values()) {
+			try(TaskCopy c = t.acquireRegisteredCopy()) {
+				if (c != null) {
+					r.add(c.getInfo());
+				}
+			}
+		}
+		return r;
 	}
-
+	
 	public TaskInfo getTestingTaskInfo(String taskId) throws TaskNotFoundException {
-		TaskCopy t = definedTasks.get(taskId).getTestingCopy();
-		if (t == null) throw new TaskNotFoundException("Failed to find a testing task with ID "+taskId);
-		return t.getInfo();
+		try (TaskCopy t = definedTasks.get(taskId).acquireTestingCopy()) {
+			if (t == null) throw new TaskNotFoundException("Failed to find a testing task with ID "+taskId);
+			return t.getInfo();
+		}
 	}
 
 	public TaskInfo getRegisteredTaskInfo(String taskId) throws TaskNotFoundException {
-		TaskCopy t = definedTasks.get(taskId).getRegisteredCopy();
-		if (t == null) throw new TaskNotFoundException("Failed to find a registered task with ID "+taskId);
-		return t.getInfo();
+		try (TaskCopy t = definedTasks.get(taskId).acquireRegisteredCopy()) {
+			if (t == null) throw new TaskNotFoundException("Failed to find a registered task with ID "+taskId);
+			return t.getInfo();
+		}
 	}
 
 	public Task getTask(String taskId) {

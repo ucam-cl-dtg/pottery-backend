@@ -200,35 +200,54 @@ public class Repo {
 
 			w.schedule(new Job() {
 				@Override
-				public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws Exception {					
+				public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws InterruptedException {					
 					Task t = taskManager.getTask(taskId);
-					TaskCopy c = usingTestingVersion ? t.getTestingCopy() : t.getRegisteredCopy();
-					try (AutoCloseableLock l = lock.takeFileWritingLock()) {						
-						setVersionToTest(tag);
-
-						File codeDir = repoTestingDirectory;
-						TaskInfo taskInfo = c.getInfo();
-						String image = taskInfo.getImage();
-						CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, c.getCompileRoot(), image, taskInfo.getCompilationRestrictions());
-						updateSubmission(builder.withCompilationResponse(compilationResponse));
-						if (!compilationResponse.isSuccess()) { return false; }
-						
-						HarnessResponse harnessResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
-						updateSubmission(builder.withHarnessResponse(harnessResponse));
-						if (!harnessResponse.isSuccess()) { return false; }
-						
-						ValidationResponse validationResponse = containerManager.execValidator(c.getValidatorRoot(),harnessResponse, image,taskInfo.getValidatorRestrictions());
-						updateSubmission(builder.withValidationResponse(validationResponse));
-						if (validationResponse.isSuccess()) { return false; }
-					}
-					finally {
-						builder.withStatus(Submission.STATUS_COMPLETE);
-						Submission s = builder.build();
-						try (TransactionQueryRunner q = database.getQueryRunner()) {
-							s = s.insert(q);
-							q.commit();
+					try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
+						if (c == null) {
+							updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Task no longer available",0)));
+							return false;
 						}
-						updateSubmission(s);
+						try (AutoCloseableLock l = lock.takeFileWritingLock()) {						
+							try {
+								setVersionToTest(tag);
+							} catch (RepoException e) {
+								updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Failed to reset repository to requested tag ("+tag+")",0)));
+								return false;
+							}
+
+							File codeDir = repoTestingDirectory;
+							TaskInfo taskInfo = c.getInfo();
+							String image = taskInfo.getImage();
+							CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, c.getCompileRoot(), image, taskInfo.getCompilationRestrictions());
+							updateSubmission(builder.withCompilationResponse(compilationResponse));
+							if (!compilationResponse.isSuccess()) { return false; }
+
+							HarnessResponse harnessResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
+							updateSubmission(builder.withHarnessResponse(harnessResponse));
+							if (!harnessResponse.isSuccess()) { return false; }
+
+							ValidationResponse validationResponse = containerManager.execValidator(c.getValidatorRoot(),harnessResponse, image,taskInfo.getValidatorRestrictions());
+							updateSubmission(builder.withValidationResponse(validationResponse));
+							if (validationResponse.isSuccess()) { return false; }
+						}
+						finally {
+							builder.withStatus(Submission.STATUS_COMPLETE);
+							Submission s = builder.build();
+							try (TransactionQueryRunner q = database.getQueryRunner()) {
+								s = s.insert(q);
+								q.commit();
+							} catch (SQLException e) {
+								// This shouldn't happen, but if it does then we'll force 
+								// an error message out to the user
+								Submission.Builder builder = Submission.builder()
+										.withRepoId(repoId)
+										.withTag(tag)
+										.withCompilationResponse(new CompilationResponse(false,"Failed to store result in database: "+e.getMessage(),0));
+								updateSubmission(builder);
+								return false;
+							}
+							updateSubmission(s);
+						}
 					}
 					return true;
 				}			
