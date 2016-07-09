@@ -2,6 +2,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Date;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -70,13 +71,13 @@ public class RepoFactory {
 		}
 	}
 
-	public Repo createInstance(String taskId, boolean usingTestingVersion) throws RepoException {
+	public Repo createInstance(String taskId, boolean usingTestingVersion, Date expiryDate) throws RepoException {
 		final String newRepoId = uuidGenerator.generate();
 		try {
 			return cache.get(newRepoId, new Callable<Repo>() {
 				@Override
 				public Repo call() throws Exception {
-					return Repo.createRepo(newRepoId, taskId,usingTestingVersion, config, database);			
+					return Repo.createRepo(newRepoId, taskId,usingTestingVersion, expiryDate, config, database);			
 				}
 			});
 		} catch (ExecutionException e) {

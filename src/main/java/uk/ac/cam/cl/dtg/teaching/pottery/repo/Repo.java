@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -47,6 +48,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
@@ -63,6 +65,8 @@ public class Repo {
 	private final String repoId;
 	
 	private final String taskId;
+
+	private final Date expiryDate;
 	
 	/**
 	 * The directory holding this repository.
@@ -96,21 +100,25 @@ public class Repo {
 	 */
 	private final FourLevelLock lock = new FourLevelLock();
 	
-	private Repo(String repoId, RepoConfig c, String taskId, boolean usingTestingVersion) {
+	private Repo(String repoId, RepoConfig c, String taskId, boolean usingTestingVersion, Date expiryDate) {
 		this.repoId = repoId;
 		this.repoDirectory = new File(c.getRepoRoot(),repoId);
 		this.repoTestingDirectory = new File(c.getRepoTestingRoot(),repoId);
 		this.webtagPrefix = c.getWebtagPrefix();
 		this.taskId = taskId;
 		this.usingTestingVersion = usingTestingVersion;
+		this.expiryDate = expiryDate;
 	}
 
 	/** 
 	 * Recursively copy all files from the given sourceLocation and add them to the repository 
 	 * @param sourceLocation the location to copy from
 	 * @throws RepoException
+	 * @throws RepoExpiredException 
 	 */
-	public void copyFiles(TaskCopy task) throws RepoException {
+	public void copyFiles(TaskCopy task) throws RepoException, RepoExpiredException {
+		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
+		
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				try {
@@ -185,8 +193,11 @@ public class Repo {
 	 * @param db
 	 * @return
 	 * @throws SQLException
+	 * @throws RepoExpiredException 
 	 */
-	public Submission scheduleSubmission(String tag, Worker w, Database db) throws SQLException {
+	public Submission scheduleSubmission(String tag, Worker w, Database db) throws SQLException, RepoExpiredException {
+		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
+		
 		synchronized (lockFields) {
 			Submission s = getSubmission(tag, db);
 			//	Means we've already scheduled (and possibly already run) the test for this tag
@@ -349,8 +360,10 @@ public class Repo {
 	 * Create a new tag in this repository
 	 * @return the name of the tag
 	 * @throws RepoException
+	 * @throws RepoExpiredException 
 	 */
-	public String createNewTag() throws RepoException {
+	public String createNewTag() throws RepoException, RepoExpiredException {
+		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				List<Ref> tagList;
@@ -420,8 +433,10 @@ public class Repo {
 	 * 
 	 * @param tag the tag to reset to
 	 * @throws RepoException if something goes wrong
+	 * @throws RepoExpiredException 
 	 */
-	public void reset(String tag) throws RepoException {
+	public void reset(String tag) throws RepoException, RepoExpiredException {
+		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				Repository r = git.getRepository();
@@ -450,8 +465,10 @@ public class Repo {
 	 * Delete the file specified
 	 * @param fileName relative to the root of the repository
 	 * @throws RepoException if we fail to delete the file
+	 * @throws RepoExpiredException 
 	 */
-	public void deleteFile(String fileName) throws RepoException {
+	public void deleteFile(String fileName) throws RepoException, RepoExpiredException {
+		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				try {
@@ -482,8 +499,10 @@ public class Repo {
 	 * @param fileName the filename with path relative to the root of the repository
 	 * @param data to replace the contents of the file with
 	 * @throws RepoException
+	 * @throws RepoExpiredException 
 	 */
-	public void updateFile(String fileName, byte[] data) throws RepoException {
+	public void updateFile(String fileName, byte[] data) throws RepoException, RepoExpiredException {
+		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			File f = new File(repoDirectory,fileName);
 			try {
@@ -630,7 +649,7 @@ public class Repo {
 		try(TransactionQueryRunner q = database.getQueryRunner()) {
 			RepoInfo r = RepoInfo.getByRepoId(repoId, q);
 			if (r != null) {
-				return new Repo(repoId,config, r.getTaskId(),r.isUsingTestingVersion());
+				return new Repo(repoId,config, r.getTaskId(),r.isUsingTestingVersion(),r.getExpiryDate());
 			}
 			else {
 				throw new RepoException("Repository with ID "+repoId+" does not exist in database");
@@ -653,7 +672,7 @@ public class Repo {
 	 * @return a repo object for this repository
 	 * @throws RepoException if the repository couldn't be created
 	 */
-	static Repo createRepo(String repoId, String taskId, boolean usingTestingVersion, RepoConfig config, Database database) throws RepoException {
+	static Repo createRepo(String repoId, String taskId, boolean usingTestingVersion, Date expiryDate, RepoConfig config, Database database) throws RepoException {
 		
 		File repoDirectory = new File(config.getRepoRoot(),repoId);
 		
@@ -675,7 +694,7 @@ public class Repo {
 			throw t;
 		}
 
-		RepoInfo r = new RepoInfo(repoId, taskId,usingTestingVersion);
+		RepoInfo r = new RepoInfo(repoId, taskId,usingTestingVersion,expiryDate);
 		
 		try (TransactionQueryRunner t = database.getQueryRunner()){
 			r.insert(t);
@@ -690,7 +709,7 @@ public class Repo {
 			throw t;
 		}
 		
-		return new Repo(repoId,config, taskId,usingTestingVersion);
+		return new Repo(repoId,config, taskId,usingTestingVersion,expiryDate);
 	}
 
 	public String getRepoId() {
@@ -706,7 +725,11 @@ public class Repo {
 	}
 
 	public RepoInfo toRepoInfo() {
-		return new RepoInfo(repoId,taskId,usingTestingVersion);
+		return new RepoInfo(repoId,taskId,usingTestingVersion,expiryDate);
+	}
+	
+	public boolean isExpired() {
+		return new Date().after(expiryDate);
 	}
 	
 }

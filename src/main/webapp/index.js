@@ -153,7 +153,7 @@ $(document).ready(
 				$.ajax({
 					url: 'api/repo',
 					type: 'POST',
-					data : {"taskId" : $("#taskId").val() },
+					data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validity").val() },
 					success: function (result) {
 						reportSuccess(result);
 						$("#repoId").val(result.repoId);
@@ -171,7 +171,7 @@ $(document).ready(
 				$.ajax({
 					url: 'api/repo',
 					type: 'POST',
-					data : {"taskId" : $("#taskId").val(), "usingTestingVersion":"true" },
+					data : {"taskId" : $("#taskId").val(), "usingTestingVersion":"true", "validityMinutes": $("#validityTest").val() },
 					success: function (result) {
 						reportSuccess(result);
 						$("#repoId").val(result.repoId);

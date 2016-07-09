@@ -1,6 +1,8 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import java.io.IOException;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 import javax.ws.rs.Consumes;
@@ -28,6 +30,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
@@ -57,13 +60,17 @@ public class RepoController {
 	@Path("/")
 	@ApiOperation(value="Start a new repository",
 		notes="Starts a new repository for solving the specified task",position=0)
-	public RepoInfo makeRepo(@FormParam("taskId") String taskId,@FormParam("usingTestingVersion") Boolean usingTestingVersion) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException {
+	public RepoInfo makeRepo(@FormParam("taskId") String taskId,@FormParam("usingTestingVersion") Boolean usingTestingVersion,@FormParam("validityMinutes") Integer validityMinutes) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException, RepoExpiredException {
 		if (usingTestingVersion == null) usingTestingVersion = false;
+		if (validityMinutes == null) validityMinutes = 60;
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.MINUTE, validityMinutes);
+		Date expiryDate = cal.getTime();
 		Task t = taskManager.getTask(taskId);
 		if (t == null) throw new TaskNotFoundException("Failed to find task with ID " + taskId);
 		try (TaskCopy c = t.acquireRegisteredCopy()) { 
 			if (c == null) throw new TaskNotFoundException("Failed to find a registered task for task with ID "+ taskId);
-			Repo r = repoFactory.createInstance(taskId,usingTestingVersion);
+			Repo r = repoFactory.createInstance(taskId,usingTestingVersion,expiryDate);
 			r.copyFiles(c);
 			return r.toRepoInfo();
 		}
@@ -99,7 +106,7 @@ public class RepoController {
 	@Path("/{repoId}/{tag}/{fileName:.+}")
 	@ApiOperation(value="Update a file in the repository",
 			notes="The new contents of the file should be submitted as a multipart form request",position=3)
-	public Response updateFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName, @MultipartForm FileData file) throws RepoException, IOException {
+	public Response updateFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName, @MultipartForm FileData file) throws RepoException, IOException, RepoExpiredException {
 		if (!Constants.HEAD.equals(tag)) {
 			throw new RepoException("Can only update files at HEAD revision");
 		}
@@ -110,7 +117,7 @@ public class RepoController {
 	@DELETE
 	@Path("/{repoId}/{tag}/{fileName:.+}")
 	@ApiOperation(value="Delete a file from the repository",position=4)
-	public Response deleteFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException, RepoException {
+	public Response deleteFile(@PathParam("repoId") String repoId, @PathParam("tag") String tag, @PathParam("fileName") String fileName) throws IOException, RepoException, RepoExpiredException {
 		if (!Constants.HEAD.equals(tag)) {
 			throw new RepoException("Can only delete files at HEAD revision");
 		}
@@ -121,7 +128,7 @@ public class RepoController {
 	@POST
 	@Path("/{repoId}/reset/{tag}")
 	@ApiOperation(value="Set the contents of the repository to be what it was at this particular tag",position=5)
-	public Response reset(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws IOException, RepoException {
+	public Response reset(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws IOException, RepoException, RepoExpiredException {
 		repoFactory.getInstance(repoId).reset(tag);
 		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
@@ -130,7 +137,7 @@ public class RepoController {
 	@Path("/{repoId}")
 	@ApiOperation(value="Create a tag in the repository",
 		notes="Submissions (for testing) are created with reference to tags in the repository")
-	public RepoTag tag(@PathParam("repoId") String repoId) throws IOException, RepoException {
+	public RepoTag tag(@PathParam("repoId") String repoId) throws IOException, RepoException, RepoExpiredException {
 		RepoTag r = new RepoTag();
 		r.setTag(repoFactory.getInstance(repoId).createNewTag());
 		return r;
