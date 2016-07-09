@@ -339,7 +339,7 @@ public class Repo {
 						treeWalk.setRecursive(true);
 						result = new LinkedList<String>();
 						while(treeWalk.next()) {
-							result.add(treeWalk.getNameString());
+							result.add(treeWalk.getPathString());
 						}
 					}
 					revWalk.dispose();
