@@ -77,6 +77,16 @@ public class TaskCopyBuilder {
 		
 		this.builderInfo = new BuilderInfo(sha1);
 		this.taskCopy = null;
+		
+		if (copyId != null && taskConfig.getTaskCopyDir(copyId).exists()) {
+			this.taskCopy = new TaskCopy(taskId, copyId, sha1, taskConfig);
+			this.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
+		}
+		
+		if (copyId == null) {
+			this.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
+		}
+		
 		this.copyFiles = new Job() {
 			@Override
 			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
