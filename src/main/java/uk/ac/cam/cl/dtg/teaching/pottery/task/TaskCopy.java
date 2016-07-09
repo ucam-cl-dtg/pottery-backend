@@ -30,12 +30,18 @@ public class TaskCopy {
 	private String copyId;
 	private TaskConfig config;
 	private TaskInfo info;
+	private String sha1;
 	
-	public TaskCopy(String taskId, String copyId, TaskConfig config) throws IOException {
+	public TaskCopy(String taskId, String copyId, String sha1, TaskConfig config) throws IOException {
 		super();
 		this.copyId = copyId;
 		this.config = config;
+		this.sha1 = sha1;
 		this.info = TaskInfo.load(taskId,config.getTaskCopyDir(copyId));
+	}
+
+	public String getSha1() {
+		return sha1;
 	}
 
 	public String getCopyId() {

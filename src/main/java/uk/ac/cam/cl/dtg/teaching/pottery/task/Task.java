@@ -75,8 +75,6 @@ public class Task {
 	 * Object representing the registered version of this task. If its null there is no registered version.
 	 */
 	private TaskCopy registeredCopy;
-	
-	private String registeredTag;
 
 	private boolean retired;
 
@@ -93,22 +91,17 @@ public class Task {
 	private final UUIDGenerator uuidGenerator;
 
 	private Task(String taskId, TaskCopyBuilder testingBuilder, TaskCopy testingCopy, TaskCopyBuilder registeredBuilder,
-			TaskCopy registeredCopy, String registeredTag, boolean retired, TaskConfig config, UUIDGenerator uuidGenerator) {
+			TaskCopy registeredCopy, boolean retired, TaskConfig config, UUIDGenerator uuidGenerator) {
 		super();
 		this.taskId = taskId;
 		this.testingBuilder = testingBuilder;
 		this.testingCopy = testingCopy;
 		this.registeredBuilder = registeredBuilder;
 		this.registeredCopy = registeredCopy;
-		this.registeredTag = registeredTag;
 		this.retired = retired;
 		this.taskDefDir = config.getTaskDefinitionDir(taskId);
 		this.config = config;
 		this.uuidGenerator = uuidGenerator;		
-	}
-
-	public String getRegisteredTag() {
-		return registeredTag;
 	}
 
 	public String getTaskId() {
@@ -280,7 +273,7 @@ public class Task {
 				return new Task(info.getTaskId(),
 						testingBuilder,testingBuilder.getTaskCopy(),
 						registeredBuilder,registeredBuilder.getTaskCopy(),
-						info.getRegisteredTag(),info.isRetired(),config, uuidGenerator);
+						info.isRetired(),config, uuidGenerator);
 			} else {
 				throw new TaskException("Task " + taskId + " not found");
 			}
@@ -317,7 +310,7 @@ public class Task {
 			try (TransactionQueryRunner q = database.getQueryRunner()) {
 				info.insert(q);
 				q.commit();
-				return new Task(taskId,testingBuilder,null,registeredBuilder,null,null,false,config, uuidGenerator);
+				return new Task(taskId,testingBuilder,null,registeredBuilder,null,false,config, uuidGenerator);
 			}
 		} catch (GitAPIException | SQLException e) {
 			TaskException toThrow = new TaskException("Failed to initialise task " + taskId, e);

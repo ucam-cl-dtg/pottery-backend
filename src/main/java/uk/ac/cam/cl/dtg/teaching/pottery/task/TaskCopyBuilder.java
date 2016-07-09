@@ -73,7 +73,7 @@ public class TaskCopyBuilder {
 				}
 				
 				try {
-					taskCopy = new TaskCopy(taskId,copyId,taskConfig);
+					taskCopy = new TaskCopy(taskId,copyId,sha1,taskConfig);
 				} catch (IOException e) {
 					builderInfo.setException(new TaskCloneException("Failed to load task info",e));
 					return false;
@@ -145,7 +145,7 @@ public class TaskCopyBuilder {
 	public TaskCopyBuilder(String sha1, String taskId, TaskConfig taskConfig, UUIDGenerator uuidGenerator, String copyId) throws IOException {
 		this.builderInfo = new TaskCopyBuilderInfo(sha1);
 		this.builderInfo.setStatus(STATUS_SUCCESS);
-		this.taskCopy = new TaskCopy(taskId,copyId,taskConfig);
+		this.taskCopy = new TaskCopy(taskId,copyId,sha1,taskConfig);
 		File taskDefDir = taskConfig.getTaskDefinitionDir(taskId);
 		// Its invalid to try building this so just return false
 		this.copyFiles = new Job() {
