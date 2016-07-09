@@ -72,7 +72,7 @@ public class Task {
 	private TaskCopyBuilder registeredBuilder;
 
 	/**
-	 * Object representing the registered version of this task. If its null there is no registered verion.
+	 * Object representing the registered version of this task. If its null there is no registered version.
 	 */
 	private TaskCopy registeredCopy;
 	
