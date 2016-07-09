@@ -48,7 +48,10 @@ public class Task {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
-	private String taskId;
+	/**
+	 * The UUID for the task. This is constant and doesn't change throughout the lifecycle of the task.
+	 */
+	private final String taskId;
 
 	/**
 	 * Object for building a new testing version of the task and representing
