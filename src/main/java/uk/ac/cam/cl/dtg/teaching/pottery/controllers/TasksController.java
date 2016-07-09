@@ -29,7 +29,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskRegistrationException;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopyBuilderInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.BuilderInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
@@ -89,28 +89,28 @@ public class TasksController {
 	@POST
 	@Path("/{taskId}/register")
 	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.")
-	public TaskCopyBuilderInfo scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
+	public BuilderInfo scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
 		return taskManager.getTask(taskID).scheduleBuildRegisteredCopy(sha1, worker);
 	}
 	
 	@GET
 	@Path("/{taskId}/registering_status")
 	@ApiOperation(value="Polls the progress of the current registration process.")
-	public TaskCopyBuilderInfo pollTaskRegistraionStatus(@PathParam("taskId") String taskID) {
+	public BuilderInfo pollTaskRegistraionStatus(@PathParam("taskId") String taskID) {
 		return taskManager.getTask(taskID).getRegisteredCopyBuilderInfo();
 	}
 	
 	@POST
 	@Path("/{taskId}/update")
 	@ApiOperation(value="Registers (or updates the testing version) of a task.")
-	public TaskCopyBuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskID) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
+	public BuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskID) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
 		return taskManager.getTask(taskID).scheduleBuildTestingCopy(worker);
 	}
 	
 	@GET
 	@Path("/{taskId}/update_status")
 	@ApiOperation(value="Polls the progress of the current testing registration process.")
-	public TaskCopyBuilderInfo pollTaskTestingStatus(@PathParam("taskId") String taskID) {
+	public BuilderInfo pollTaskTestingStatus(@PathParam("taskId") String taskID) {
 		return taskManager.getTask(taskID).getTestingCopyBuilderInfo();
 	}
 	

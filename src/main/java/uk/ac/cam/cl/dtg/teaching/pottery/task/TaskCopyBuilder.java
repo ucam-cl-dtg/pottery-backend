@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
@@ -33,34 +32,62 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
 public class TaskCopyBuilder {
 
 	protected final Logger LOG = LoggerFactory.getLogger(TaskCopyBuilder.class);
-	
-	
-	public static final String STATUS_NOT_STARTED = "NOT_STARTED";
-	public static final String STATUS_SCHEDULED = "SCHEDULED";
-	public static final String STATUS_COPYING_FILES = "COPYING_FILES";
-	public static final String STATUS_COMPILING_TEST = "COMPILING_TEST";
-	public static final String STATUS_COMPILING_SOLUTION = "COMPILING_SOLUTION";
-	public static final String STATUS_TESTING_SOLUTION = "TESTING_SOLUTION";
-	public static final String STATUS_SUCCESS = "SUCCESS";
-	public static final String STATUS_FAILURE = "FAILURE";
 
-	private TaskCopyBuilderInfo builderInfo;
+	/**
+	 * DTO with information about the current state of this copy 
+	 */
+	private final BuilderInfo builderInfo;
 	
-	private TaskCopy taskCopy;
+	/**
+	 * The TaskCopy object that this builder is building. Starts off as null and then gets set asynchronously
+	 */
+	private volatile TaskCopy taskCopy;
 
-	private Job copyFiles;
-	private Job compileTests;
+	/**
+	 * Worker object for copying files into this TaskCopy
+	 */
+	private final Job copyFiles;
 	
-	public TaskCopyBuilder(String sha1, String taskId, TaskConfig taskConfig, UUIDGenerator uuidGenerator) {
-		this.builderInfo = new TaskCopyBuilderInfo(sha1);
-		File taskDefDir = taskConfig.getTaskDefinitionDir(taskId);
+	/**
+	 * Worker object for compiling the tests in this TaskCopy
+	 */
+	private final Job compileTests;
+	
+	/**
+	 * Instances of this class should be created by the Task object only. The
+	 * task object has to ensure that there is only one instance per copyId
+	 * 
+	 * @param sha1
+	 *            the SHA1 of the parent repo to copy
+	 * @param taskId
+	 *            the ID of the task we are copying for
+	 * @param copyId
+	 *            the ID of the copy
+	 * @param taskConfig
+	 *            config information for tasks
+	 */
+	TaskCopyBuilder(String sha1, String taskId, String copyId, TaskConfig taskConfig) {
+		final File taskDefDir = taskConfig.getTaskDefinitionDir(taskId);				
+
+
+		// We know that noone else will have access to the TaskCopy until we are done
+		// 1) our copyId is unique and Task ensures that there is only one instance of TaskCopyBuilder for each copyId
+		// 2) we only give out a reference to the TaskCopy once the BuilderInfo status is set to success. And this only happens after we finish
+		// Therefore no locks are needed on this lot
+		
+		this.builderInfo = new BuilderInfo(sha1);
+		this.taskCopy = null;
 		this.copyFiles = new Job() {
 			@Override
 			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
 					Database database) throws Exception {
 				
-				builderInfo.setStatus(STATUS_COPYING_FILES);
-				String copyId = uuidGenerator.generate();
+				// We are the only object writing to this directory (we have a unique id)
+				// As many threads as you like can read from the bare git repo
+				// Assignments to builderInfo are atomic
+				// => No locks needed
+				
+				builderInfo.setStatus(BuilderInfo.STATUS_COPYING_FILES);
 				LOG.info("Copying files for {} into {}",taskDefDir,copyId);
 				File location = taskConfig.getTaskCopyDir(copyId);
 				
@@ -86,20 +113,21 @@ public class TaskCopyBuilder {
 			@Override
 			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
 					Database database) throws Exception {
+				
 				String copyId = taskCopy.getCopyId();		
 
 				LOG.info("Compiling tests for {} into {}",taskDefDir,copyId);
 				TaskInfo taskInfo = taskCopy.getInfo();
 				String image = taskInfo.getImage();
 
-				builderInfo.setStatus(STATUS_COMPILING_TEST);
+				builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TEST);
 				ExecResponse r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
 				if (!r.isSuccess()) {
 					builderInfo.setException(new TaskCloneException("Failed to compile testing code in task. "+r.getResponse()));
 					return false;
 				}
 				
-				builderInfo.setStatus(STATUS_COMPILING_SOLUTION);
+				builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_SOLUTION);
 				// Test it against the model answer
 				CompilationResponse r2 = containerManager.execCompilation(
 						taskConfig.getSolutionDir(copyId),
@@ -111,7 +139,7 @@ public class TaskCopyBuilder {
 					return false;
 				}
 				
-				builderInfo.setStatus(STATUS_TESTING_SOLUTION);
+				builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTION);
 				HarnessResponse r3 = containerManager.execHarness(
 						taskConfig.getSolutionDir(copyId),
 						taskConfig.getHarnessDir(copyId), 
@@ -132,53 +160,49 @@ public class TaskCopyBuilder {
 					return false;
 				}
 				
-				builderInfo.setStatus(STATUS_SUCCESS);
+				builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
 				
 				return true;
 			}
 		};
 	}
-
-	/**
-	 * Initialiser for loading a builder which has already completed
-	 */
-	public TaskCopyBuilder(String sha1, String taskId, TaskConfig taskConfig, UUIDGenerator uuidGenerator, String copyId) throws IOException {
-		this.builderInfo = new TaskCopyBuilderInfo(sha1);
-		this.builderInfo.setStatus(STATUS_SUCCESS);
-		this.taskCopy = new TaskCopy(taskId,copyId,sha1,taskConfig);
-		File taskDefDir = taskConfig.getTaskDefinitionDir(taskId);
-		// Its invalid to try building this so just return false
-		this.copyFiles = new Job() {
-			@Override
-			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
-					Database database) throws Exception {
-				LOG.warn("Ignored execution stage for {} copy={}",taskDefDir,copyId);
-				return false;
-			}			
-		};
-		this.compileTests = copyFiles;
-
-		
-	}
 	
-	public TaskCopy getTaskCopy() {
-		return taskCopy; 
+	TaskCopy getTaskCopy() {
+		// Don't give out TaskCopy objects until we've finished building
+		if (builderInfo.getStatus().equals(BuilderInfo.STATUS_SUCCESS)) {
+			return taskCopy;
+		}
+		else {
+			return null;
+		}
 	}
 	
 	/**
-	 * Schedule the copying and compilation for this copy. 
+	 * Schedule the copying and compilation for this copy.  
 	 */
-	public void schedule(Worker w, Job continuation) {
-		builderInfo.setStatus(STATUS_SCHEDULED);
-		w.schedule(copyFiles, 
-				compileTests,
-				continuation);
+	void schedule(Worker w, Job continuation) {
+		// synchronize here to eliminate the race between checking the status and marking us scheduled
+		synchronized (builderInfo) {
+			if (isReplacable()) {
+				builderInfo.setStatus(BuilderInfo.STATUS_SCHEDULED);
+				w.schedule(copyFiles, 
+						compileTests,
+						continuation);
+			}
+		}
 	}
 
-	public TaskCopyBuilderInfo getBuilderInfo() {
+	BuilderInfo getBuilderInfo() {
 		return builderInfo;
 	}
 
+	boolean isReplacable() {
+		String status = this.builderInfo.getStatus();
+		return 
+				BuilderInfo.STATUS_NOT_STARTED.equals(status) ||
+				BuilderInfo.STATUS_SUCCESS.equals(status) ||
+				BuilderInfo.STATUS_FAILURE.equals(status);
+	}
 	
 
 }

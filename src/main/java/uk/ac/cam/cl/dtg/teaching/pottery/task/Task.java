@@ -53,29 +53,6 @@ public class Task {
 	 */
 	private final String taskId;
 
-	/**
-	 * Object for building a new testing version of the task and representing
-	 * the progress through that job. Should never be null
-	 */
-	private TaskCopyBuilder testingBuilder;
-
-	/**
-	 * Object representing the testing version of the task. If its null there is
-	 * no testing version (or one is in progress of being built)
-	 */
-	private TaskCopy testingCopy;
-
-	/**
-	 * Object for building a new registered version of this task and
-	 * representing the progress through that job. Should never be null
-	 */
-	private TaskCopyBuilder registeredBuilder;
-
-	/**
-	 * Object representing the registered version of this task. If its null there is no registered version.
-	 */
-	private TaskCopy registeredCopy;
-
 	private boolean retired;
 
 	/**
@@ -90,6 +67,9 @@ public class Task {
 	 */
 	private final UUIDGenerator uuidGenerator;
 
+	/**
+	 * Private constructor. TaskFactory creates instances of this class calling static constructor methods.
+	 */
 	private Task(String taskId, TaskCopyBuilder testingBuilder, TaskCopy testingCopy, TaskCopyBuilder registeredBuilder,
 			TaskCopy registeredCopy, boolean retired, TaskConfig config, UUIDGenerator uuidGenerator) {
 		super();
@@ -112,118 +92,191 @@ public class Task {
 		return retired;
 	}
 
-	public TaskCopy getTestingCopy() {
-		return testingCopy;
-	}
+	
+	//*** BEGIN METHODS FOR MANAGING REGISTRATION OF THE TASK AND THE REGISTERED COPY ***
+	
+	/**
+	 * Object for building a new registered version of this task and
+	 * representing the progress through that job. Should never be null
+	 */
+	private volatile TaskCopyBuilder registeredBuilder;
+
+	/**
+	 * Object representing the registered version of this task. If its null there is no registered version.
+	 */
+	private volatile TaskCopy registeredCopy;
+	
+	/**
+	 * Mutex for managing access to the registration fields (registeredbuilder and registeredcopy)
+	 */
+	private final Object registeredMutex = new Object();
 	
 	public TaskCopy getRegisteredCopy() {
+		// no synchronization needed since registeredCopy is volatile and assignments are atomic
 		return registeredCopy;
 	}
-	
-	public TaskCopyBuilderInfo getTestingCopyBuilderInfo() { return testingBuilder.getBuilderInfo(); }
-	
-	public TaskCopyBuilderInfo getRegisteredCopyBuilderInfo() { return registeredBuilder.getBuilderInfo(); }
-	
-	public TaskCopyBuilderInfo scheduleBuildRegisteredCopy(String sha1, Worker w) throws TaskCloneException {
-		if (!registeredBuilder.getBuilderInfo().isRunnable()) {
-			return registeredBuilder.getBuilderInfo();
-		}
-		
+
+	public BuilderInfo getRegisteredCopyBuilderInfo() {
+		// no synchronization needed since registeredbuilder is volatile and assignments are atomic
+		return registeredBuilder.getBuilderInfo(); 
+	}
+
+	public BuilderInfo scheduleBuildRegisteredCopy(String sha1, Worker w) throws TaskCloneException {
 		if ("HEAD".equals(sha1)) {
 			sha1 = getHeadSHA();
 		}
-		
-		registeredBuilder = new TaskCopyBuilder(sha1,taskId,config,uuidGenerator);
-		
-		registeredBuilder.schedule(w, new Job() {
-			@Override
-			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
-					Database database) throws Exception {
-				TaskCopy oldCopy = registeredCopy;
-				try (TransactionQueryRunner q = database.getQueryRunner()) {
-					TaskDefInfo.updateRegisteredCopy(taskId, registeredBuilder.getBuilderInfo().getSha1(), registeredBuilder.getTaskCopy().getCopyId(), q);
-					q.commit();
-					registeredCopy = registeredBuilder.getTaskCopy();
-					if (oldCopy != null) {
-						w.schedule(new Job() {
-							@Override
-							public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
-									ContainerManager containerManager, Database database) throws Exception {
-								oldCopy.destroy();
-								return true;
-							}						
-						});
-					}
-				}
-				catch (SQLException e) {
-					registeredBuilder.getBuilderInfo().setException(new TaskCloneException("Failed to record changes in database",e));
-					w.schedule(new Job() {
-						@Override
-						public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
-								ContainerManager containerManager, Database database) throws Exception {
-							registeredBuilder.getTaskCopy().destroy();
-							return true;
-						}
-					});
-					return false;
-				}
-				return true;
 
-			}			
-		});
-		return registeredBuilder.getBuilderInfo();
-	}
-	
-	public TaskCopyBuilderInfo scheduleBuildTestingCopy(Worker w) throws TaskCloneException {
+		// We need to ensure there is only one thread in this region at a time
+		// or else we have a race between deciding that we should start a new copy and updating 
+		// registeredBuilder to record it
+		synchronized (registeredMutex) {
+			if (!registeredBuilder.isReplacable()) {
+				return registeredBuilder.getBuilderInfo();
+			}
+			registeredBuilder = new TaskCopyBuilder(sha1,taskId,uuidGenerator.generate(),config);
 
-		if (!testingBuilder.getBuilderInfo().isRunnable()) {
-			return testingBuilder.getBuilderInfo();
+			registeredBuilder.schedule(w, new Job() {
+				@Override
+				public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
+						Database database) throws Exception {
+					return storeNewRegisteredCopy(w, database);
+				}
+			});
+			return registeredBuilder.getBuilderInfo();
 		}
-				
-		LOG.info("Scheduling testing build for "+taskDefDir);
+	}
 
-
-		testingBuilder = new TaskCopyBuilder(getHeadSHA(),taskId,config, uuidGenerator);
-		
-		testingBuilder.schedule(w, new Job() {
-			@Override
-			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
-					Database database) throws Exception {
-				TaskCopy oldCopy = testingCopy;
-				try (TransactionQueryRunner q = database.getQueryRunner()) {
-					TaskDefInfo.updateTestingCopy(taskId, testingBuilder.getTaskCopy().getCopyId(), q);
-					q.commit();
-					testingCopy = testingBuilder.getTaskCopy();
-					if (oldCopy != null) {
-						w.schedule(new Job() {
-							@Override
-							public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
-									ContainerManager containerManager, Database database) throws Exception {
-								oldCopy.destroy();
-								return true;
-							}
-						});
-					}
-					return true;
-				}
-				catch (SQLException e) {
-					testingBuilder.getBuilderInfo().setException(new TaskCloneException("Failed to record changes in database",e));
+	private boolean storeNewRegisteredCopy(Worker w, Database database) {
+		// We need to ensure that only one thread is in this region at a time for any particular task instance
+		// or else we have a race on reading the old value of registeredCopy and replacing it with the new one
+		synchronized(registeredMutex) {
+			TaskCopy oldCopy = registeredCopy;
+			try (TransactionQueryRunner q = database.getQueryRunner()) {
+				TaskDefInfo.updateRegisteredCopy(taskId, registeredBuilder.getBuilderInfo().getSha1(), registeredBuilder.getTaskCopy().getCopyId(), q);
+				q.commit();
+				registeredCopy = registeredBuilder.getTaskCopy();
+				if (oldCopy != null) {
 					w.schedule(new Job() {
 						@Override
 						public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
 								ContainerManager containerManager, Database database) throws Exception {
-							testingBuilder.getTaskCopy().destroy();
+							oldCopy.destroy();
 							return true;
-						}
+						}						
 					});
-					return false;
 				}
 			}
-		});
-		
-		return testingBuilder.getBuilderInfo();
+			catch (SQLException e) {
+				registeredBuilder.getBuilderInfo().setException(new TaskCloneException("Failed to record changes in database",e));
+				w.schedule(new Job() {
+					@Override
+					public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
+							ContainerManager containerManager, Database database) throws Exception {
+						registeredBuilder.getTaskCopy().destroy();
+						return true;
+					}
+				});
+				return false;
+			}
+			return true;
+		}
 	}
 	
+	//*** END METHODS FOR MANAGING THE REGISTERED COPY OF THE TASK ***
+	
+	//*** BEGIN METHODS FOR MANAGING THE TESTING COPY OF THE TASK ***
+	
+	/**
+	 * Object for building a new testing version of the task and representing
+	 * the progress through that job. Should never be null. Access to this object should be protected using the testingMutex object.
+	 */
+	private volatile TaskCopyBuilder testingBuilder;
+
+	/**
+	 * Object representing the testing version of the task. If its null there is
+	 * no testing version (or one is in progress of being built).
+	 */
+	private volatile TaskCopy testingCopy;
+
+	/**
+	 * This mutex is used to protect access to testingBuilder and testingCopy
+	 */
+	private final Object testingMutex = new Object();
+	
+	public TaskCopy getTestingCopy() { 
+		// No mutex needed since testingCopy is volatile and updates to it are atomic
+		return testingCopy; 
+	}
+	
+	public BuilderInfo getTestingCopyBuilderInfo() {
+		// No mutex needed since testingBuilder is volatile and updates to it are atomic
+		return testingBuilder.getBuilderInfo(); 
+	}
+	
+	public BuilderInfo scheduleBuildTestingCopy(Worker w) throws TaskCloneException {
+		// We need to ensure there is only one thread in this region at a time
+		// or else we have a race between deciding that we should start a new copy and updating 
+		// testingBuilder to record it
+		synchronized (testingMutex) {
+			if (!testingBuilder.isReplacable()) {
+				return testingBuilder.getBuilderInfo();
+			}
+				
+			LOG.info("Scheduling testing build for "+taskDefDir);
+
+			testingBuilder = new TaskCopyBuilder(getHeadSHA(),taskId,uuidGenerator.generate(),config);
+			
+			testingBuilder.schedule(w, new Job() {
+				@Override
+				public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
+						Database database) throws Exception {
+					return storeNewTestCopy(w, database);
+				}
+			});
+			
+			return testingBuilder.getBuilderInfo();
+		}
+	}
+	
+	private boolean storeNewTestCopy(Worker w, Database database) {
+		// We need to ensure that only one thread is in this region at a time for any particular task instance
+		// or else we have a race on reading the old value of testingCopy and replacing it with the new one
+		synchronized (testingMutex) {
+			TaskCopy oldCopy = testingCopy;
+			try (TransactionQueryRunner q = database.getQueryRunner()) {
+				TaskDefInfo.updateTestingCopy(taskId, testingBuilder.getTaskCopy().getCopyId(), q);
+				q.commit();
+				testingCopy = testingBuilder.getTaskCopy();
+				if (oldCopy != null) {
+					w.schedule(new Job() {
+						@Override
+						public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
+								ContainerManager containerManager, Database database) throws Exception {
+							oldCopy.destroy();
+							return true;
+						}
+					});
+				}
+				return true;
+			}
+			catch (SQLException e) {
+				testingBuilder.getBuilderInfo().setException(new TaskCloneException("Failed to record changes in database",e));
+				w.schedule(new Job() {
+					@Override
+					public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
+							ContainerManager containerManager, Database database) throws Exception {
+						testingBuilder.getTaskCopy().destroy();
+						return true;
+					}
+				});
+				return false;
+			}
+		}
+	}
+
+	//*** END METHODS FOR MANAGING TEST COPY ***
+	
+		
 	/**
 	 * Lookup the SHA1 for the HEAD of the repo
 	 * 
@@ -257,19 +310,29 @@ public class Task {
 			if (info != null) {				
 				TaskCopyBuilder testingBuilder;
 				if (info.getTestingCopyId() == null) {
-					testingBuilder = new TaskCopyBuilder("HEAD", taskId, config, uuidGenerator);
+					// No test version has been built before
+					// Use null for the copyId 
+					testingBuilder = new TaskCopyBuilder("HEAD", taskId, null, config);
 				}
 				else {
-					testingBuilder = new TaskCopyBuilder("HEAD", taskId, config, uuidGenerator, info.getTestingCopyId());
+					// The test version has been built before
+					testingBuilder = new TaskCopyBuilder("HEAD", taskId, info.getTestingCopyId(),config);
 				}
+				
+				// Mark the status as SUCCESS so we don't try to compile it
+				testingBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
 				
 				TaskCopyBuilder registeredBuilder;
 				if (info.getRegisteredCopyId() == null) {
-					registeredBuilder = new TaskCopyBuilder("HEAD",taskId,config, uuidGenerator);
+					registeredBuilder = new TaskCopyBuilder("HEAD",taskId,null, config);
 				}
 				else {
-					registeredBuilder = new TaskCopyBuilder(info.getRegisteredTag(),taskId,config, uuidGenerator, info.getRegisteredCopyId());
+					registeredBuilder = new TaskCopyBuilder(info.getRegisteredTag(),taskId, info.getRegisteredCopyId(),config);
 				}
+				
+				// Mark the status as SUCCESS so we don't try to compile it
+				registeredBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
+				
 				return new Task(info.getTaskId(),
 						testingBuilder,testingBuilder.getTaskCopy(),
 						registeredBuilder,registeredBuilder.getTaskCopy(),
@@ -304,8 +367,12 @@ public class Task {
 		try (Git g = Git.cloneRepository().setURI(templateRepo.getPath()).setBare(true).setDirectory(taskDefDir)
 				.call()) {
 			
-			TaskCopyBuilder testingBuilder = new TaskCopyBuilder("HEAD",taskId,config,uuidGenerator);
-			TaskCopyBuilder registeredBuilder = new TaskCopyBuilder("HEAD",taskId,config,uuidGenerator);
+			TaskCopyBuilder testingBuilder = new TaskCopyBuilder("HEAD",taskId,null,config);
+			TaskCopyBuilder registeredBuilder = new TaskCopyBuilder("HEAD",taskId,null,config);
+
+			// Mark status as success so that we don't try to compile these
+			testingBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
+			registeredBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
 			
 			try (TransactionQueryRunner q = database.getQueryRunner()) {
 				info.insert(q);
