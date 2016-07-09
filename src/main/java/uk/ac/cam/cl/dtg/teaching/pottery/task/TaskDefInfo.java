@@ -106,4 +106,12 @@ public class TaskDefInfo {
 		q.update("UPDATE tasks set testingCopyId=? where taskid = ?",copyId,taskId);
 	}
 
+	@Override
+	public String toString() {
+		return "TaskDefInfo [taskId=" + taskId + ", registeredTag=" + registeredTag + ", testingCopyId=" + testingCopyId
+				+ ", registeredCopyId=" + registeredCopyId + ", retired=" + retired + "]";
+	}
+	
+	
+
 }
