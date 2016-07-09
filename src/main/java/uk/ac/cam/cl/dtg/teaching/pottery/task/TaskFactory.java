@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -77,12 +78,12 @@ public class TaskFactory {
 				g.commit().setMessage("Initial commit").call();
 			}
 		}
-		
-		for(File f : config.getTaskDefinitionRoot().listFiles()) {
-			if (f.getName().startsWith(".")) continue;
-			String uuid = f.getName();
-			uuidGenerator.reserve(uuid);
-		}
+
+		Stream.concat(
+				Stream.of(config.getTaskDefinitionRoot().listFiles()), 
+				Stream.of(config.getTaskCopyRoot().listFiles()))
+			.filter(f -> !f.getName().startsWith("."))
+			.forEach(f -> uuidGenerator.reserve(f.getName()));		
 	}
 	
 	public Task getInstance(String taskId) throws TaskException {
