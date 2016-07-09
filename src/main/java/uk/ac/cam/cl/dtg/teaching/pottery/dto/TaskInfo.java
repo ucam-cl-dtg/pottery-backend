@@ -91,6 +91,13 @@ public class TaskInfo {
 	@ApiModelProperty("Container restrictions on the validator")
 	private ContainerRestrictions validatorRestrictions;
 
+	public TaskInfo(String taskId) {
+		super();
+		this.taskId = taskId;
+		this.compilationRestrictions = new ContainerRestrictions();
+		this.harnessRestrictions = new ContainerRestrictions();
+		this.validatorRestrictions = new ContainerRestrictions();
+	}
 	
 	@JsonCreator
 	public TaskInfo(@JsonProperty("type") String type, 
@@ -176,8 +183,7 @@ public class TaskInfo {
 		return problemStatement;
 	}
 
-	public static TaskInfo load(File taskDirectory) throws IOException {
-		String taskId = taskDirectory.getName();
+	public static TaskInfo load(String taskId, File taskDirectory) throws IOException {
 		ObjectMapper o = new ObjectMapper();
 		TaskInfo t = o.readValue(new File(taskDirectory,"task.json"),TaskInfo.class);
 		t.taskId = taskId;

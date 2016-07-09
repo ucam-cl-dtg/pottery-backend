@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.lib.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +19,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 
@@ -57,36 +55,40 @@ public class TaskManager {
 	public TaskInfo createNewTask() throws TaskException {
 		Task newTask = taskFactory.createInstance();
 		definedTasks.put(newTask.getTaskId(), newTask);
-		return newTask.getTestingClone().getInfo();
+		return new TaskInfo(newTask.getTaskId());
 	}
 	
 	public Collection<TaskInfo> getTestingTasks() {
-		return definedTasks.values().stream().map(t -> t.getTestingClone().getInfo()).collect(Collectors.toList());
+		return definedTasks.values().stream()
+				.filter(t -> t.getTestingCopy() != null)
+				.map(t -> t.getTestingCopy().getInfo())
+				.collect(Collectors.toList());
 	}
 	
 	public Collection<TaskInfo> getRegisteredTasks() {
 		return definedTasks.values().stream()
-				.filter(t -> t.getRegisteredClone() != null)
-				.map(t -> t.getRegisteredClone().getInfo())
+				.filter(t -> t.getRegisteredCopy() != null)
+				.map(t -> t.getRegisteredCopy().getInfo())
 				.collect(Collectors.toList());
 	}
 
-	public TaskInfo getTestingTask(String taskId) {
-		return definedTasks.get(taskId).getTestingClone().getInfo();
+	public TaskInfo getTestingTaskInfo(String taskId) throws TaskNotFoundException {
+		TaskCopy t = definedTasks.get(taskId).getTestingCopy();
+		if (t == null) throw new TaskNotFoundException("Failed to find a testing task with ID "+taskId);
+		return t.getInfo();
 	}
 
 	public TaskInfo getRegisteredTaskInfo(String taskId) throws TaskNotFoundException {
-		TaskClone c = definedTasks.get(taskId).getRegisteredClone();
-		if (c == null) throw new TaskNotFoundException("Failed to find a registered task with ID "+taskId);
-		return c.getInfo();
+		TaskCopy t = definedTasks.get(taskId).getRegisteredCopy();
+		if (t == null) throw new TaskNotFoundException("Failed to find a registered task with ID "+taskId);
+		return t.getInfo();
 	}
 
 	public Task getTask(String taskId) {
 		return definedTasks.get(taskId);
 	}
-	
-	public void updateTesting(String taskID) throws TaskCloneException, IOException {
-		definedTasks.get(taskID).getTestingClone().update(Constants.HEAD,true);
-	}
 
+	public Collection<String> getAllTasks() {
+		return definedTasks.keySet();
+	}
 }

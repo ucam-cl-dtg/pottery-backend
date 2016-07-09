@@ -17,6 +17,23 @@ $(document).ready(
 //				$("#error pre").text(JSON.stringify($.parseJSON(xhr.responseText),undefined,2));
 			}
 
+			$("#listDefinedTasksButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "GET",
+							url : "api/tasks",
+							success : function(result) {
+								reportSuccess(result);
+								$("#taskId").val(result[0]);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+
+			
 			$("#listTestingTasksButton").click(
 					function(e) {
 						e.preventDefault();
@@ -58,6 +75,38 @@ $(document).ready(
 							success : function(result) {
 								reportSuccess(result);
 								$("#taskId").val(result[0].taskId);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+			
+			$("#updateTestingTaskButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "POST",
+							url : "api/tasks/" + $("#taskId").val()+"/update",
+							data : {'sha1' : $("#tasksha1").val() },
+							success : function(result) {
+								reportSuccess(result);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+
+
+			$("#pollUpdateButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "GET",
+							url : "api/tasks/" + $("#taskId").val()+"/update_status",
+							success : function(result) {
+								reportSuccess(result);
 							},
 							error : function(xhr,textStatus,errorThrown) {
 								reportError(xhr);

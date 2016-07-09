@@ -18,24 +18,43 @@ public class TaskConfig {
 		return new File(taskPrefix,"def");
 	}
 	
-	public File getTaskTestingRoot() {
-		return new File(taskPrefix,"test");
+	public File getTaskDefinitionRoot(String taskId) {
+		return new File(getTaskDefinitionRoot(),taskId);
 	}
-	
-	public File getTaskRegisteredRoot() {
-		return new File(taskPrefix,"registered");
-	}
-		
+
+
 	public File getTaskTemplateRoot() {
 		return new File(taskPrefix,"template");
 	}
 	
-	public File getTaskStagingRoot() {
-		return new File(taskPrefix,"staging");
+	public File getTaskCopyRoot(String copyId) {
+		return new File(new File(taskPrefix,"copy"),copyId);
+	}
+
+	public File getSolutionRoot(String copyId) {
+		return new File(getTaskCopyRoot(copyId),"solution");
+	}
+
+	public File getCompileRoot(String copyId) {
+		return new File(getTaskCopyRoot(copyId),"compile");
+	}
+
+	public File getHarnessRoot(String copyId) {
+		return new File(getTaskCopyRoot(copyId),"harness");
+	}
+
+	public File getValidatorRoot(String copyId) {
+		return new File(getTaskCopyRoot(copyId),"validator");
 	}
 	
-	public File getTaskOutgoingRoot() {
-		return new File(taskPrefix,"outgoing");
+	public File getSkeletonRoot(String copyId) {
+		return new File(getTaskCopyRoot(copyId),"skeleton");
 	}
+
+	public File getTaskCopyRoot() {
+		return new File(taskPrefix,"copy");
+	}
+	
+	
 	
 }

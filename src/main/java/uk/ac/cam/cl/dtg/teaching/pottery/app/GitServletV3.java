@@ -1,6 +1,5 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
-import java.io.IOException;
 import java.util.Collection;
 
 import javax.servlet.ServletConfig;
@@ -22,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 @SuppressWarnings("serial")
 @WebServlet(urlPatterns = { "/git/*" }, 
@@ -47,9 +47,10 @@ public class GitServletV3 extends GitServlet {
 						String repoName = req.getPathInfo().substring(1);
 						LOG.info("Received push to {}",repoName);
 						TaskManager t = GuiceResteasyBootstrapServletContextListenerV3.getInjector().getInstance(TaskManager.class);
+						Worker w = GuiceResteasyBootstrapServletContextListenerV3.getInjector().getInstance(Worker.class);
 						try {
-							t.updateTesting(repoName);
-						} catch (TaskCloneException|IOException e) {
+							t.getTask(repoName).scheduleBuildTestingCopy(w);
+						} catch (TaskCloneException e) {
 							LOG.error("Failed to update testing checkout in {}",repoName,e);
 						}
 					}

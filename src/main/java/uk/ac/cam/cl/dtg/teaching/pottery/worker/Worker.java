@@ -40,17 +40,35 @@ public class Worker implements Stoppable {
 		this.database = database;
 	}
 
-	public void schedule(Job j) {
-		threadPool.execute(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					j.execute(taskManager,repoFactory,containerManager,database);
-				} catch (Exception e) {
-					LOG.error("Unhandled exception in worker",e);
+	/**
+	 * Schedule a sequence of jobs
+	 * @param jobs the jobs to be run in sequence (if a job fails then we stop there)
+	 */
+	public void schedule(Job... jobs) {
+		threadPool.execute(new JobIteration(jobs,0));
+	} 
+	
+	private class JobIteration implements Runnable {
+		private Job[] jobs;
+		private int index;
+			
+		public JobIteration(Job[] jobs, int index) {
+			super();
+			this.jobs = jobs;
+			this.index = index;
+		}
+		
+		@Override
+		public void run() {
+			try {
+				boolean result = jobs[index].execute(taskManager, repoFactory, containerManager, database);
+				if (result && index < jobs.length -1) {
+					threadPool.execute(new JobIteration(jobs,index+1));
 				}
-			}			
-		});
+			} catch (Exception e) {
+				LOG.error("Unhandled exception in worker",e);
+			}
+		}
 	}
 	
 	@Override

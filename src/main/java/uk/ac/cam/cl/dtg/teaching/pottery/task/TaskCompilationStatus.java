@@ -1,11 +1,11 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
-public class TaskCompilation {
+public class TaskCompilationStatus {
 	private String status;
 
 	private String message;
 	
-	public TaskCompilation(String status, String message) {
+	public TaskCompilationStatus(String status, String message) {
 		this.status = status;
 		this.message = message;
 	}

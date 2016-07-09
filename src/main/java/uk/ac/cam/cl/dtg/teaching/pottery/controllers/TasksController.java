@@ -27,8 +27,10 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskRegistrationException;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCompilation;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCompilationStatus;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopyBuilderInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
@@ -58,8 +60,15 @@ public class TasksController {
 	}
 
 	@GET
+	@Path("/")
+	@ApiOperation(value="List the ids of all tasks that exist",response=String.class,responseContainer="List")
+	public Collection<String> listAll() {
+		return taskManager.getAllTasks();
+	}
+	
+	@GET
 	@Path("/testing")
-	@ApiOperation(value="Lists all defined tasks",response=TaskInfo.class,responseContainer="List",position=0)
+	@ApiOperation(value="Lists all tasks with a testing version",response=TaskInfo.class,responseContainer="List",position=0)
 	public Collection<TaskInfo> listTesting() {
 		return taskManager.getTestingTasks();
 	}
@@ -74,23 +83,38 @@ public class TasksController {
 	@GET
 	@Path("/{taskId}")
 	@ApiOperation(value="Returns information about a specific task",response=TaskInfo.class)
-	public TaskInfo getTask(@PathParam("taskId") String taskID) {
-		return taskManager.getTestingTask(taskID);
+	public TaskInfo getTask(@PathParam("taskId") String taskID) throws TaskNotFoundException {
+		return taskManager.getTestingTaskInfo(taskID);
 	}
 	
 	@POST
 	@Path("/{taskId}/register")
-	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.",response=TaskCompilation.class)
-	public TaskCompilation scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
-		return taskManager.getTask(taskID).scheduleRegistration(sha1, worker);
+	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.",response=TaskCompilationStatus.class)
+	public TaskCopyBuilderInfo scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
+		return taskManager.getTask(taskID).scheduleBuildRegisteredCopy(sha1, worker);
 	}
 	
 	@GET
 	@Path("/{taskId}/registering_status")
-	@ApiOperation(value="Polls the progress of the current registration process.",response=TaskCompilation.class)
-	public TaskCompilation pollTaskRegistraionStatus(@PathParam("taskId") String taskID) {
-		return taskManager.getTask(taskID).getRegistrationRequest();		
+	@ApiOperation(value="Polls the progress of the current registration process.",response=TaskCompilationStatus.class)
+	public TaskCopyBuilderInfo pollTaskRegistraionStatus(@PathParam("taskId") String taskID) {
+		return taskManager.getTask(taskID).getRegisteredCopyBuilderInfo();
 	}
+	
+	@POST
+	@Path("/{taskId}/update")
+	@ApiOperation(value="Registers (or updates the testing version) of a task.",response=TaskCompilationStatus.class)
+	public TaskCopyBuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskID) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
+		return taskManager.getTask(taskID).scheduleBuildTestingCopy(worker);
+	}
+	
+	@GET
+	@Path("/{taskId}/update_status")
+	@ApiOperation(value="Polls the progress of the current testing registration process.",response=TaskCompilationStatus.class)
+	public TaskCopyBuilderInfo pollTaskTestingStatus(@PathParam("taskId") String taskID) {
+		return taskManager.getTask(taskID).getTestingCopyBuilderInfo();
+	}
+	
 	
 	@GET
 	@Path("/types")

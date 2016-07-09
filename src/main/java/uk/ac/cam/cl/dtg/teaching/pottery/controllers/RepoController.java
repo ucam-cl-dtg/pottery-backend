@@ -32,7 +32,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskClone;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 
 
@@ -60,7 +60,7 @@ public class RepoController {
 	public RepoInfo makeRepo(@FormParam("taskId") String taskId,@FormParam("usingTestingVersion") Boolean usingTestingVersion) throws TaskNotFoundException, RepoException, IOException, TaskNotAvailableException {
 		if (usingTestingVersion == null) usingTestingVersion = false;
 		Task t = taskManager.getTask(taskId);
-		TaskClone c = t.getRegisteredClone();
+		TaskCopy c = t.getRegisteredCopy();
 		if (t == null || c == null) throw new TaskNotFoundException();
 		
 		Repo r = repoFactory.createInstance(taskId,usingTestingVersion);

@@ -15,18 +15,41 @@ public class TaskDefInfo {
 	
 	private String registeredTag;
 	
+	private String testingCopyId;
+	
+	private String registeredCopyId;
+	
 	private boolean retired;
 
 	public TaskDefInfo() {}
 	
-	public TaskDefInfo(String taskId, String registeredTag, boolean retired) {
+	public TaskDefInfo(String taskId, String registeredTag, String testingCopyId, String registeredCopyId,
+			boolean retired) {
 		super();
 		this.taskId = taskId;
 		this.registeredTag = registeredTag;
+		this.testingCopyId = testingCopyId;
+		this.registeredCopyId = registeredCopyId;
 		this.retired = retired;
 	}
 
-	
+
+	public String getTestingCopyId() {
+		return testingCopyId;
+	}
+
+	public void setTestingCopyId(String testingCopyId) {
+		this.testingCopyId = testingCopyId;
+	}
+
+	public String getRegisteredCopyId() {
+		return registeredCopyId;
+	}
+
+	public void setRegisteredCopyId(String registeredCopyId) {
+		this.registeredCopyId = registeredCopyId;
+	}
+
 	public boolean isRetired() {
 		return retired;
 	}
@@ -74,8 +97,13 @@ public class TaskDefInfo {
 		});
 	}
 	
-	public static void updateRegisteredTag(String taskId, String tag, QueryRunner q) throws SQLException {
-		q.update("UPDATE tasks set registeredtag=? where taskid = ?",tag,taskId);
+	public static void updateRegisteredCopy(String taskId, String tag, String copyId, QueryRunner q) throws SQLException {
+		q.update("UPDATE tasks set registeredtag=?,registeredCopyId=? where taskid = ?",tag,copyId,taskId);
 	}
 	
+
+	public static void updateTestingCopy(String taskId, String copyId, QueryRunner q) throws SQLException {
+		q.update("UPDATE tasks set testingCopyId=? where taskid = ?",copyId,taskId);
+	}
+
 }

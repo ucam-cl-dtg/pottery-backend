@@ -38,7 +38,7 @@ public class TaskFactory {
 			build(new CacheLoader<String,Task>() {
 				@Override
 				public Task load(String key) throws Exception {
-					return Task.openTask(key, database, config);
+					return Task.openTask(key, uuidGenerator, database, config);
 				}
 			});
 
@@ -51,11 +51,8 @@ public class TaskFactory {
 		this.config = config;
 		this.database = database;
 		FileUtil.mkdir(config.getTaskDefinitionRoot());
-		FileUtil.mkdir(config.getTaskOutgoingRoot());
-		FileUtil.mkdir(config.getTaskRegisteredRoot());
-		FileUtil.mkdir(config.getTaskStagingRoot());
+		FileUtil.mkdir(config.getTaskCopyRoot());
 		FileUtil.mkdir(config.getTaskTemplateRoot());
-		FileUtil.mkdir(config.getTaskTestingRoot());
 		
 		// TODO: need to implement task template support. For the meantime we only use
 		// one template "standard" and if its not there use an empty stub
@@ -108,7 +105,7 @@ public class TaskFactory {
 			return cache.get(newRepoId, new Callable<Task>() {
 				@Override
 				public Task call() throws Exception {
-					return Task.createTask(newRepoId, config, database);			
+					return Task.createTask(newRepoId,uuidGenerator, config, database);			
 				}
 			});
 		} catch (ExecutionException e) {

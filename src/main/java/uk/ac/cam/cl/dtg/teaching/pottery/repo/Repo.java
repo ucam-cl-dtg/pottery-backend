@@ -47,9 +47,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.RunnableWithinTask;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskClone;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -111,7 +110,7 @@ public class Repo {
 	 * @param sourceLocation the location to copy from
 	 * @throws RepoException
 	 */
-	public void copyFiles(TaskClone task) throws RepoException {
+	public void copyFiles(TaskCopy task) throws RepoException {
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				try {
@@ -201,30 +200,26 @@ public class Repo {
 
 			w.schedule(new Job() {
 				@Override
-				public void execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws Exception {					
+				public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws Exception {					
 					Task t = taskManager.getTask(taskId);
-					TaskClone c = usingTestingVersion ? t.getTestingClone() : t.getRegisteredClone();
+					TaskCopy c = usingTestingVersion ? t.getTestingCopy() : t.getRegisteredCopy();
 					try (AutoCloseableLock l = lock.takeFileWritingLock()) {						
 						setVersionToTest(tag);
 
 						File codeDir = repoTestingDirectory;
 						TaskInfo taskInfo = c.getInfo();
 						String image = taskInfo.getImage();
-						c.runInContext(new RunnableWithinTask() {
-							@Override
-							public void run(File compileRoot, File harnessRoot, File validatorRoot) {
-								CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, compileRoot, image, taskInfo.getCompilationRestrictions());
-								updateSubmission(builder.withCompilationResponse(compilationResponse));
-								if (compilationResponse.isSuccess()) {
-									HarnessResponse harnessResponse = containerManager.execHarness(codeDir,harnessRoot,image,taskInfo.getHarnessRestrictions());
-									updateSubmission(builder.withHarnessResponse(harnessResponse));
-									if (harnessResponse.isSuccess()) {
-										ValidationResponse validationResponse = containerManager.execValidator(validatorRoot,harnessResponse, image,taskInfo.getValidatorRestrictions());
-										updateSubmission(builder.withValidationResponse(validationResponse));
-									}
-								}
-							}								
-						});
+						CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, c.getCompileRoot(), image, taskInfo.getCompilationRestrictions());
+						updateSubmission(builder.withCompilationResponse(compilationResponse));
+						if (!compilationResponse.isSuccess()) { return false; }
+						
+						HarnessResponse harnessResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
+						updateSubmission(builder.withHarnessResponse(harnessResponse));
+						if (!harnessResponse.isSuccess()) { return false; }
+						
+						ValidationResponse validationResponse = containerManager.execValidator(c.getValidatorRoot(),harnessResponse, image,taskInfo.getValidatorRestrictions());
+						updateSubmission(builder.withValidationResponse(validationResponse));
+						if (validationResponse.isSuccess()) { return false; }
 					}
 					finally {
 						builder.withStatus(Submission.STATUS_COMPLETE);
@@ -235,6 +230,7 @@ public class Repo {
 						}
 						updateSubmission(s);
 					}
+					return true;
 				}			
 			});
 			return currentSubmission;
