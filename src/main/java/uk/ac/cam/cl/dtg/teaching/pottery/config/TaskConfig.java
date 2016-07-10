@@ -48,7 +48,7 @@ public class TaskConfig {
 	}
 	
 	public File getTaskCopyDir(String copyId) {
-		return new File(new File(taskPrefix,"copy"),copyId);
+		return new File(getTaskCopyRoot(),copyId);
 	}
 
 	public File getSolutionDir(String copyId) {
@@ -69,5 +69,9 @@ public class TaskConfig {
 	
 	public File getSkeletonDir(String copyId) {
 		return new File(getTaskCopyDir(copyId),"skeleton");
+	}
+
+	public File getTaskTemplateDir(String string) {
+		return new File(getTaskTemplateRoot(),string);
 	}	
 }

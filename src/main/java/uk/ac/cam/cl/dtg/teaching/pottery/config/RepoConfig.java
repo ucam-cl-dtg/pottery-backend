@@ -43,4 +43,12 @@ public class RepoConfig {
 		return "online-";
 	}
 
+	public File getRepoDir(String repoId) {
+		return new File(getRepoRoot(),repoId);
+	}
+
+	public File getRepoTestingDir(String repoId) {
+		return new File(getRepoTestingRoot(),repoId);
+	}
+
 }

@@ -414,7 +414,7 @@ public class Task {
 			
 		TaskDefInfo info = new TaskDefInfo(taskId, null,null,null,false);
 
-		File templateRepo = new File(config.getTaskTemplateRoot(), "standard");
+		File templateRepo = config.getTaskTemplateDir("standard");
 
 		try (Git g = Git.cloneRepository().setURI(templateRepo.getPath()).setBare(true).setDirectory(taskDefDir)
 				.call()) {

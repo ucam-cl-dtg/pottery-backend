@@ -122,8 +122,8 @@ public class Repo {
 	
 	private Repo(String repoId, RepoConfig c, String taskId, boolean usingTestingVersion, Date expiryDate) {
 		this.repoId = repoId;
-		this.repoDirectory = new File(c.getRepoRoot(),repoId);
-		this.repoTestingDirectory = new File(c.getRepoTestingRoot(),repoId);
+		this.repoDirectory = c.getRepoDir(repoId);
+		this.repoTestingDirectory = c.getRepoTestingDir(repoId);
 		this.webtagPrefix = c.getWebtagPrefix();
 		this.taskId = taskId;
 		this.usingTestingVersion = usingTestingVersion;
@@ -689,7 +689,7 @@ public class Repo {
 	 */
 	static Repo openRepo(String repoId, RepoConfig config, Database database) throws RepoStorageException {
 		
-		File repoDirectory = new File(config.getRepoRoot(),repoId);
+		File repoDirectory = config.getRepoDir(repoId);
 		
 		if (!repoDirectory.exists()) {
 			throw new RepoStorageException("Failed to find repository directory "+repoDirectory);
@@ -723,7 +723,7 @@ public class Repo {
 	 */
 	static Repo createRepo(String repoId, String taskId, boolean usingTestingVersion, Date expiryDate, RepoConfig config, Database database) throws RepoStorageException {
 		
-		File repoDirectory = new File(config.getRepoRoot(),repoId);
+		File repoDirectory = config.getRepoDir(repoId);
 		
 		if (!repoDirectory.mkdir()) {
 			throw new RepoStorageException("Failed to create repository directory "+repoDirectory);

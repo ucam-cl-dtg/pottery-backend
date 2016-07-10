@@ -77,7 +77,7 @@ public class TaskFactory {
 		// TODO: need to implement task template support. For the meantime we only use
 		// one template "standard" and if its not there use an empty stub
 		// We need to make a commit into it too because otherwise you can't clone it later
-		File stdTemplate = new File(config.getTaskTemplateRoot(),"standard");
+		File stdTemplate = config.getTaskTemplateDir("standard");
 		if (!stdTemplate.exists()) {
 			try(Git g = Git.init().setDirectory(stdTemplate).call()) {
 				TaskInfo i = new TaskInfo(
