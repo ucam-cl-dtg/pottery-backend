@@ -196,27 +196,11 @@ public class Task {
 				TaskDefInfo.updateRegisteredCopy(taskId, registeredBuilder.getBuilderInfo().getSha1(), registeredBuilder.getTaskCopy().getCopyId(), q);
 				q.commit();
 				registeredCopy = registeredBuilder.getTaskCopy();
-				if (oldCopy != null) {
-					w.schedule(new Job() {
-						@Override
-						public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory,
-								ContainerManager containerManager, Database database) throws Exception {
-							oldCopy.destroy();
-							return true;
-						}						
-					});
-				}
+				destroyTaskCopy(oldCopy,w);
 			}
 			catch (SQLException e) {
 				registeredBuilder.getBuilderInfo().setException(new TaskStorageException("Failed to record changes in database",e));
-				w.schedule(new Job() {
-					@Override
-					public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory,
-							ContainerManager containerManager, Database database) throws Exception {
-						registeredBuilder.getTaskCopy().destroy();
-						return true;
-					}
-				});
+				destroyTaskCopy(registeredBuilder.getTaskCopy(),w);
 				return false;
 			}
 			return true;
@@ -298,28 +282,12 @@ public class Task {
 				TaskDefInfo.updateTestingCopy(taskId, testingBuilder.getTaskCopy().getCopyId(), q);
 				q.commit();
 				testingCopy = testingBuilder.getTaskCopy();
-				if (oldCopy != null) {
-					w.schedule(new Job() {
-						@Override
-						public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory,
-								ContainerManager containerManager, Database database) throws Exception {
-							oldCopy.destroy();
-							return true;
-						}
-					});
-				}
+				destroyTaskCopy(oldCopy,w);
 				return true;
 			}
 			catch (SQLException e) {
 				testingBuilder.getBuilderInfo().setException(new TaskStorageException("Failed to record changes in database",e));
-				w.schedule(new Job() {
-					@Override
-					public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory,
-							ContainerManager containerManager, Database database) throws Exception {
-						testingBuilder.getTaskCopy().destroy();
-						return true;
-					}
-				});
+				destroyTaskCopy(testingBuilder.getTaskCopy(),w);
 				return false;
 			}
 		}
@@ -441,4 +409,23 @@ public class Task {
 			throw toThrow;
 		}
 	}
+	
+	/**
+	 * Schedule the deletion of this taskcopy. 
+	 * @param c
+	 * @param w
+	 */
+	private void destroyTaskCopy(TaskCopy c, Worker w) {
+		if (c != null) {
+			w.schedule(new Job() {
+				@Override
+				public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory,
+						ContainerManager containerManager, Database database) throws Exception {
+					c.destroy();
+					return true;
+				}						
+			});
+		}
+	}
+
 }
