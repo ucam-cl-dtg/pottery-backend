@@ -87,14 +87,14 @@ public class TaskCopyBuilder {
 		this.taskCopy = null;
 		this.copyFiles = new Job() {
 			@Override
-			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
+			public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
 					Database database) throws Exception {				
 				return copyFiles(sha1, taskId, copyId, taskConfig, taskDefDir);
 			}			
 		};
 		this.compileTests = new Job() {
 			@Override
-			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
+			public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
 					Database database) throws Exception {
 				
 				return compileFiles(taskConfig, taskDefDir, containerManager);

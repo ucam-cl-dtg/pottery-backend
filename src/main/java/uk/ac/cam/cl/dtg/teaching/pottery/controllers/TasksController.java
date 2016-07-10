@@ -47,7 +47,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.BuilderInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 @Produces("application/json")
@@ -59,17 +59,17 @@ public class TasksController {
 
 	private TaskFactory taskFactory;
 	
-	private TaskManager taskManager;
+	private TaskIndex taskIndex;
 	
 	private Worker worker;
 
 	private Database database;
 	
 	@Inject
-	public TasksController(TaskFactory taskFactory, TaskManager taskManager, Worker worker, Database database) {
+	public TasksController(TaskFactory taskFactory, TaskIndex taskIndex, Worker worker, Database database) {
 		super();
 		this.taskFactory = taskFactory;
-		this.taskManager = taskManager;
+		this.taskIndex = taskIndex;
 		this.worker = worker;
 		this.database = database;
 	}
@@ -78,28 +78,28 @@ public class TasksController {
 	@Path("/registered")
 	@ApiOperation(value="Lists all registered tasks",response=TaskInfo.class,responseContainer="List",position=0)
 	public Collection<TaskInfo> listRegistered() {
-		return taskManager.getRegisteredTasks();
+		return taskIndex.getRegisteredTasks();
 	}
 
 	@GET
 	@Path("/")
 	@ApiOperation(value="List the ids of all tasks (not retired) that exist",response=String.class,responseContainer="List")
 	public Collection<String> listAll() {
-		return taskManager.getAllTasks();
+		return taskIndex.getAllTasks();
 	}
 
 	@GET
 	@Path("/retired")
 	@ApiOperation(value="List the ids of all retired tasks",response=String.class,responseContainer="List")
 	public Collection<String> listRetired() {
-		return taskManager.getRetiredTasks();
+		return taskIndex.getRetiredTasks();
 	}
 	
 	@GET
 	@Path("/testing")
 	@ApiOperation(value="Lists all tasks with a testing version",response=TaskInfo.class,responseContainer="List",position=0)
 	public Collection<TaskInfo> listTesting() {
-		return taskManager.getTestingTasks();
+		return taskIndex.getTestingTasks();
 	}
 
 	@POST
@@ -107,7 +107,7 @@ public class TasksController {
 	@ApiOperation(value="Create a new task",response=TaskInfo.class)
 	public String create() throws TaskStorageException {
 		Task newTask = taskFactory.createInstance();
-		taskManager.add(newTask);
+		taskIndex.add(newTask);
 		return newTask.getTaskId();
 	}
 	
@@ -115,14 +115,14 @@ public class TasksController {
 	@Path("/{taskId}")
 	@ApiOperation(value="Returns information about a specific task",response=TaskInfo.class)
 	public TaskInfo getTask(@PathParam("taskId") String taskID) throws TaskNotFoundException {
-		return taskManager.getTestingTaskInfo(taskID);
+		return taskIndex.getTestingTaskInfo(taskID);
 	}
 	
 	@POST
 	@Path("/{taskId}/retire")
 	@ApiOperation(value="Mark a task as retired or unretire it",response=TaskInfo.class)
 	public Response retireTask(@PathParam("taskId") String taskID, @FormParam("retired") boolean retired) throws TaskNotFoundException, TaskStorageException {
-		taskManager.getTask(taskID).setRetired(retired,database);
+		taskIndex.getTask(taskID).setRetired(retired,database);
 		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
@@ -130,28 +130,28 @@ public class TasksController {
 	@Path("/{taskId}/register")
 	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.")
 	public BuilderInfo scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskNotFoundException {
-		return taskManager.getTask(taskID).scheduleBuildRegisteredCopy(sha1, worker);
+		return taskIndex.getTask(taskID).scheduleBuildRegisteredCopy(sha1, worker);
 	}
 	
 	@GET
 	@Path("/{taskId}/registering_status")
 	@ApiOperation(value="Polls the progress of the current registration process.")
 	public BuilderInfo pollTaskRegistraionStatus(@PathParam("taskId") String taskID) throws TaskNotFoundException {
-		return taskManager.getTask(taskID).getRegisteredCopyBuilderInfo();
+		return taskIndex.getTask(taskID).getRegisteredCopyBuilderInfo();
 	}
 	
 	@POST
 	@Path("/{taskId}/update")
 	@ApiOperation(value="Registers (or updates the testing version) of a task.")
 	public BuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskID) throws TaskNotFoundException {
-		return taskManager.getTask(taskID).scheduleBuildTestingCopy(worker);
+		return taskIndex.getTask(taskID).scheduleBuildTestingCopy(worker);
 	}
 	
 	@GET
 	@Path("/{taskId}/update_status")
 	@ApiOperation(value="Polls the progress of the current testing registration process.")
 	public BuilderInfo pollTaskTestingStatus(@PathParam("taskId") String taskID) throws TaskNotFoundException {
-		return taskManager.getTask(taskID).getTestingCopyBuilderInfo();
+		return taskIndex.getTask(taskID).getTestingCopyBuilderInfo();
 	}
 	
 	

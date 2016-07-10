@@ -33,24 +33,20 @@ import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 
 @Singleton
-public class TaskManager {
+public class TaskIndex {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(TaskManager.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(TaskIndex.class);
 			
 	private Map<String,Task> definedTasks;
-
-	private TaskFactory taskFactory;
 	
 	@Inject
-	public TaskManager(ContainerManager containerManager, TaskFactory taskFactory, Database database) throws TaskStorageException {
-		this.taskFactory = taskFactory;
+	public TaskIndex(TaskFactory taskFactory, Database database) throws TaskStorageException {
 		this.definedTasks = new ConcurrentHashMap<>();
 		
 		List<String> taskIds;

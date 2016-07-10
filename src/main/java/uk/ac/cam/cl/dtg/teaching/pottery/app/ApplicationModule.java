@@ -44,7 +44,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class ApplicationModule implements Module {
@@ -64,7 +64,7 @@ public class ApplicationModule implements Module {
         binder.bind(ResourceListingProvider.class);
         binder.bind(RepoFactory.class).in(Singleton.class);
         binder.bind(TaskFactory.class).in(Singleton.class);
-        binder.bind(TaskManager.class).in(Singleton.class);
+        binder.bind(TaskIndex.class).in(Singleton.class);
         binder.bind(ContainerManager.class).in(Singleton.class);
 
         binder.bind(TaskConfig.class).in(Singleton.class);

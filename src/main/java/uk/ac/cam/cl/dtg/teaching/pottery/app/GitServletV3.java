@@ -37,7 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 @SuppressWarnings("serial")
@@ -63,7 +63,7 @@ public class GitServletV3 extends GitServlet {
 					public void onPostReceive(ReceivePack rp, Collection<ReceiveCommand> commands) {
 						String repoName = req.getPathInfo().substring(1);
 						LOG.info("Received push to {}",repoName);
-						TaskManager t = GuiceResteasyBootstrapServletContextListenerV3.getInjector().getInstance(TaskManager.class);
+						TaskIndex t = GuiceResteasyBootstrapServletContextListenerV3.getInjector().getInstance(TaskIndex.class);
 						Worker w = GuiceResteasyBootstrapServletContextListenerV3.getInjector().getInstance(Worker.class);
 						try {
 							t.getTask(repoName).scheduleBuildTestingCopy(w);

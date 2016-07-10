@@ -53,7 +53,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
 
 @Produces("application/json")
@@ -62,15 +62,15 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 public class RepoController {
 	
 	private RepoFactory repoFactory;
-	private TaskManager taskManager;
+	private TaskIndex taskIndex;
 	
 	protected static final Logger LOG = LoggerFactory.getLogger(RepoController.class);
 
 	@Inject
-	public RepoController(RepoFactory repoFactory, TaskManager taskManager) {
+	public RepoController(RepoFactory repoFactory, TaskIndex taskIndex) {
 		super();
 		this.repoFactory = repoFactory;
-		this.taskManager = taskManager;
+		this.taskIndex = taskIndex;
 	}
 
 	@POST
@@ -84,7 +84,7 @@ public class RepoController {
 		Calendar cal = Calendar.getInstance();
 		cal.add(Calendar.MINUTE, validityMinutes);
 		Date expiryDate = cal.getTime();
-		Task t = taskManager.getTask(taskId);
+		Task t = taskIndex.getTask(taskId);
 		if (t == null) throw new TaskNotFoundException("Failed to find task with ID " + taskId);
 		try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) { 
 			if (c == null) throw new TaskNotFoundException("Failed to find a "+(usingTestingVersion?"testing":"registered")+" task for task with ID "+ taskId);

@@ -174,7 +174,7 @@ public class Task {
 
 				registeredBuilder.schedule(w, new Job() {
 					@Override
-					public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
+					public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
 							Database database) throws Exception {
 						return storeNewRegisteredCopy(w, database);
 					}
@@ -199,7 +199,7 @@ public class Task {
 				if (oldCopy != null) {
 					w.schedule(new Job() {
 						@Override
-						public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
+						public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory,
 								ContainerManager containerManager, Database database) throws Exception {
 							oldCopy.destroy();
 							return true;
@@ -211,7 +211,7 @@ public class Task {
 				registeredBuilder.getBuilderInfo().setException(new TaskStorageException("Failed to record changes in database",e));
 				w.schedule(new Job() {
 					@Override
-					public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
+					public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory,
 							ContainerManager containerManager, Database database) throws Exception {
 						registeredBuilder.getTaskCopy().destroy();
 						return true;
@@ -276,7 +276,7 @@ public class Task {
 				
 				testingBuilder.schedule(w, new Job() {
 					@Override
-					public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
+					public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
 							Database database) throws Exception {
 						return storeNewTestCopy(w, database);
 					}
@@ -301,7 +301,7 @@ public class Task {
 				if (oldCopy != null) {
 					w.schedule(new Job() {
 						@Override
-						public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
+						public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory,
 								ContainerManager containerManager, Database database) throws Exception {
 							oldCopy.destroy();
 							return true;
@@ -314,7 +314,7 @@ public class Task {
 				testingBuilder.getBuilderInfo().setException(new TaskStorageException("Failed to record changes in database",e));
 				w.schedule(new Job() {
 					@Override
-					public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
+					public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory,
 							ContainerManager containerManager, Database database) throws Exception {
 						testingBuilder.getTaskCopy().destroy();
 						return true;

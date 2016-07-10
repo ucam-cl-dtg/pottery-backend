@@ -64,14 +64,14 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
@@ -234,10 +234,10 @@ public class Repo {
 
 			w.schedule(new Job() {
 				@Override
-				public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws InterruptedException {					
+				public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws InterruptedException {					
 					Task t;
 					try {
-						t = taskManager.getTask(taskId);
+						t = taskIndex.getTask(taskId);
 					} catch (TaskNotFoundException e1) {
 						updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Task no longer available",0)));
 						return false;

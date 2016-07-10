@@ -30,7 +30,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
 @Singleton
 public class Worker implements Stoppable {
@@ -39,7 +39,7 @@ public class Worker implements Stoppable {
 	
 	private ExecutorService threadPool;
 	
-	private TaskManager taskManager;
+	private TaskIndex taskIndex;
 	
 	private RepoFactory repoFactory;
 
@@ -48,10 +48,10 @@ public class Worker implements Stoppable {
 	private Database database;
 	
 	@Inject
-	public Worker(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) {
+	public Worker(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager, Database database) {
 		super();
 		this.threadPool = Executors.newFixedThreadPool(2);
-		this.taskManager = taskManager;
+		this.taskIndex = taskIndex;
 		this.repoFactory = repoFactory;
 		this.containerManager = containerManager;
 		this.database = database;
@@ -78,7 +78,7 @@ public class Worker implements Stoppable {
 		@Override
 		public void run() {
 			try {
-				boolean result = jobs[index].execute(taskManager, repoFactory, containerManager, database);
+				boolean result = jobs[index].execute(taskIndex, repoFactory, containerManager, database);
 				if (result && index < jobs.length -1) {
 					threadPool.execute(new JobIteration(jobs,index+1));
 				}
