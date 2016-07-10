@@ -66,6 +66,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
@@ -234,7 +235,13 @@ public class Repo {
 			w.schedule(new Job() {
 				@Override
 				public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws InterruptedException {					
-					Task t = taskManager.getTask(taskId);
+					Task t;
+					try {
+						t = taskManager.getTask(taskId);
+					} catch (TaskNotFoundException e1) {
+						updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Task no longer available",0)));
+						return false;
+					}
 					try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
 						if (c == null) {
 							updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Task no longer available",0)));

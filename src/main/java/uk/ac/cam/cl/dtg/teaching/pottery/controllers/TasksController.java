@@ -27,6 +27,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Response;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,9 +74,16 @@ public class TasksController {
 
 	@GET
 	@Path("/")
-	@ApiOperation(value="List the ids of all tasks that exist",response=String.class,responseContainer="List")
+	@ApiOperation(value="List the ids of all tasks (not retired) that exist",response=String.class,responseContainer="List")
 	public Collection<String> listAll() {
 		return taskManager.getAllTasks();
+	}
+
+	@GET
+	@Path("/retired")
+	@ApiOperation(value="List the ids of all retired tasks",response=String.class,responseContainer="List")
+	public Collection<String> listRetired() {
+		return taskManager.getRetiredTasks();
 	}
 	
 	@GET
@@ -100,30 +108,38 @@ public class TasksController {
 	}
 	
 	@POST
+	@Path("/{taskId}/retire")
+	@ApiOperation(value="Mark a task as retired or unretire it",response=TaskInfo.class)
+	public Response retireTask(@PathParam("taskId") String taskID, @FormParam("retired") boolean retired) throws TaskNotFoundException {
+		taskManager.getTask(taskID).setRetired(retired);
+		return Response.ok().entity("{\"message\":\"OK\"}").build();
+	}
+	
+	@POST
 	@Path("/{taskId}/register")
 	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.")
-	public BuilderInfo scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) {
+	public BuilderInfo scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskNotFoundException {
 		return taskManager.getTask(taskID).scheduleBuildRegisteredCopy(sha1, worker);
 	}
 	
 	@GET
 	@Path("/{taskId}/registering_status")
 	@ApiOperation(value="Polls the progress of the current registration process.")
-	public BuilderInfo pollTaskRegistraionStatus(@PathParam("taskId") String taskID) {
+	public BuilderInfo pollTaskRegistraionStatus(@PathParam("taskId") String taskID) throws TaskNotFoundException {
 		return taskManager.getTask(taskID).getRegisteredCopyBuilderInfo();
 	}
 	
 	@POST
 	@Path("/{taskId}/update")
 	@ApiOperation(value="Registers (or updates the testing version) of a task.")
-	public BuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskID) {
+	public BuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskID) throws TaskNotFoundException {
 		return taskManager.getTask(taskID).scheduleBuildTestingCopy(worker);
 	}
 	
 	@GET
 	@Path("/{taskId}/update_status")
 	@ApiOperation(value="Polls the progress of the current testing registration process.")
-	public BuilderInfo pollTaskTestingStatus(@PathParam("taskId") String taskID) {
+	public BuilderInfo pollTaskTestingStatus(@PathParam("taskId") String taskID) throws TaskNotFoundException {
 		return taskManager.getTask(taskID).getTestingCopyBuilderInfo();
 	}
 	

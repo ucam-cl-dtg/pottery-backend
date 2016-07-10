@@ -51,6 +51,23 @@ $(document).ready(
 					});
 
 			
+			$("#listRetiredTasksButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							type : "GET",
+							url : "api/tasks/retired",
+							success : function(result) {
+								reportSuccess(result);
+								$("#taskId").val(result[0]);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+
+			
 			$("#listTestingTasksButton").click(
 					function(e) {
 						e.preventDefault();
@@ -163,6 +180,41 @@ $(document).ready(
 						});
 					});
 
+			$("#retireTaskButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							url: 'api/tasks/'+$("taskId").val()+"/retire",
+							type: 'POST',
+							data : {"retire": "true" },
+							success: function (result) {
+								reportSuccess(result);
+								$("#repoId").val(result.repoId);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+			
+			
+			$("#unretireTaskButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							url: 'api/tasks/'+$("taskId").val()+"/retire",
+							type: 'POST',
+							data : {"retire": "false" },
+							success: function (result) {
+								reportSuccess(result);
+								$("#repoId").val(result.repoId);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+			
 			
 			
 			$("#startTaskForm").submit(function(event) {

@@ -72,7 +72,7 @@ public class Task {
 	 */
 	private final String taskId;
 
-	private boolean retired;
+	private volatile boolean retired;
 
 	/**
 	 * The taskdef is a bare git repo which is the upsteam source for the task
@@ -111,6 +111,9 @@ public class Task {
 		return retired;
 	}
 
+	public void setRetired(boolean retired) {
+		this.retired = retired;
+	}
 	
 	//*** BEGIN METHODS FOR MANAGING REGISTRATION OF THE TASK AND THE REGISTERED COPY ***
 	

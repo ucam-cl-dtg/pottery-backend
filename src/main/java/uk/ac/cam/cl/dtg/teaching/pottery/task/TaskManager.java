@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,9 +80,11 @@ public class TaskManager {
 	public Collection<TaskInfo> getTestingTasks() {
 		List<TaskInfo> r = new LinkedList<>();
 		for (Task t : definedTasks.values()) {
-			try(TaskCopy c = t.acquireTestingCopy()) {
-				if (c != null) {
-					r.add(c.getInfo());
+			if (!t.isRetired()) {
+				try(TaskCopy c = t.acquireTestingCopy()) {
+					if (c != null) {
+						r.add(c.getInfo());
+					}
 				}
 			}
 		}
@@ -91,9 +94,11 @@ public class TaskManager {
 	public Collection<TaskInfo> getRegisteredTasks() {
 		List<TaskInfo> r = new LinkedList<>();
 		for (Task t : definedTasks.values()) {
-			try(TaskCopy c = t.acquireRegisteredCopy()) {
-				if (c != null) {
-					r.add(c.getInfo());
+			if (!t.isRetired()) {
+				try(TaskCopy c = t.acquireRegisteredCopy()) {
+					if (c != null) {
+						r.add(c.getInfo());
+					}
 				}
 			}
 		}
@@ -114,11 +119,17 @@ public class TaskManager {
 		}
 	}
 
-	public Task getTask(String taskId) {
-		return definedTasks.get(taskId);
+	public Task getTask(String taskId) throws TaskNotFoundException {
+		Task t = definedTasks.get(taskId);
+		if (t == null) throw new TaskNotFoundException("Failed to find task "+taskId);
+		return t;
 	}
 
 	public Collection<String> getAllTasks() {
-		return definedTasks.keySet();
+		return definedTasks.values().stream().filter(t -> !t.isRetired()).map(t->t.getTaskId()).collect(Collectors.toList());
+	}
+	
+	public Collection<String> getRetiredTasks() {
+		return definedTasks.values().stream().filter(t -> t.isRetired()).map(t->t.getTaskId()).collect(Collectors.toList());
 	}
 }
