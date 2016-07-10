@@ -96,15 +96,13 @@ public class TaskIndex {
 	}
 	
 	public TaskInfo getTestingTaskInfo(String taskId) throws TaskNotFoundException {
-		try (TaskCopy t = definedTasks.get(taskId).acquireTestingCopy()) {
-			if (t == null) throw new TaskNotFoundException("Failed to find a testing task with ID "+taskId);
+		try (TaskCopy t = getTask(taskId).acquireTestingCopy()) {
 			return t.getInfo();
 		}
 	}
 
 	public TaskInfo getRegisteredTaskInfo(String taskId) throws TaskNotFoundException {
-		try (TaskCopy t = definedTasks.get(taskId).acquireRegisteredCopy()) {
-			if (t == null) throw new TaskNotFoundException("Failed to find a registered task with ID "+taskId);
+		try (TaskCopy t = getTask(taskId).acquireRegisteredCopy()) {
 			return t.getInfo();
 		}
 	}
