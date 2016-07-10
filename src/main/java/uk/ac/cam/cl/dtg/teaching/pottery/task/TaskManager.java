@@ -19,10 +19,10 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -47,14 +47,11 @@ public class TaskManager {
 	private Map<String,Task> definedTasks;
 
 	private TaskFactory taskFactory;
-
-	private Database database;
 	
 	@Inject
 	public TaskManager(ContainerManager containerManager, TaskFactory taskFactory, Database database) throws TaskStorageException {
 		this.taskFactory = taskFactory;
-		this.definedTasks = new HashMap<>();
-		this.database = database;
+		this.definedTasks = new ConcurrentHashMap<>();
 		
 		List<String> taskIds;
 		try(TransactionQueryRunner q = database.getQueryRunner()) {
@@ -72,12 +69,6 @@ public class TaskManager {
 				LOG.warn("Ignoring task "+taskId,e);
 			}
 		}
-	}
-	
-	public TaskInfo createNewTask() throws TaskStorageException {
-		Task newTask = taskFactory.createInstance();
-		definedTasks.put(newTask.getTaskId(), newTask);
-		return new TaskInfo(newTask.getTaskId());
 	}
 	
 	public Collection<TaskInfo> getTestingTasks() {
@@ -134,5 +125,9 @@ public class TaskManager {
 	
 	public Collection<String> getRetiredTasks() {
 		return definedTasks.values().stream().filter(t -> t.isRetired()).map(t->t.getTaskId()).collect(Collectors.toList());
+	}
+
+	public void add(Task newTask) {
+		definedTasks.put(newTask.getTaskId(), newTask);
 	}
 }

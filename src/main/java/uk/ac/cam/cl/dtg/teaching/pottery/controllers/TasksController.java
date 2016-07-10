@@ -45,6 +45,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.BuilderInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
@@ -55,6 +57,8 @@ public class TasksController {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(TasksController.class);
 
+	private TaskFactory taskFactory;
+	
 	private TaskManager taskManager;
 	
 	private Worker worker;
@@ -62,8 +66,9 @@ public class TasksController {
 	private Database database;
 	
 	@Inject
-	public TasksController(TaskManager taskManager, Worker worker, Database database) {
+	public TasksController(TaskFactory taskFactory, TaskManager taskManager, Worker worker, Database database) {
 		super();
+		this.taskFactory = taskFactory;
 		this.taskManager = taskManager;
 		this.worker = worker;
 		this.database = database;
@@ -100,8 +105,10 @@ public class TasksController {
 	@POST
 	@Path("/create")
 	@ApiOperation(value="Create a new task",response=TaskInfo.class)
-	public TaskInfo create() throws TaskStorageException {
-		return taskManager.createNewTask();
+	public String create() throws TaskStorageException {
+		Task newTask = taskFactory.createInstance();
+		taskManager.add(newTask);
+		return newTask.getTaskId();
 	}
 	
 	@GET
