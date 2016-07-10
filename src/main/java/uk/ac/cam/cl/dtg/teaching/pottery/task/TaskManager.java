@@ -135,8 +135,4 @@ public class TaskManager {
 	public Collection<String> getRetiredTasks() {
 		return definedTasks.values().stream().filter(t -> t.isRetired()).map(t->t.getTaskId()).collect(Collectors.toList());
 	}
-
-	public void setRetired(String taskID, boolean retired) throws TaskStorageException, TaskNotFoundException {
-		getTask(taskID).setRetired(retired, database);
-	}
 }

@@ -39,6 +39,7 @@ import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
+import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
@@ -57,12 +58,15 @@ public class TasksController {
 	private TaskManager taskManager;
 	
 	private Worker worker;
+
+	private Database database;
 	
 	@Inject
-	public TasksController(TaskManager taskManager, Worker worker) {
+	public TasksController(TaskManager taskManager, Worker worker, Database database) {
 		super();
 		this.taskManager = taskManager;
 		this.worker = worker;
+		this.database = database;
 	}
 		
 	@GET
@@ -111,7 +115,7 @@ public class TasksController {
 	@Path("/{taskId}/retire")
 	@ApiOperation(value="Mark a task as retired or unretire it",response=TaskInfo.class)
 	public Response retireTask(@PathParam("taskId") String taskID, @FormParam("retired") boolean retired) throws TaskNotFoundException, TaskStorageException {
-		taskManager.setRetired(taskID,retired);
+		taskManager.getTask(taskID).setRetired(retired,database);
 		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
