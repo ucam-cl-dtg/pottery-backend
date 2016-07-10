@@ -1,0 +1,28 @@
+Depending on your choice of distribution you might need to change the storage driver used by docker. See here for a guide:  https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/
+
+Here are rough notes for switching to the lvm storage driver on centos:
+
+sudo yum install lvm2
+sudo pvcreate /dev/xvdf
+sudo vgcreate docker /dev/xvdf
+sudo lvcreate --wipesignatures y -n thinpool docker -l 95%VG
+sudo lvcreate --wipesignatures y -n thinpoolmeta docker -l 1%VG
+sudo lvconvert -y --zero n -c 512K --thinpool docker/thinpool --poolmetadata docker/thinpoolmeta
+sudo vi /etc/lvm/profile/docker-thinpool.profile
+
+cat /etc/lvm/profile/docker-thinpool.profile
+activation { 
+	thin_pool_autoextend_threshold = 80
+	thin_pool_autoextend_percent = 20
+}
+
+sudo lvchange --metadataprofile docker-thinpool docker/thinpool
+
+# check its monitored
+sudo lvs -o+seg_monitor
+
+sudo rm -rf /var/lib/docker/*
+
+sudo vi /usr/lib/systemd/system/docker.service 
+# ExecStart=/usr/bin/docker daemon -H 127.0.0.1:2375 -H fd:// --storage-driver=devicemapper --storage-opt=dm.thinpooldev=/dev/mapper/docker-thinpool --storage-opt dm.use_deferred_removal=true
+

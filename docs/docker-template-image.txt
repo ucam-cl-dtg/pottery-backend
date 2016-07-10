@@ -1,0 +1,14 @@
+Rough notes on creating a template image in docker:
+
+docker run -i -t ubuntu:16.04
+apt-get update
+apt-get upgrade -u
+apt-get install software-properties-common
+add-apt-repository ppa:webupd8team/java
+apt-get update
+apt-get install oracle-java8-installer git maven vnc4server sudo
+apt-get clean
+
+docker ps -a
+docker commit fda5b78c1556 template:java
+docker rm fda5b78c1556
