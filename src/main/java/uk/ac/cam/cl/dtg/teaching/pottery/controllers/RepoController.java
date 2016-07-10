@@ -85,9 +85,7 @@ public class RepoController {
 		cal.add(Calendar.MINUTE, validityMinutes);
 		Date expiryDate = cal.getTime();
 		Task t = taskIndex.getTask(taskId);
-		if (t == null) throw new TaskNotFoundException("Failed to find task with ID " + taskId);
 		try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) { 
-			if (c == null) throw new TaskNotFoundException("Failed to find a "+(usingTestingVersion?"testing":"registered")+" task for task with ID "+ taskId);
 			Repo r = repoFactory.createInstance(taskId,usingTestingVersion,expiryDate);
 			r.copyFiles(c);
 			return r.toRepoInfo();

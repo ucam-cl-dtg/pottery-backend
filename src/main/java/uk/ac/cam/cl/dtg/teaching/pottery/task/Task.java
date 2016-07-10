@@ -142,13 +142,13 @@ public class Task {
 	/**
 	 * Get a reference to the RegisteredCopy object. You must call release/close when finished
 	 */
-	public TaskCopy acquireRegisteredCopy() {
+	public TaskCopy acquireRegisteredCopy() throws TaskNotFoundException {
 		TaskCopy tc = registeredCopy;
 		if (tc != null && tc.acquire()) {
 			return tc;
 		}
 		else {
-			return null;
+			throw new TaskNotFoundException("Registered version of task "+taskId+" is not available");
 		}
 	}
 	
@@ -244,13 +244,13 @@ public class Task {
 	 */
 	private final Object testingMutex = new Object();
 	
-	public TaskCopy acquireTestingCopy() { 
+	public TaskCopy acquireTestingCopy() throws TaskNotFoundException { 
 		TaskCopy tc = testingCopy;
 		if (tc != null && tc.acquire()) {
 			return tc;
 		}
 		else {
-			return null;
+			throw new TaskNotFoundException("Testing version of task "+taskId+" is not available");
 		}
 	}
 	

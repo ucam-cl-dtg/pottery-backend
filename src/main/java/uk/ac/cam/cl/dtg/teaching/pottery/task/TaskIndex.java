@@ -72,9 +72,9 @@ public class TaskIndex {
 		for (Task t : definedTasks.values()) {
 			if (!t.isRetired()) {
 				try(TaskCopy c = t.acquireTestingCopy()) {
-					if (c != null) {
-						r.add(c.getInfo());
-					}
+					r.add(c.getInfo());
+				} catch (TaskNotFoundException e) {
+					// Ignore missing tasks
 				}
 			}
 		}
@@ -86,9 +86,9 @@ public class TaskIndex {
 		for (Task t : definedTasks.values()) {
 			if (!t.isRetired()) {
 				try(TaskCopy c = t.acquireRegisteredCopy()) {
-					if (c != null) {
-						r.add(c.getInfo());
-					}
+					r.add(c.getInfo());
+				} catch (TaskNotFoundException e) {
+					// Ignore unregistered tasks
 				}
 			}
 		}

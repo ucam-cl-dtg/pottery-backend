@@ -243,10 +243,6 @@ public class Repo {
 						return false;
 					}
 					try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
-						if (c == null) {
-							updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Task no longer available",0)));
-							return false;
-						}
 						try (AutoCloseableLock l = lock.takeFileWritingLock()) {						
 							try {
 								setVersionToTest(tag);
@@ -288,6 +284,9 @@ public class Repo {
 							}
 							updateSubmission(s);
 						}
+					} catch (TaskNotFoundException e1) {
+						updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Task no longer available",0)));
+						return false;
 					}
 					return true;
 				}			
