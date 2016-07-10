@@ -184,9 +184,9 @@ $(document).ready(
 					function(e) {
 						e.preventDefault();
 						$.ajax({
-							url: 'api/tasks/'+$("taskId").val()+"/retire",
+							url: 'api/tasks/'+$("#taskId").val()+"/retire",
 							type: 'POST',
-							data : {"retire": "true" },
+							data : {"retired": "true" },
 							success: function (result) {
 								reportSuccess(result);
 								$("#repoId").val(result.repoId);
@@ -202,9 +202,9 @@ $(document).ready(
 					function(e) {
 						e.preventDefault();
 						$.ajax({
-							url: 'api/tasks/'+$("taskId").val()+"/retire",
+							url: 'api/tasks/'+$("#taskId").val()+"/retire",
 							type: 'POST',
-							data : {"retire": "false" },
+							data : {"retired": "false" },
 							success: function (result) {
 								reportSuccess(result);
 								$("#repoId").val(result.repoId);

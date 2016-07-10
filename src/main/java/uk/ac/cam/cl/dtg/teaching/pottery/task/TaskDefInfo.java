@@ -123,6 +123,11 @@ public class TaskDefInfo {
 		q.update("UPDATE tasks set testingCopyId=? where taskid = ?",copyId,taskId);
 	}
 
+	public static void updateRetired(String taskId, boolean retired, QueryRunner q) throws SQLException {
+		q.update("UPDATE tasks set retired=? where taskid = ?",retired,taskId);
+	}
+
+	
 	@Override
 	public String toString() {
 		return "TaskDefInfo [taskId=" + taskId + ", registeredTag=" + registeredTag + ", testingCopyId=" + testingCopyId

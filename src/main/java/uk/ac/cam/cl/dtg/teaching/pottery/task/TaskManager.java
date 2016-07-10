@@ -47,11 +47,14 @@ public class TaskManager {
 	private Map<String,Task> definedTasks;
 
 	private TaskFactory taskFactory;
+
+	private Database database;
 	
 	@Inject
 	public TaskManager(ContainerManager containerManager, TaskFactory taskFactory, Database database) throws TaskStorageException {
 		this.taskFactory = taskFactory;
 		this.definedTasks = new HashMap<>();
+		this.database = database;
 		
 		List<String> taskIds;
 		try(TransactionQueryRunner q = database.getQueryRunner()) {
@@ -131,5 +134,9 @@ public class TaskManager {
 	
 	public Collection<String> getRetiredTasks() {
 		return definedTasks.values().stream().filter(t -> t.isRetired()).map(t->t.getTaskId()).collect(Collectors.toList());
+	}
+
+	public void setRetired(String taskID, boolean retired) throws TaskStorageException, TaskNotFoundException {
+		getTask(taskID).setRetired(retired, database);
 	}
 }

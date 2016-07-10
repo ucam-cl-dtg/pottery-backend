@@ -111,7 +111,13 @@ public class Task {
 		return retired;
 	}
 
-	public void setRetired(boolean retired) {
+	public void setRetired(boolean retired, Database database) throws TaskStorageException {
+		try (TransactionQueryRunner q = database.getQueryRunner()) {
+			TaskDefInfo.updateRetired(taskId, retired, q);
+			q.commit();
+		} catch (SQLException e) {
+			throw new TaskStorageException("Failed to update database with task retirement statuse for taskId "+taskId,e);
+		}
 		this.retired = retired;
 	}
 	

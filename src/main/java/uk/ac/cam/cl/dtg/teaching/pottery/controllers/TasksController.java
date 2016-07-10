@@ -110,8 +110,8 @@ public class TasksController {
 	@POST
 	@Path("/{taskId}/retire")
 	@ApiOperation(value="Mark a task as retired or unretire it",response=TaskInfo.class)
-	public Response retireTask(@PathParam("taskId") String taskID, @FormParam("retired") boolean retired) throws TaskNotFoundException {
-		taskManager.getTask(taskID).setRetired(retired);
+	public Response retireTask(@PathParam("taskId") String taskID, @FormParam("retired") boolean retired) throws TaskNotFoundException, TaskStorageException {
+		taskManager.setRetired(taskID,retired);
 		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
