@@ -1,8 +1,5 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
-import java.io.IOException;
-import java.sql.SQLException;
-
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -18,10 +15,10 @@ import com.wordnik.swagger.annotations.ApiOperation;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -51,7 +48,8 @@ public class SubmissionsController {
 	@Path("/{repoId}/{tag}")
 	@ApiOperation(value="Schedules a test by creating a submission",
 			notes="A submission is created from a tag in the code repository used by the candidate.",position=0)
-	public Submission scheduleTest(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SubmissionAlreadyScheduledException, RepoException, IOException, SQLException, RepoExpiredException {
+	public Submission scheduleTest(@PathParam("repoId") String repoId, @PathParam("tag") String tag) 
+			throws SubmissionNotFoundException, RepoStorageException, RepoExpiredException, SubmissionStorageException {
 		Repo r = repoFactory.getInstance(repoId);
 		return r.scheduleSubmission(tag, worker,database);
 	}
@@ -60,7 +58,8 @@ public class SubmissionsController {
 	@Path("/{repoId}/{tag}")
 	@ApiOperation(value="Poll the submission information",
 		notes="Use this call to poll for the results of testing.",position=1)
-	public Submission getSubmission(@PathParam("repoId") String repoId, @PathParam("tag") String tag) throws SubmissionNotFoundException, SQLException, RepoException {
+	public Submission getSubmission(@PathParam("repoId") String repoId, @PathParam("tag") String tag) 
+			throws SubmissionNotFoundException, RepoStorageException, SubmissionStorageException {
 		return repoFactory.getInstance(repoId).getSubmission(tag,database);
 	}
 }

@@ -17,8 +17,10 @@ import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -129,11 +131,7 @@ public class Task {
 		return registeredBuilder.getBuilderInfo(); 
 	}
 
-	public BuilderInfo scheduleBuildRegisteredCopy(String sha1, Worker w) throws TaskCloneException, IOException {
-		if ("HEAD".equals(sha1)) {
-			sha1 = getHeadSHA();
-		}
-
+	public BuilderInfo scheduleBuildRegisteredCopy(String sha1, Worker w) {
 		// We need to ensure there is only one thread in this region at a time
 		// or else we have a race between deciding that we should start a new copy and updating 
 		// registeredBuilder to record it
@@ -141,15 +139,24 @@ public class Task {
 			if (!registeredBuilder.isReplacable()) {
 				return registeredBuilder.getBuilderInfo();
 			}
-			registeredBuilder = new TaskCopyBuilder(sha1,taskId,uuidGenerator.generate(),config);
-
-			registeredBuilder.schedule(w, new Job() {
-				@Override
-				public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
-						Database database) throws Exception {
-					return storeNewRegisteredCopy(w, database);
+			
+			try {
+				if ("HEAD".equals(sha1)) {
+					sha1 = getHeadSHA();
 				}
-			});
+				registeredBuilder = TaskCopyBuilder.createNew(sha1,taskId,uuidGenerator.generate(),config);
+
+				registeredBuilder.schedule(w, new Job() {
+					@Override
+					public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
+							Database database) throws Exception {
+						return storeNewRegisteredCopy(w, database);
+					}
+				});
+			} catch (TaskStorageException e) {
+				registeredBuilder = TaskCopyBuilder.createFailurePlaceholder(sha1, config, e);
+			}
+			
 			return registeredBuilder.getBuilderInfo();
 		}
 	}
@@ -175,7 +182,7 @@ public class Task {
 				}
 			}
 			catch (SQLException e) {
-				registeredBuilder.getBuilderInfo().setException(new TaskCloneException("Failed to record changes in database",e));
+				registeredBuilder.getBuilderInfo().setException(new TaskStorageException("Failed to record changes in database",e));
 				w.schedule(new Job() {
 					@Override
 					public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
@@ -226,7 +233,7 @@ public class Task {
 		return testingBuilder.getBuilderInfo(); 
 	}
 	
-	public BuilderInfo scheduleBuildTestingCopy(Worker w) throws TaskCloneException, IOException {
+	public BuilderInfo scheduleBuildTestingCopy(Worker w) {
 		// We need to ensure there is only one thread in this region at a time
 		// or else we have a race between deciding that we should start a new copy and updating 
 		// testingBuilder to record it
@@ -236,16 +243,21 @@ public class Task {
 			}
 				
 			LOG.info("Scheduling testing build for "+taskDefDir);
-
-			testingBuilder = new TaskCopyBuilder(getHeadSHA(),taskId,uuidGenerator.generate(),config);
 			
-			testingBuilder.schedule(w, new Job() {
-				@Override
-				public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
-						Database database) throws Exception {
-					return storeNewTestCopy(w, database);
-				}
-			});
+			try {
+				String headSha = getHeadSHA();
+				testingBuilder = TaskCopyBuilder.createNew(headSha,taskId,uuidGenerator.generate(),config);
+				
+				testingBuilder.schedule(w, new Job() {
+					@Override
+					public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
+							Database database) throws Exception {
+						return storeNewTestCopy(w, database);
+					}
+				});
+			} catch (TaskStorageException e) {
+				testingBuilder = TaskCopyBuilder.createFailurePlaceholder(taskId, config, e);
+			}
 			
 			return testingBuilder.getBuilderInfo();
 		}
@@ -273,7 +285,7 @@ public class Task {
 				return true;
 			}
 			catch (SQLException e) {
-				testingBuilder.getBuilderInfo().setException(new TaskCloneException("Failed to record changes in database",e));
+				testingBuilder.getBuilderInfo().setException(new TaskStorageException("Failed to record changes in database",e));
 				w.schedule(new Job() {
 					@Override
 					public boolean execute(TaskManager taskManager, RepoFactory repoFactory,
@@ -294,15 +306,15 @@ public class Task {
 	 * Lookup the SHA1 for the HEAD of the repo
 	 * 
 	 * @return a string containing the SHA1
-	 * @throws TaskCloneException
+	 * @throws TaskStorageException 
 	 *             if an error occurs trying to read the repo
 	 */
-	public String getHeadSHA() throws TaskCloneException {
+	public String getHeadSHA() throws TaskStorageException {
 		try (Git g = Git.open(taskDefDir)) {
 			Ref r = g.getRepository().findRef(Constants.HEAD);
 			return r.getObjectId().getName();
 		} catch (IOException e) {
-			throw new TaskCloneException("Failed to read Git repository for " + taskDefDir, e);
+			throw new TaskStorageException("Failed to read Git repository for " + taskDefDir, e);
 		}
 	}
 
@@ -313,10 +325,14 @@ public class Task {
 	 * @param taskId
 	 * @param config
 	 * @return
-	 * @throws IOException
-	 * @throws SQLException
+	 * @throws TaskStorageException 
+	 * @throws InvalidTaskSpecificationException 
+	 * @throws TaskNotFoundException 
+	 * @throws TaskCopyNotFoundException 
 	 */
-	static Task openTask(String taskId, UUIDGenerator uuidGenerator, Database database, TaskConfig config) throws TaskException, IOException {
+	static Task openTask(String taskId, UUIDGenerator uuidGenerator, Database database, TaskConfig config) 
+			throws InvalidTaskSpecificationException, TaskStorageException, TaskNotFoundException, TaskCopyNotFoundException 
+	{
 		
 		try (TransactionQueryRunner q = database.getQueryRunner()) {
 			TaskDefInfo info = TaskDefInfo.getByTaskId(taskId, q);
@@ -325,19 +341,19 @@ public class Task {
 				if (info.getTestingCopyId() == null) {
 					// No test version has been built before
 					// Use null for the copyId 
-					testingBuilder = new TaskCopyBuilder("HEAD", taskId, null, config);
+					testingBuilder = TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config);
 				}
 				else {
 					// The test version has been built before
-					testingBuilder = new TaskCopyBuilder("HEAD", taskId, info.getTestingCopyId(),config);
+					testingBuilder = TaskCopyBuilder.createForExisting("HEAD", taskId, info.getTestingCopyId(),config);
 				}
 								
 				TaskCopyBuilder registeredBuilder;
 				if (info.getRegisteredCopyId() == null) {
-					registeredBuilder = new TaskCopyBuilder("HEAD",taskId,null, config);
+					registeredBuilder = TaskCopyBuilder.createSuccessPlaceholder("HEAD",taskId,config);
 				}
 				else {
-					registeredBuilder = new TaskCopyBuilder(info.getRegisteredTag(),taskId, info.getRegisteredCopyId(),config);
+					registeredBuilder = TaskCopyBuilder.createForExisting(info.getRegisteredTag(),taskId, info.getRegisteredCopyId(),config);
 				}
 								
 				return new Task(info.getTaskId(),
@@ -345,10 +361,10 @@ public class Task {
 						registeredBuilder,registeredBuilder.getTaskCopy(),
 						info.isRetired(),config, uuidGenerator);
 			} else {
-				throw new TaskException("Task " + taskId + " not found");
+				throw new TaskNotFoundException("Task " + taskId + " not found");
 			}
 		} catch (SQLException e) {
-			throw new TaskException("Failed to open task " + taskId, e);
+			throw new TaskStorageException("Failed to open task " + taskId, e);
 		}
 	}
 
@@ -358,9 +374,12 @@ public class Task {
 	 * 
 	 * @param config
 	 * @return
+	 * @throws TaskStorageException 
+	 * @throws InvalidTaskSpecificationException 
 	 * @throws IOException
 	 */
-	static Task createTask(String taskId, UUIDGenerator uuidGenerator, TaskConfig config, Database database) throws TaskException, IOException {
+	static Task createTask(String taskId, UUIDGenerator uuidGenerator, TaskConfig config, Database database) 
+			throws TaskStorageException {
 
 		// create the task directory and clone the template
 		File taskDefDir = config.getTaskDefinitionDir(taskId);
@@ -374,8 +393,8 @@ public class Task {
 		try (Git g = Git.cloneRepository().setURI(templateRepo.getPath()).setBare(true).setDirectory(taskDefDir)
 				.call()) {
 			
-			TaskCopyBuilder testingBuilder = new TaskCopyBuilder("HEAD",taskId,null,config);
-			TaskCopyBuilder registeredBuilder = new TaskCopyBuilder("HEAD",taskId,null,config);
+			TaskCopyBuilder testingBuilder = TaskCopyBuilder.createSuccessPlaceholder("HEAD",taskId,config);
+			TaskCopyBuilder registeredBuilder = TaskCopyBuilder.createSuccessPlaceholder("HEAD",taskId,config);
 
 			// Mark status as success so that we don't try to compile these
 			testingBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
@@ -387,7 +406,7 @@ public class Task {
 				return new Task(taskId,testingBuilder,null,registeredBuilder,null,false,config, uuidGenerator);
 			}
 		} catch (GitAPIException | SQLException e) {
-			TaskException toThrow = new TaskException("Failed to initialise task " + taskId, e);
+			TaskStorageException toThrow = new TaskStorageException("Failed to initialise task " + taskId, e);
 			try {
 				FileUtil.deleteRecursive(taskDefDir);
 			} catch (IOException e1) {

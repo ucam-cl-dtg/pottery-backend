@@ -2,6 +2,9 @@ package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -11,6 +14,7 @@ import com.wordnik.swagger.annotations.ApiModelProperty;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 
 public class TaskInfo {
 
@@ -91,6 +95,9 @@ public class TaskInfo {
 	@ApiModelProperty("Container restrictions on the validator")
 	private ContainerRestrictions validatorRestrictions;
 
+	@ApiModelProperty("List of filenames (relative to the root of the project) to open as a starting point of the task")
+	private List<String> startingPointFiles;
+	
 	public TaskInfo(String taskId) {
 		super();
 		this.taskId = taskId;
@@ -110,7 +117,8 @@ public class TaskInfo {
 				@JsonProperty("problemStatement") String problemStatement,
 				@JsonProperty("compilationRestrictions") ContainerRestrictions compilationRestrictions,
 				@JsonProperty("harnessRestrictions") ContainerRestrictions harnessRestrictions,
-				@JsonProperty("validatorRestrictions") ContainerRestrictions validatorRestrictions) {
+				@JsonProperty("validatorRestrictions") ContainerRestrictions validatorRestrictions,
+				@JsonProperty("startingPointFiles") List<String> startingPointFiles) {
 		super();
 		this.type = type;
 		this.name = name;
@@ -123,6 +131,7 @@ public class TaskInfo {
 		this.compilationRestrictions = compilationRestrictions != null ? compilationRestrictions : new ContainerRestrictions(); 
 		this.harnessRestrictions = harnessRestrictions != null ? harnessRestrictions : new ContainerRestrictions();
 		this.validatorRestrictions = validatorRestrictions != null ? validatorRestrictions : new ContainerRestrictions();
+		this.startingPointFiles = startingPointFiles;
 	}
 
 	public ContainerRestrictions getCompilationRestrictions() {
@@ -183,11 +192,20 @@ public class TaskInfo {
 		return problemStatement;
 	}
 
-	public static TaskInfo load(String taskId, File taskDirectory) throws IOException {
+	public static TaskInfo load(String taskId, File taskDirectory, List<String> skeletonFiles) throws InvalidTaskSpecificationException {
 		ObjectMapper o = new ObjectMapper();
-		TaskInfo t = o.readValue(new File(taskDirectory,"task.json"),TaskInfo.class);
-		t.taskId = taskId;
-		return t;
+		try {
+			TaskInfo t = o.readValue(new File(taskDirectory,"task.json"),TaskInfo.class);
+			t.taskId = taskId;
+			if (t.startingPointFiles == null) { t.startingPointFiles = Collections.unmodifiableList(new ArrayList<>(skeletonFiles)); }
+			return t;
+		} catch (IOException e) {
+			throw new InvalidTaskSpecificationException("Failed to load task information for task "+taskId,e);
+		}
+	}
+
+	public List<String> getStartingPointFiles() {
+		return startingPointFiles;
 	}
 
 	public void save(File taskDirectory) throws IOException {

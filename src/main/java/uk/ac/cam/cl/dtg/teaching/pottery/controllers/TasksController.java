@@ -1,7 +1,5 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
-import java.io.IOException;
-import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -25,10 +23,8 @@ import com.wordnik.swagger.annotations.ApiOperation;
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskRegistrationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.BuilderInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -75,7 +71,7 @@ public class TasksController {
 	@POST
 	@Path("/create")
 	@ApiOperation(value="Create a new task",response=TaskInfo.class)
-	public TaskInfo create() throws TaskException {
+	public TaskInfo create() throws TaskStorageException {
 		return taskManager.createNewTask();
 	}
 	
@@ -89,7 +85,7 @@ public class TasksController {
 	@POST
 	@Path("/{taskId}/register")
 	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.")
-	public BuilderInfo scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
+	public BuilderInfo scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) {
 		return taskManager.getTask(taskID).scheduleBuildRegisteredCopy(sha1, worker);
 	}
 	
@@ -103,7 +99,7 @@ public class TasksController {
 	@POST
 	@Path("/{taskId}/update")
 	@ApiOperation(value="Registers (or updates the testing version) of a task.")
-	public BuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskID) throws TaskRegistrationException, TaskException, TaskCloneException, IOException, SQLException {
+	public BuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskID) {
 		return taskManager.getTask(taskID).scheduleBuildTestingCopy(worker);
 	}
 	

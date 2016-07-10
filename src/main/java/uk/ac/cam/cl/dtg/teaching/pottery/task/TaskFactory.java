@@ -21,7 +21,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 
 @Singleton
 public class TaskFactory {
@@ -72,7 +74,8 @@ public class TaskFactory {
 						"<p>Template task</p>",
 						new ContainerRestrictions(),
 						new ContainerRestrictions(),
-						new ContainerRestrictions());
+						new ContainerRestrictions(),
+						null);
 				i.save(stdTemplate);
 				g.add().addFilepattern("task.json").call();
 				g.commit().setMessage("Initial commit").call();
@@ -86,13 +89,19 @@ public class TaskFactory {
 			.forEach(f -> uuidGenerator.reserve(f.getName()));		
 	}
 	
-	public Task getInstance(String taskId) throws TaskException {
+	public Task getInstance(String taskId) throws InvalidTaskSpecificationException, TaskStorageException, TaskNotFoundException {
 		try{
 			return cache.get(taskId);
 		} catch (ExecutionException e) {
 			// this is thrown if an exception is thrown in the load method of the cache.
-			if (e.getCause() instanceof TaskException) {
-				throw (TaskException)e.getCause();
+			if (e.getCause() instanceof InvalidTaskSpecificationException) {					
+				throw (InvalidTaskSpecificationException)e.getCause();
+			}
+			else if (e.getCause() instanceof TaskStorageException) {
+				throw (TaskStorageException)e.getCause();
+			}
+			else if (e.getCause() instanceof TaskNotFoundException) {
+				throw (TaskNotFoundException)e.getCause();
 			}
 			else {
 				throw new Error(e);
@@ -100,7 +109,7 @@ public class TaskFactory {
 		}
 	}
 	
-	public Task createInstance() throws TaskException {
+	public Task createInstance() throws TaskStorageException  {
 		final String newRepoId = uuidGenerator.generate();
 		try {
 			return cache.get(newRepoId, new Callable<Task>() {
@@ -110,8 +119,8 @@ public class TaskFactory {
 				}
 			});
 		} catch (ExecutionException e) {
-			if (e.getCause() instanceof TaskException) {
-				throw (TaskException)e.getCause();
+			if (e.getCause() instanceof TaskStorageException) {					
+				throw (TaskStorageException)e.getCause();
 			}
 			else {
 				throw new Error(e);

@@ -1,7 +1,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.exceptions;
 
 
-public class NoHeadInRepoException extends RepoException {
+public class NoHeadInRepoException extends RepoStorageException {
 
 	private static final long serialVersionUID = 1L;
 

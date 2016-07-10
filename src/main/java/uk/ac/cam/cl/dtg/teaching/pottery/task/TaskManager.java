@@ -1,6 +1,5 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -8,7 +7,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,8 +17,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 
 @Singleton
 public class TaskManager {
@@ -32,13 +31,15 @@ public class TaskManager {
 	private TaskFactory taskFactory;
 	
 	@Inject
-	public TaskManager(ContainerManager containerManager, TaskFactory taskFactory, Database database) throws GitAPIException, IOException, SQLException, TaskException {
+	public TaskManager(ContainerManager containerManager, TaskFactory taskFactory, Database database) throws TaskStorageException {
 		this.taskFactory = taskFactory;
 		this.definedTasks = new HashMap<>();
 		
 		List<String> taskIds;
 		try(TransactionQueryRunner q = database.getQueryRunner()) {
 			taskIds = TaskDefInfo.getAllTaskIds(q);
+		} catch (SQLException e1) {
+			throw new TaskStorageException("Failed to load list of tasks from database",e1);
 		}
 		
 		for(String taskId : taskIds) {
@@ -46,13 +47,13 @@ public class TaskManager {
 				Task t = taskFactory.getInstance(taskId);
 				definedTasks.put(taskId, t);
 			}
-			catch (TaskException e) {
+			catch (TaskNotFoundException|InvalidTaskSpecificationException|TaskStorageException e) {
 				LOG.warn("Ignoring task "+taskId,e);
 			}
 		}
 	}
 	
-	public TaskInfo createNewTask() throws TaskException {
+	public TaskInfo createNewTask() throws TaskStorageException {
 		Task newTask = taskFactory.createInstance();
 		definedTasks.put(newTask.getTaskId(), newTask);
 		return new TaskInfo(newTask.getTaskId());

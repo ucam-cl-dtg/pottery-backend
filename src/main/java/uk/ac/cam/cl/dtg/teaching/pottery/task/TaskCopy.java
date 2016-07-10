@@ -18,6 +18,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TwoPhaseLatch;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 
 /**
  * A task copy is a checkout of a task. Its made by copying files out of the
@@ -43,14 +45,15 @@ public class TaskCopy implements AutoCloseable {
 	 * @param copyId the unique ID for this copy
 	 * @param sha1 the SHA1 of the copy we made from the parent repo
 	 * @param config information for tasks
-	 * @throws IOException if we can't load the task information from the filesystem
+	 * @throws InvalidTaskSpecificationException if we can't load the task specification
+	 * @throws TaskStorageException 
 	 */
-	TaskCopy(String taskId, String copyId, String sha1, TaskConfig config) throws IOException {
+	TaskCopy(String taskId, String copyId, String sha1, TaskConfig config) throws InvalidTaskSpecificationException, TaskStorageException {
 		super();
 		this.copyId = copyId;
 		this.config = config;
 		this.sha1 = sha1;
-		this.info = TaskInfo.load(taskId,config.getTaskCopyDir(copyId));
+		this.info = TaskInfo.load(taskId,config.getTaskCopyDir(copyId),listSkeleton());
 	}
 
 	public String getSha1() {
@@ -67,6 +70,28 @@ public class TaskCopy implements AutoCloseable {
 
 	public File getLocation() {
 		return config.getTaskCopyDir(copyId);
+	}
+	
+	public List<String> listSkeleton() throws TaskStorageException {
+		File sourceLocation = config.getSkeletonDir(copyId);
+		if (!sourceLocation.exists()) {
+			return new LinkedList<>();
+		}
+		
+		try {
+			List<String> result = new LinkedList<>();
+			Files.walkFileTree(sourceLocation.toPath(), new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					Path localLocation = sourceLocation.toPath().relativize(file);
+					result.add(localLocation.toString());
+					return FileVisitResult.CONTINUE;
+				}
+			});
+			return result;
+		} catch (IOException e) {
+			throw new TaskStorageException("Failed to access skeleton files for task "+info.getTaskId()+ " stored in copy "+copyId,e);
+		}
 	}
 	
 	/**

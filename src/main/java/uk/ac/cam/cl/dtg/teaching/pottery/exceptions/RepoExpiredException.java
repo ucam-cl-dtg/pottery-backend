@@ -1,6 +1,8 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.exceptions;
 
-public class RepoExpiredException extends Exception {
+import uk.ac.cam.cl.dtg.teaching.exceptions.HttpStatusCode403;
+
+public class RepoExpiredException extends Exception implements HttpStatusCode403 {
 
 	private static final long serialVersionUID = 1L;
 

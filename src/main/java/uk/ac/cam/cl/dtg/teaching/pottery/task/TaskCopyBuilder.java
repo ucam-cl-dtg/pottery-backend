@@ -1,7 +1,6 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import java.io.File;
-import java.io.IOException;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
@@ -14,7 +13,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCloneException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -55,21 +56,10 @@ public class TaskCopyBuilder {
 	
 	/**
 	 * Instances of this class should be created by the Task object only. The
-	 * task object has to ensure that there is only one instance per copyId
-	 * 
-	 * @param sha1
-	 *            the SHA1 of the parent repo to copy
-	 * @param taskId
-	 *            the ID of the task we are copying for
-	 * @param copyId
-	 *            the ID of the copy
-	 * @param taskConfig
-	 *            config information for tasks
-	 * @throws IOException 
+	 * task object has to ensure that there is only one instance per copyId.
 	 */
-	TaskCopyBuilder(String sha1, String taskId, String copyId, TaskConfig taskConfig) throws IOException {
+	private TaskCopyBuilder(String sha1, String taskId, String copyId, TaskConfig taskConfig) {
 		final File taskDefDir = taskConfig.getTaskDefinitionDir(taskId);				
-
 
 		// We know that noone else will have access to the TaskCopy until we are done
 		// 1) our copyId is unique and Task ensures that there is only one instance of TaskCopyBuilder for each copyId
@@ -78,16 +68,6 @@ public class TaskCopyBuilder {
 		
 		this.builderInfo = new BuilderInfo(sha1);
 		this.taskCopy = null;
-		
-		if (copyId != null && taskConfig.getTaskCopyDir(copyId).exists()) {
-			this.taskCopy = new TaskCopy(taskId, copyId, sha1, taskConfig);
-			this.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
-		}
-		
-		if (copyId == null) {
-			this.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
-		}
-		
 		this.copyFiles = new Job() {
 			@Override
 			public boolean execute(TaskManager taskManager, RepoFactory repoFactory, ContainerManager containerManager,
@@ -101,11 +81,44 @@ public class TaskCopyBuilder {
 					Database database) throws Exception {
 				
 				return compileFiles(taskConfig, taskDefDir, containerManager);
-			}
-
-			
+			}			
 		};
 	}
+	
+	static TaskCopyBuilder createNew(String sha1, String taskId, String copyId, TaskConfig taskConfig) {
+		return new TaskCopyBuilder(sha1,taskId,copyId,taskConfig);		
+	}
+	
+	static TaskCopyBuilder createForExisting(String sha1, String taskId, String copyId, TaskConfig taskConfig) throws InvalidTaskSpecificationException, TaskCopyNotFoundException, TaskStorageException {
+		TaskCopyBuilder result = new TaskCopyBuilder(sha1,taskId,copyId,taskConfig);
+		if (taskConfig.getTaskCopyDir(copyId).exists()) {
+			result.taskCopy = new TaskCopy(taskId, copyId, sha1, taskConfig);
+			result.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
+		}
+		else {
+			throw new TaskCopyNotFoundException("Task copy "+copyId+" for task "+taskId+" not found");
+		}
+		return result;
+	}
+	
+	/**
+	 * Create a placeholder TaskCopyBuilder to represent that no TaskCopy has been built
+	 */
+	static TaskCopyBuilder createSuccessPlaceholder(String sha1, String taskId, TaskConfig taskConfig) {
+		TaskCopyBuilder result = new TaskCopyBuilder(sha1,taskId,null,taskConfig);
+		result.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
+		return result;
+	}
+
+	/**
+	 * Create a placeholder TaskCopyBuilder to represent that something went wrong in intialising the TaskCopy process
+	 */
+	static TaskCopyBuilder createFailurePlaceholder(String taskId, TaskConfig taskConfig, Exception e) {
+		TaskCopyBuilder result = new TaskCopyBuilder("INVALID",taskId,null,taskConfig);
+		result.builderInfo.setException(e);
+		return result;
+	}
+
 	
 	TaskCopy getTaskCopy() {
 		// Don't give out TaskCopy objects until we've finished building
@@ -159,14 +172,14 @@ public class TaskCopyBuilder {
 		try (Git g = Git.cloneRepository().setURI(taskDefDir.getPath()).setDirectory(location).call()) {
 				g.reset().setMode(ResetType.HARD).setRef(sha1).call();
 		} catch (GitAPIException e) {
-			builderInfo.setException(new TaskCloneException("Failed to create clone of " + taskDefDir + " and reset to " + sha1,e));
+			builderInfo.setException(new TaskStorageException("Failed to create clone of " + taskDefDir + " and reset to " + sha1,e));
 			return false;
 		}
 		
 		try {
 			taskCopy = new TaskCopy(taskId,copyId,sha1,taskConfig);
-		} catch (IOException e) {
-			builderInfo.setException(new TaskCloneException("Failed to load task info",e));
+		} catch (InvalidTaskSpecificationException | TaskStorageException e) {
+			builderInfo.setException(e);
 			return false;
 		}
 		
@@ -183,7 +196,7 @@ public class TaskCopyBuilder {
 		builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TEST);
 		ExecResponse r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
 		if (!r.isSuccess()) {
-			builderInfo.setException(new TaskCloneException("Failed to compile testing code in task. "+r.getResponse()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile testing code in task. "+r.getResponse()));
 			return false;
 		}
 		
@@ -195,7 +208,7 @@ public class TaskCopyBuilder {
 				image,
 				taskInfo.getCompilationRestrictions());
 		if (!r2.isSuccess()) {
-			builderInfo.setException(new TaskCloneException("Failed to compile solution when testing task during registration. " + r2.getFailMessage()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile solution when testing task during registration. " + r2.getFailMessage()));
 			return false;
 		}
 		
@@ -206,7 +219,7 @@ public class TaskCopyBuilder {
 				image, 
 				taskInfo.getHarnessRestrictions());
 		if (!r3.isSuccess()) {
-			builderInfo.setException(new TaskCloneException("Failed to run harness when testing task during registration. " + r3.getFailMessage()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to run harness when testing task during registration. " + r3.getFailMessage()));
 			return false;
 		}
 		
@@ -216,7 +229,7 @@ public class TaskCopyBuilder {
 				image,
 				taskInfo.getValidatorRestrictions());
 		if (!r4.isSuccess()) {
-			builderInfo.setException(new TaskCloneException("Failed to validate harness results when testing task during registration. " + r4.getFailMessage()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to validate harness results when testing task during registration. " + r4.getFailMessage()));
 			return false;
 		}
 		

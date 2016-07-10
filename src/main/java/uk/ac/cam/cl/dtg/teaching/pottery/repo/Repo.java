@@ -47,8 +47,10 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskManager;
@@ -113,10 +115,10 @@ public class Repo {
 	/** 
 	 * Recursively copy all files from the given sourceLocation and add them to the repository 
 	 * @param sourceLocation the location to copy from
-	 * @throws RepoException
+	 * @throws RepoStorageException
 	 * @throws RepoExpiredException 
 	 */
-	public void copyFiles(TaskCopy task) throws RepoException, RepoExpiredException {
+	public void copyFiles(TaskCopy task) throws RepoStorageException, RepoExpiredException {
 		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
@@ -132,17 +134,17 @@ public class Repo {
 				} catch (IOException | GitAPIException e) {
 					try {
 						git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
-						throw new RepoException("An error occurred when copying and adding to repository. Rolled back",e);
+						throw new RepoStorageException("An error occurred when copying and adding to repository. Rolled back",e);
 					} catch (GitAPIException|JGitInternalException e1) {
 						e1.addSuppressed(e);
-						throw new RepoException("Failed to rollback failed update",e1);
+						throw new RepoStorageException("Failed to rollback failed update",e1);
 					}
 				}
 			} catch (IOException e2) {
-				throw new RepoException("Failed to open repository",e2);
+				throw new RepoStorageException("Failed to open repository",e2);
 			}
 		} catch (InterruptedException e) {
-			throw new RepoException("Interrupted whilst waiting for file writing lock",e);
+			throw new RepoStorageException("Interrupted whilst waiting for file writing lock",e);
 		}
 	}
 	
@@ -154,9 +156,10 @@ public class Repo {
 	 * @param tag
 	 * @param database
 	 * @return
+	 * @throws SubmissionStorageException 
 	 * @throws SQLException
 	 */
-	public Submission getSubmission(String tag, Database database) throws SQLException {
+	public Submission getSubmission(String tag, Database database) throws SubmissionStorageException {
 		synchronized (lockFields) {
 				if (currentSubmission != null && currentSubmission.getTag().equals(tag)) {
 					return currentSubmission;
@@ -164,6 +167,8 @@ public class Repo {
 		}	
 		try (TransactionQueryRunner q = database.getQueryRunner()) {
 			return Submission.getByRepoIdAndTag(repoId, tag, q);
+		} catch (SQLException e) {
+			throw new SubmissionStorageException("Failed to load submission from database",e);
 		}
 	}
 	
@@ -192,10 +197,10 @@ public class Repo {
 	 * @param w
 	 * @param db
 	 * @return
-	 * @throws SQLException
 	 * @throws RepoExpiredException 
+	 * @throws SubmissionStorageException 
 	 */
-	public Submission scheduleSubmission(String tag, Worker w, Database db) throws SQLException, RepoExpiredException {
+	public Submission scheduleSubmission(String tag, Worker w, Database db) throws RepoExpiredException, SubmissionStorageException {
 		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		
 		synchronized (lockFields) {
@@ -221,7 +226,7 @@ public class Repo {
 						try (AutoCloseableLock l = lock.takeFileWritingLock()) {						
 							try {
 								setVersionToTest(tag);
-							} catch (RepoException e) {
+							} catch (RepoStorageException e) {
 								updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Failed to reset repository to requested tag ("+tag+")",0)));
 								return false;
 							}
@@ -271,19 +276,19 @@ public class Repo {
 	 * Update the checkout of this repo that we use for testing to point to a new tag
 	 * 
 	 * @param tag the tag to update the test to point to
-	 * @throws RepoException if something goes wrong
+	 * @throws RepoStorageException if something goes wrong
 	 */
-	private void setVersionToTest(String tag) throws RepoException {
+	private void setVersionToTest(String tag) throws RepoStorageException {
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			if (repoTestingDirectory.exists()) {
 				try {
 					FileUtil.deleteRecursive(repoTestingDirectory);
 				} catch (IOException e) {
-					throw new RepoException("Failed to delete previous testing directory",e);
+					throw new RepoStorageException("Failed to delete previous testing directory",e);
 				}
 			}
 			if (!repoTestingDirectory.mkdirs()) {
-				throw new RepoException("Failed to create directory for holding test checkout");
+				throw new RepoStorageException("Failed to create directory for holding test checkout");
 			}
 		
 			try (Git g = Git.cloneRepository()
@@ -292,10 +297,10 @@ public class Repo {
 				.setBranch(tag)
 				.call()) {
 			} catch (GitAPIException e) {
-				throw new RepoException("Failed to clone repository",e);
+				throw new RepoStorageException("Failed to clone repository",e);
 			}
 		} catch (InterruptedException e) {
-			throw new RepoException("Inerrupted whilst waiting for file writing lock",e);
+			throw new RepoStorageException("Inerrupted whilst waiting for file writing lock",e);
 		}
 	}
 
@@ -304,17 +309,17 @@ public class Repo {
 	 * Check if tag is defined in this repository
 	 * @param tag to check for
 	 * @return true if tag exists
-	 * @throws RepoException if something goes wrong
+	 * @throws RepoStorageException if something goes wrong
 	 */
-	public boolean existsTag(String tag) throws RepoException {
+	public boolean existsTag(String tag) throws RepoStorageException {
 		try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				return git.getRepository().resolve(Constants.R_TAGS+tag) != null;
 			} catch (IOException e) {
-				throw new RepoException("Failed to lookup tag in repository "+repoId,e);
+				throw new RepoStorageException("Failed to lookup tag in repository "+repoId,e);
 			}
 		} catch (InterruptedException e) {
-			throw new RepoException("Interrupted whilst waiting for git operation lock",e);
+			throw new RepoStorageException("Interrupted whilst waiting for git operation lock",e);
 		}
 	}
 	
@@ -323,9 +328,9 @@ public class Repo {
 	 * List the files in this repo tagged with a particular tag
 	 * @param tag the tag of interest
 	 * @return a list of file names relative to the root of the repository
-	 * @throws RepoException
+	 * @throws RepoStorageException
 	 */
-	public List<String> listFiles(String tag) throws RepoException {
+	public List<String> listFiles(String tag) throws RepoStorageException {
 		try (AutoCloseableLock l = lock.takeFileReadingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				Repository repo = git.getRepository();
@@ -348,10 +353,10 @@ public class Repo {
 					return new LinkedList<String>();
 				} 
 			} catch (IOException e) {
-				throw new RepoException("Failed to access files in repository "+repoId+" under tag "+tag,e);
+				throw new RepoStorageException("Failed to access files in repository "+repoId+" under tag "+tag,e);
 			}
 		} catch (InterruptedException e ) {
-			throw new RepoException("Interrupted whilst waiting for file reading lock",e);
+			throw new RepoStorageException("Interrupted whilst waiting for file reading lock",e);
 		}
 	}
 
@@ -359,10 +364,10 @@ public class Repo {
 	/**
 	 * Create a new tag in this repository
 	 * @return the name of the tag
-	 * @throws RepoException
+	 * @throws RepoStorageException
 	 * @throws RepoExpiredException 
 	 */
-	public String createNewTag() throws RepoException, RepoExpiredException {
+	public String createNewTag() throws RepoStorageException, RepoExpiredException {
 		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
 			try (Git git = Git.open(repoDirectory)) {
@@ -370,7 +375,7 @@ public class Repo {
 				try {
 					tagList = git.tagList().call();
 				} catch (GitAPIException e) {
-					throw new RepoException("Failed to list all tags in repo",e);
+					throw new RepoStorageException("Failed to list all tags in repo",e);
 				}
 				
 				String prefix = Constants.R_TAGS+webtagPrefix;
@@ -382,7 +387,7 @@ public class Repo {
 						try {
 							value = Integer.parseInt(tagName.substring(prefix.length()));
 						} catch (NumberFormatException e) {
-							throw new RepoException("Failed to parse tag name "+tagName,e);						
+							throw new RepoStorageException("Failed to parse tag name "+tagName,e);						
 						}
 						if (value > max) max = value;
 					}				
@@ -393,24 +398,24 @@ public class Repo {
 				try {
 					git.tag().setName(newTag).call();
 				} catch (GitAPIException e) {
-					throw new RepoException("Failed to apply tag "+newTag+" to repo",e);
+					throw new RepoStorageException("Failed to apply tag "+newTag+" to repo",e);
 				}
 				return newTag;
 			} 
 			catch (IOException e) {
-				throw new RepoException("Failed to open repository "+repoId,e);
+				throw new RepoStorageException("Failed to open repository "+repoId,e);
 			}
 		} catch (InterruptedException e) {
-			throw new RepoException("Interrupted whilst waiting for git operation lock",e);
+			throw new RepoStorageException("Interrupted whilst waiting for git operation lock",e);
 		}
 	}
 	
 	/**
 	 * List all tags in this repository (only tags which have the webtag prefix are returned
 	 * @return a list of tag names
-	 * @throws RepoException if something goes wrong
+	 * @throws RepoStorageException if something goes wrong
 	 */
-	public List<String> listTags() throws RepoException {
+	public List<String> listTags() throws RepoStorageException {
 		String prefix = Constants.R_TAGS+webtagPrefix;
 		try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
 			try (Git g = Git.open(repoDirectory)) {
@@ -420,10 +425,10 @@ public class Repo {
 						collect(Collectors.toList());
 			}
 			catch (IOException|GitAPIException e) {
-				throw new RepoException("Failed to get tag list",e);
+				throw new RepoStorageException("Failed to get tag list",e);
 			}
 		} catch (InterruptedException e) {
-			throw new RepoException("Interrupted whilst waiting for git operation lock",e);
+			throw new RepoStorageException("Interrupted whilst waiting for git operation lock",e);
 		}
 	}
 
@@ -432,10 +437,10 @@ public class Repo {
 	 * Set the contents of the repository to be the same as at the particular tag. Note that this does a git revert and not a reset.
 	 * 
 	 * @param tag the tag to reset to
-	 * @throws RepoException if something goes wrong
+	 * @throws RepoStorageException if something goes wrong
 	 * @throws RepoExpiredException 
 	 */
-	public void reset(String tag) throws RepoException, RepoExpiredException {
+	public void reset(String tag) throws RepoStorageException, RepoExpiredException {
 		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
@@ -452,11 +457,11 @@ public class Repo {
 				rev.call();
 			}
 			catch (GitAPIException|IOException e) {
-				throw new RepoException("Failed to reset repo to tag "+tag,e);
+				throw new RepoStorageException("Failed to reset repo to tag "+tag,e);
 			}
 		}
 		catch (InterruptedException e) {
-			throw new RepoException("Interrupted whilst waiting for file writing lock",e);
+			throw new RepoStorageException("Interrupted whilst waiting for file writing lock",e);
 		}
 	}
 	
@@ -464,12 +469,30 @@ public class Repo {
 	/**
 	 * Delete the file specified
 	 * @param fileName relative to the root of the repository
-	 * @throws RepoException if we fail to delete the file
+	 * @throws RepoStorageException if we fail to delete the file
 	 * @throws RepoExpiredException 
+	 * @throws RepoFileNotFoundException 
 	 */
-	public void deleteFile(String fileName) throws RepoException, RepoExpiredException {
+	public void deleteFile(String fileName) throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException {
 		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+			File f = new File(repoDirectory,fileName);
+			try {
+				if (!FileUtil.isParent(repoDirectory, f)) {
+					throw new RepoFileNotFoundException("Invalid fileName "+fileName);
+				}
+			} catch (IOException e) {
+				throw new RepoStorageException("Failed to perform security check on requested filename",e);
+			}
+
+			if (!f.exists()) {
+				throw new RepoFileNotFoundException("File does not exist");
+			}
+			
+			if (f.isDirectory()) {
+				throw new RepoFileNotFoundException("File is a directory");
+			}
+			
 			try (Git git = Git.open(repoDirectory)) {
 				try {
 					git.rm().addFilepattern(fileName).call();
@@ -478,18 +501,18 @@ public class Repo {
 				catch (GitAPIException e) {
 					try {
 						git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
-						throw new RepoException("Failed to commit delete of "+fileName+". Rolled back",e);
+						throw new RepoStorageException("Failed to commit delete of "+fileName+". Rolled back",e);
 					} catch (GitAPIException e1) {
 						e1.addSuppressed(e);
-						throw new RepoException("Failed to rollback delete of "+fileName,e1);
+						throw new RepoStorageException("Failed to rollback delete of "+fileName,e1);
 					}
 				}
 			}
 			catch (IOException e) {
-				throw new RepoException("Failed to open repository "+repoId,e);
+				throw new RepoStorageException("Failed to open repository "+repoId,e);
 			}
 		} catch (InterruptedException e) {
-			throw new RepoException("Interrupted whilst waiting for file writing lock",e);
+			throw new RepoStorageException("Interrupted whilst waiting for file writing lock",e);
 		}
 	}
 
@@ -498,37 +521,38 @@ public class Repo {
 	 * Replace the contents of a file
 	 * @param fileName the filename with path relative to the root of the repository
 	 * @param data to replace the contents of the file with
-	 * @throws RepoException
+	 * @throws RepoStorageException
 	 * @throws RepoExpiredException 
+	 * @throws RepoFileNotFoundException 
 	 */
-	public void updateFile(String fileName, byte[] data) throws RepoException, RepoExpiredException {
+	public void updateFile(String fileName, byte[] data) throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException {
 		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			File f = new File(repoDirectory,fileName);
 			try {
 				if (!FileUtil.isParent(repoDirectory, f)) {
-					throw new RepoException("Invalid fileName "+fileName);
+					throw new RepoFileNotFoundException("Invalid fileName "+fileName);
 				}
 			} catch (IOException e) {
-				throw new RepoException("Failed to perform security check on requested filename",e);
+				throw new RepoStorageException("Failed to perform security check on requested filename",e);
 			}
 
 			if (f.isDirectory()) {
-				throw new RepoException("File already exists and is a directory");
+				throw new RepoFileNotFoundException("File already exists and is a directory");
 			}
 
 			File parentFile = f.getParentFile();
 
 			if (!parentFile.exists()) {
 				if (!parentFile.mkdirs()) {
-					throw new RepoException("Failed to create directories for "+fileName);
+					throw new RepoStorageException("Failed to create directories for "+fileName);
 				}
 			}
 			try(FileOutputStream fos = new FileOutputStream(f)) {
 				IOUtils.write(data, fos);
 			} 
 			catch (IOException e) {
-				throw new RepoException("Failed to write data to file "+fileName,e);
+				throw new RepoStorageException("Failed to write data to file "+fileName,e);
 			}
 			try (Git git = Git.open(repoDirectory)) {
 				try {
@@ -537,18 +561,18 @@ public class Repo {
 				} catch (GitAPIException e) {
 					try {
 						git.reset().setMode(ResetType.HARD).setRef(Constants.HEAD).call();
-						throw new RepoException("Failed to commit update to "+fileName+". Rolled back",e);
+						throw new RepoStorageException("Failed to commit update to "+fileName+". Rolled back",e);
 					} catch (GitAPIException e1) {
 						e1.addSuppressed(e);
-						throw new RepoException("Failed to rollback failed update to "+fileName,e1);
+						throw new RepoStorageException("Failed to rollback failed update to "+fileName,e1);
 					}
 				}
 			}
 			catch (IOException e) {
-				throw new RepoException("Failed to open repository",e);
+				throw new RepoStorageException("Failed to open repository",e);
 			}
 		} catch (InterruptedException e) {
-			throw new RepoException("Interrupted whilst waiting for file writing lock",e);
+			throw new RepoStorageException("Interrupted whilst waiting for file writing lock",e);
 		}
 	}
 
@@ -558,9 +582,10 @@ public class Repo {
 	 * @param tag the tag of the version to use or HEAD
 	 * @param fileName the filename relative to the root of the repository
 	 * @return a StreamingOutput instance containing the data
-	 * @throws RepoException if something goes wrong
+	 * @throws RepoStorageException if something goes wrong
+	 * @throws RepoFileNotFoundException 
 	 */
-	public StreamingOutput readFile(String tag, String fileName) throws RepoException {
+	public StreamingOutput readFile(String tag, String fileName) throws RepoStorageException, RepoFileNotFoundException {
 		try (AutoCloseableLock l = lock.takeFileReadingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				Repository repo = git.getRepository();
@@ -594,11 +619,11 @@ public class Repo {
 				}
 			}
 			catch (IOException e) {
-				throw new RepoException("Failed to read file from repository",e);
+				throw new RepoFileNotFoundException("Failed to read file from repository",e);
 			}
 		}
 		catch (InterruptedException e) {
-			throw new RepoException("Interrupted whilst waiting for file reading lock",e);
+			throw new RepoStorageException("Interrupted whilst waiting for file reading lock",e);
 		}
   	}
 	
@@ -607,7 +632,7 @@ public class Repo {
 	
 	private RevTree getRevTree(String tag, Repository repo, RevWalk revWalk)
 			throws AmbiguousObjectException, IncorrectObjectTypeException,
-			IOException, RepoException, MissingObjectException, NoHeadInRepoException {
+			IOException, RepoStorageException, MissingObjectException, NoHeadInRepoException {
 		RevTree tree;
 		try {
 			ObjectId tagId = repo.resolve(Constants.HEAD.equals(tag) ? Constants.HEAD : Constants.R_TAGS+tag);
@@ -616,14 +641,14 @@ public class Repo {
 					throw new NoHeadInRepoException("Failed to find HEAD in repo.");
 				}
 				else {
-					throw new RepoException("Failed to find tag "+tag);
+					throw new RepoStorageException("Failed to find tag "+tag);
 				}
 			}
 			RevCommit revCommit = revWalk.parseCommit(tagId);
 			tree = revCommit.getTree();
 
 		} catch (RevisionSyntaxException e) {
-			throw new RepoException("Failed to load revision for head of repository",e);
+			throw new RepoStorageException("Failed to load revision for head of repository",e);
 		}
 		return tree;
 	}
@@ -636,14 +661,14 @@ public class Repo {
 	 * @param config server configuration
 	 * @param database database connection
 	 * @return a repo object for this repository
-	 * @throws RepoException if the repository does not exist or if it can't be opened
+	 * @throws RepoStorageException if the repository does not exist or if it can't be opened
 	 */
-	static Repo openRepo(String repoId, RepoConfig config, Database database) throws RepoException {
+	static Repo openRepo(String repoId, RepoConfig config, Database database) throws RepoStorageException {
 		
 		File repoDirectory = new File(config.getRepoRoot(),repoId);
 		
 		if (!repoDirectory.exists()) {
-			throw new RepoException("Failed to find repository directory "+repoDirectory);
+			throw new RepoStorageException("Failed to find repository directory "+repoDirectory);
 		}
 		
 		try(TransactionQueryRunner q = database.getQueryRunner()) {
@@ -652,11 +677,11 @@ public class Repo {
 				return new Repo(repoId,config, r.getTaskId(),r.isUsingTestingVersion(),r.getExpiryDate());
 			}
 			else {
-				throw new RepoException("Repository with ID "+repoId+" does not exist in database");
+				throw new RepoStorageException("Repository with ID "+repoId+" does not exist in database");
 			}			
 		}
 		catch (SQLException e) {
-			throw new RepoException("Failed to lookup repository with ID "+repoId+" in database",e);
+			throw new RepoStorageException("Failed to lookup repository with ID "+repoId+" in database",e);
 		}
 		
 	}
@@ -670,21 +695,21 @@ public class Repo {
 	 * @param config server configuration
 	 * @param database database connection
 	 * @return a repo object for this repository
-	 * @throws RepoException if the repository couldn't be created
+	 * @throws RepoStorageException if the repository couldn't be created
 	 */
-	static Repo createRepo(String repoId, String taskId, boolean usingTestingVersion, Date expiryDate, RepoConfig config, Database database) throws RepoException {
+	static Repo createRepo(String repoId, String taskId, boolean usingTestingVersion, Date expiryDate, RepoConfig config, Database database) throws RepoStorageException {
 		
 		File repoDirectory = new File(config.getRepoRoot(),repoId);
 		
 		if (!repoDirectory.mkdir()) {
-			throw new RepoException("Failed to create repository directory "+repoDirectory);
+			throw new RepoStorageException("Failed to create repository directory "+repoDirectory);
 		}
 		
 		try {
 			Git.init().setDirectory(repoDirectory).call().close();
 		}
 		catch (GitAPIException e) { 
-			RepoException t = new RepoException("Failed to initialise git repository",e);
+			RepoStorageException t = new RepoStorageException("Failed to initialise git repository",e);
 			try {
 				FileUtil.deleteRecursive(repoDirectory);
 			}
@@ -700,7 +725,7 @@ public class Repo {
 			r.insert(t);
 			t.commit();
 		} catch (SQLException e) {
-			RepoException t = new RepoException("Failed to store repository details",e); 
+			RepoStorageException t = new RepoStorageException("Failed to store repository details",e); 
 			try {
 				FileUtil.deleteRecursive(repoDirectory);
 			} catch (IOException e1) {
