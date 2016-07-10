@@ -20,6 +20,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -35,6 +36,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
@@ -72,7 +74,7 @@ public class Task {
 	 */
 	private final String taskId;
 
-	private volatile boolean retired;
+	private AtomicBoolean retired;
 
 	/**
 	 * The taskdef is a bare git repo which is the upsteam source for the task
@@ -97,7 +99,7 @@ public class Task {
 		this.testingCopy = testingCopy;
 		this.registeredBuilder = registeredBuilder;
 		this.registeredCopy = registeredCopy;
-		this.retired = retired;
+		this.retired = new AtomicBoolean(retired);
 		this.taskDefDir = config.getTaskDefinitionDir(taskId);
 		this.config = config;
 		this.uuidGenerator = uuidGenerator;		
@@ -108,17 +110,19 @@ public class Task {
 	}
 
 	public boolean isRetired() {
-		return retired;
+		return retired.get();
 	}
 
-	public void setRetired(boolean retired, Database database) throws TaskStorageException {
+	
+	public void setRetired(Database database) throws RetiredTaskException, TaskStorageException {
+		if (retired.getAndSet(true)) throw new RetiredTaskException("Cannot retire task "+taskId);		
 		try (TransactionQueryRunner q = database.getQueryRunner()) {
-			TaskDefInfo.updateRetired(taskId, retired, q);
+			TaskDefInfo.updateRetired(taskId, true, q);
 			q.commit();
 		} catch (SQLException e) {
-			throw new TaskStorageException("Failed to update database with task retirement statuse for taskId "+taskId,e);
+			retired.set(false);
+			throw new TaskStorageException("Failed to update database with task retirement status for taskId "+taskId,e);
 		}
-		this.retired = retired;
 	}
 	
 	//*** BEGIN METHODS FOR MANAGING REGISTRATION OF THE TASK AND THE REGISTERED COPY ***
@@ -157,7 +161,8 @@ public class Task {
 		return registeredBuilder.getBuilderInfo(); 
 	}
 
-	public BuilderInfo scheduleBuildRegisteredCopy(String sha1, Worker w) {
+	public BuilderInfo scheduleBuildRegisteredCopy(String sha1, Worker w) throws RetiredTaskException {
+		if (retired.get()) { throw new RetiredTaskException("Cannot schedule registration for task "+taskId); }
 		// We need to ensure there is only one thread in this region at a time
 		// or else we have a race between deciding that we should start a new copy and updating 
 		// registeredBuilder to record it
@@ -186,7 +191,8 @@ public class Task {
 			return registeredBuilder.getBuilderInfo();
 		}
 	}
-
+	
+	
 	private boolean storeNewRegisteredCopy(Worker w, Database database) {
 		// We need to ensure that only one thread is in this region at a time for any particular task instance
 		// or else we have a race on reading the old value of registeredCopy and replacing it with the new one
@@ -243,7 +249,8 @@ public class Task {
 		return testingBuilder.getBuilderInfo(); 
 	}
 	
-	public BuilderInfo scheduleBuildTestingCopy(Worker w) {
+	public BuilderInfo scheduleBuildTestingCopy(Worker w) throws RetiredTaskException {
+		if (retired.get()) { throw new RetiredTaskException("Cannot schedule registration for task "+taskId); }
 		// We need to ensure there is only one thread in this region at a time
 		// or else we have a race between deciding that we should start a new copy and updating 
 		// testingBuilder to record it

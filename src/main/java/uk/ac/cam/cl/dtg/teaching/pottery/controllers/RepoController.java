@@ -48,6 +48,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
@@ -78,13 +79,14 @@ public class RepoController {
 	@ApiOperation(value="Start a new repository",
 		notes="Starts a new repository for solving the specified task",position=0)
 	public RepoInfo makeRepo(@FormParam("taskId") String taskId,@FormParam("usingTestingVersion") Boolean usingTestingVersion,@FormParam("validityMinutes") Integer validityMinutes) 
-			throws TaskNotFoundException, RepoExpiredException, RepoStorageException {
+			throws TaskNotFoundException, RepoExpiredException, RepoStorageException, RetiredTaskException {
 		if (usingTestingVersion == null) usingTestingVersion = false;
 		if (validityMinutes == null) validityMinutes = 60;
 		Calendar cal = Calendar.getInstance();
 		cal.add(Calendar.MINUTE, validityMinutes);
 		Date expiryDate = cal.getTime();
 		Task t = taskIndex.getTask(taskId);
+		if (t.isRetired()) { throw new RetiredTaskException("Cannot start a new repository for task "+taskId); }
 		try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) { 
 			Repo r = repoFactory.createInstance(taskId,usingTestingVersion,expiryDate);
 			r.copyFiles(c);

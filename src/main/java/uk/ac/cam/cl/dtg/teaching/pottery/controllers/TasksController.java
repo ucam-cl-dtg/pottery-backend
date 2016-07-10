@@ -42,6 +42,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.BuilderInfo;
@@ -120,16 +121,16 @@ public class TasksController {
 	
 	@POST
 	@Path("/{taskId}/retire")
-	@ApiOperation(value="Mark a task as retired or unretire it",response=TaskInfo.class)
-	public Response retireTask(@PathParam("taskId") String taskID, @FormParam("retired") boolean retired) throws TaskNotFoundException, TaskStorageException {
-		taskIndex.getTask(taskID).setRetired(retired,database);
+	@ApiOperation(value="Mark a task as retired",response=TaskInfo.class)
+	public Response retireTask(@PathParam("taskId") String taskID) throws TaskNotFoundException, TaskStorageException, RetiredTaskException {
+		taskIndex.getTask(taskID).setRetired(database);
 		return Response.ok().entity("{\"message\":\"OK\"}").build();
 	}
 	
 	@POST
 	@Path("/{taskId}/register")
 	@ApiOperation(value="Registers (or updates the registered version) of a task. If sha1 is not specified then HEAD is used.")
-	public BuilderInfo scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskNotFoundException {
+	public BuilderInfo scheduleTaskRegistration(@PathParam("taskId") String taskID, @FormParam("sha1") String sha1) throws TaskNotFoundException, RetiredTaskException {
 		return taskIndex.getTask(taskID).scheduleBuildRegisteredCopy(sha1, worker);
 	}
 	
@@ -143,7 +144,7 @@ public class TasksController {
 	@POST
 	@Path("/{taskId}/update")
 	@ApiOperation(value="Registers (or updates the testing version) of a task.")
-	public BuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskID) throws TaskNotFoundException {
+	public BuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskID) throws TaskNotFoundException, RetiredTaskException {
 		return taskIndex.getTask(taskID).scheduleBuildTestingCopy(worker);
 	}
 	

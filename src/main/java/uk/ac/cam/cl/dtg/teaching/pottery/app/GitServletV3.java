@@ -36,6 +36,7 @@ import org.eclipse.jgit.transport.resolver.ServiceNotEnabledException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -69,6 +70,8 @@ public class GitServletV3 extends GitServlet {
 							t.getTask(repoName).scheduleBuildTestingCopy(w);
 						} catch (TaskNotFoundException e) {
 							LOG.error("Task {} not found when triggering git post-update hook",repoName);
+						} catch (RetiredTaskException e) {
+							LOG.info("Did not schedule build of testing copy - task {} is retired",repoName);
 						}
 					}
 				});
