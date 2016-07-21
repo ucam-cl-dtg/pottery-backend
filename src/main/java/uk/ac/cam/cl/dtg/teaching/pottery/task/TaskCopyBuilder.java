@@ -234,7 +234,7 @@ public class TaskCopyBuilder {
 				taskConfig.getHarnessDir(copyId), 
 				image, 
 				taskInfo.getHarnessRestrictions());
-		if (!r3.isSuccess()) {
+		if (!r3.getResponse().isCompleted()) {
 			builderInfo.setException(new InvalidTaskSpecificationException("Failed to run harness when testing task during registration. " + r3.getResponse()));
 			return false;
 		}
@@ -244,7 +244,7 @@ public class TaskCopyBuilder {
 				r3.getResponse(), 
 				image,
 				taskInfo.getValidatorRestrictions());
-		if (!r4.isSuccess()) {
+		if (!r4.getResponse().isCompleted()) {
 			builderInfo.setException(new InvalidTaskSpecificationException("Failed to validate harness results when testing task during registration. " + r4.getResponse()));
 			return false;
 		}
