@@ -211,6 +211,7 @@ public class TaskCopyBuilder {
 
 		builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TEST);
 		ContainerExecResponse<String> r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
+		builderInfo.setTestCompileResponse(r.getResponse());
 		if (!r.isSuccess()) {
 			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile testing code in task. "+r.getResponse()));
 			return false;
@@ -223,6 +224,7 @@ public class TaskCopyBuilder {
 				taskConfig.getCompileDir(copyId), 
 				image,
 				taskInfo.getCompilationRestrictions());
+		builderInfo.setSolutionCompileResponse(r2.getResponse());
 		if (!r2.isSuccess()) {
 			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile solution when testing task during registration. " + r2.getResponse()));
 			return false;
@@ -234,6 +236,7 @@ public class TaskCopyBuilder {
 				taskConfig.getHarnessDir(copyId), 
 				image, 
 				taskInfo.getHarnessRestrictions());
+		builderInfo.setHarnessResponse(r3.getResponse());
 		if (!r3.getResponse().isCompleted()) {
 			builderInfo.setException(new InvalidTaskSpecificationException("Failed to run harness when testing task during registration. " + r3.getResponse()));
 			return false;
@@ -244,6 +247,7 @@ public class TaskCopyBuilder {
 				r3.getResponse(), 
 				image,
 				taskInfo.getValidatorRestrictions());
+		builderInfo.setValidatorResponse(r4.getResponse());
 		if (!r4.getResponse().isCompleted()) {
 			builderInfo.setException(new InvalidTaskSpecificationException("Failed to validate harness results when testing task during registration. " + r4.getResponse()));
 			return false;

@@ -17,6 +17,9 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
+
 /**
  * DTO for tracking information about the progress of creating a TaskCopy
  * @author acr31
@@ -48,6 +51,14 @@ public class BuilderInfo {
 	 */
 	private volatile Exception exception;
 	
+	private volatile String testCompileResponse;
+	
+	private volatile String solutionCompileResponse;
+	
+	private volatile HarnessResponse harnessResponse;
+	
+	private volatile ValidatorResponse validatorResponse;
+	
 	public BuilderInfo(String sha1) {
 		super();
 		this.sha1 = sha1;
@@ -74,5 +85,39 @@ public class BuilderInfo {
 
 	public String getSha1() {
 		return sha1;
+	}
+
+	public String getTestCompileResponse() {
+		return testCompileResponse;
+	}
+
+	public void setTestCompileResponse(String testCompileResponse) {
+		this.testCompileResponse = testCompileResponse;
+	}
+
+	public String getSolutionCompileResponse() {
+		return solutionCompileResponse;
+	}
+
+	public void setSolutionCompileResponse(String solutionCompileResponse) {
+		this.solutionCompileResponse = solutionCompileResponse;
+	}
+
+	public HarnessResponse getHarnessResponse() {
+		return harnessResponse;
+	}
+
+	public void setHarnessResponse(HarnessResponse harnessResponse) {
+		this.harnessResponse = harnessResponse;
+	}
+
+	public ValidatorResponse getValidatorResponse() {
+		return validatorResponse;
+	}
+
+	public void setValidatorResponse(ValidatorResponse validatorResponse) {
+		this.validatorResponse = validatorResponse;
 	}	
+	
+	
 }
