@@ -17,15 +17,15 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
-public class ContainerExecResponse {
+public class ContainerExecResponse<T> {
 	
 	private boolean success;
-	private String response;
+	private T response;
 	private long executionTimeMs;
 	
 	public ContainerExecResponse() {}
 	
-	public ContainerExecResponse(boolean success, String response, long executionTimeMs) {
+	public ContainerExecResponse(boolean success, T response, long executionTimeMs) {
 		super();
 		this.success = success;
 		this.response = response;
@@ -47,10 +47,11 @@ public class ContainerExecResponse {
 	public void setSuccess(boolean success) {
 		this.success = success;
 	}
-	public String getResponse() {
+	
+	public T getResponse() {
 		return response;
 	}
-	public void setResponse(String response) {
+	public void setResponse(T response) {
 		this.response = response;
 	}
 	

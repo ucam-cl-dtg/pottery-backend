@@ -22,7 +22,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -54,9 +53,6 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock;
@@ -80,7 +76,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 public class Repo {
@@ -258,45 +253,20 @@ public class Repo {
 							TaskInfo taskInfo = c.getInfo();
 							String image = taskInfo.getImage();
 							updateSubmission(builder.setStatus(Submission.STATUS_COMPILATION_RUNNING));
-							ContainerExecResponse compilationResponse = containerManager.execCompilation(codeDir, c.getCompileRoot(), image, taskInfo.getCompilationRestrictions());
+							ContainerExecResponse<String> compilationResponse = containerManager.execCompilation(codeDir, c.getCompileRoot(), image, taskInfo.getCompilationRestrictions());
 							updateSubmission(builder.setCompilationResponse(compilationResponse.getResponse(),compilationResponse.isSuccess(),compilationResponse.getExecutionTimeMs()));
 							if (!compilationResponse.isSuccess()) { return false; }
 
 							updateSubmission(builder.setStatus(Submission.STATUS_HARNESS_RUNNING));
-							ContainerExecResponse harnessContainerResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
-							
-							ObjectMapper o = new ObjectMapper();
-							HarnessResponse harnessResponse;
-							try {
-								harnessResponse = o.readValue(harnessContainerResponse.getResponse(),HarnessResponse.class);
-							}
-							catch (IOException e) {
-								harnessResponse = new HarnessResponse("Failed to deserialise harness response: "+e.getMessage());
-							}
-							updateSubmission(builder.setHarnessResponse(harnessResponse,harnessContainerResponse.getExecutionTimeMs()));
-							if (!harnessResponse.isCompleted()) { return false; }
+							ContainerExecResponse<HarnessResponse> harnessResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
+							updateSubmission(builder.setHarnessResponse(harnessResponse.getResponse(),harnessResponse.getExecutionTimeMs()));
+							if (!harnessResponse.getResponse().isCompleted()) { return false; }
 
 							updateSubmission(builder.setStatus(Submission.STATUS_VALIDATOR_RUNNING));
-							List<Measurement> m = harnessResponse.getTestParts().stream().
-									map(p -> p.getMeasurements()).
-									collect(ArrayList::new, ArrayList::addAll, ArrayList::addAll);
-							ContainerExecResponse validationContainerResponse;
-							try {
-								String serializedMeasurements = o.writeValueAsString(m);
-								validationContainerResponse = containerManager.execValidator(c.getValidatorRoot(),serializedMeasurements, image,taskInfo.getValidatorRestrictions());
-							} catch (JsonProcessingException e1) {
-								updateSubmission(builder.setValidatorResponse(new ValidatorResponse("Failed to serialise measurements: "+e1.getMessage()), 0));
-								return false;
-							}
-							ValidatorResponse validatorResponse;
-							try {
-								validatorResponse = o.readValue(validationContainerResponse.getResponse(), ValidatorResponse.class);
-							}
-							catch (IOException e) {
-								validatorResponse = new ValidatorResponse("Failed to deserialise validator response: "+e.getMessage());
-							}
-							updateSubmission(builder.setValidatorResponse(validatorResponse,validationContainerResponse.getExecutionTimeMs()));
-							if (!validatorResponse.isCompleted()) { return false; }
+							
+							ContainerExecResponse<ValidatorResponse> validatorResponse = containerManager.execValidator(c.getValidatorRoot(), harnessResponse.getResponse(), image,taskInfo.getValidatorRestrictions());							
+							updateSubmission(builder.setValidatorResponse(validatorResponse.getResponse(),validatorResponse.getExecutionTimeMs()));
+							if (!validatorResponse.getResponse().isCompleted()) { return false; }
 						}
 						finally {
 							builder.setComplete();

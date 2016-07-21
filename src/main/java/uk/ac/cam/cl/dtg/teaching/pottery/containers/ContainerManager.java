@@ -19,8 +19,10 @@ package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -31,11 +33,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
@@ -53,6 +58,10 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.WaitResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 @Singleton
 public class ContainerManager implements Stoppable {
@@ -136,7 +145,7 @@ public class ContainerManager implements Stoppable {
 
 	private AtomicInteger counter = new AtomicInteger(0);
 
-	public ContainerExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, ContainerRestrictions restrictions) {
+	public <T> ContainerExecResponse<T> exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, ContainerRestrictions restrictions, Function<String,T> converter) throws ContainerExecutionException {
 
 		String containerName = this.config.getContainerPrefix()+counter.incrementAndGet();
 		LOG.debug("Creating container {}",containerName);
@@ -144,7 +153,7 @@ public class ContainerManager implements Stoppable {
 		try {
 			DockerUtil.deleteContainerByName(containerName,docker);
 		} catch (RuntimeException e) {
-			return new ContainerExecResponse(false,e.getMessage(),-1);
+			throw new ContainerExecutionException(e.getMessage());
 		}	
 		
 		long startTime = System.currentTimeMillis();
@@ -211,11 +220,11 @@ public class ContainerManager implements Stoppable {
 							} catch (InterruptedException|ExecutionException e) {}
 						}
 						if (killed) {
-							return new ContainerExecResponse(false,"Timed out after "+restrictions.getTimeoutSec()+" seconds", System.currentTimeMillis() - startTime);
+							throw new ContainerExecutionException("Timed out after "+restrictions.getTimeoutSec()+" seconds");
 						}	
 					}
 					if (diskUsageKiller.isKilled()) {
-						return new ContainerExecResponse(false,"Excessive disk usage. Recorded "+diskUsageKiller.getBytesWritten()+" bytes written", System.currentTimeMillis() - startTime);
+						throw new ContainerExecutionException("Excessive disk usage. Recorded "+diskUsageKiller.getBytesWritten()+" bytes written");
 					}
 					
 					try {
@@ -228,7 +237,7 @@ public class ContainerManager implements Stoppable {
 					}
 					
 					boolean success = waitResponse.statusCode == 0;
-					return new ContainerExecResponse(success, output.toString(),System.currentTimeMillis()-startTime);
+					return new ContainerExecResponse<>(success, converter.apply(output.toString()),System.currentTimeMillis()-startTime);
 				}
 				finally {
 					diskUsageKillerFuture.cancel(false);
@@ -241,45 +250,98 @@ public class ContainerManager implements Stoppable {
 			}
 		} catch (RuntimeException e) {
 			LOG.debug("Error executing container",e);
-			return new ContainerExecResponse(false,e.getMessage(),System.currentTimeMillis() - startTime);
+			throw new ContainerExecutionException(e.getMessage());
 		}
 	}
 
-	public ContainerExecResponse execTaskCompilation(File taskDirHost, String imageName, ContainerRestrictions restrictions) {
-		return exec_container(new PathPair[] {
-				new PathPair(taskDirHost,"/task")
-		}, "/task/compile-test.sh /task/test /task/harness /task/validator", imageName, null,restrictions);
+	public ContainerExecResponse<String> execTaskCompilation(File taskDirHost, String imageName, ContainerRestrictions restrictions) {
+		try {
+			return exec_container(new PathPair[] {
+					new PathPair(taskDirHost,"/task")
+					}, 
+					"/task/compile-test.sh /task/test /task/harness /task/validator", 
+					imageName, 
+					null,
+					restrictions,
+					Function.identity());
+		} catch (ContainerExecutionException e) {
+			return new ContainerExecResponse<>(false,e.getMessage(),-1);
+		}
 	}
 	
-	public ContainerExecResponse execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
-		return exec_container(new PathPair[] { 
-				new PathPair(codeDirHost,"/code"),
-				new PathPair(compilationRecipeDirHost,"/compile"),
-				new PathPair(config.getLibRoot(),"/testlib") },
+	public ContainerExecResponse<String> execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
+		try {
+			return exec_container(new PathPair[] { 
+					new PathPair(codeDirHost,"/code"),
+					new PathPair(compilationRecipeDirHost,"/compile"),
+					new PathPair(config.getLibRoot(),"/testlib") },
 				"/compile/compile-solution.sh /code /testlib",
 				imageName,
-				null, restrictions);			
+				null, 
+				restrictions,
+				Function.identity());
+		} catch (ContainerExecutionException e) {
+			return new ContainerExecResponse<>(false,e.getMessage(),-1);
+		}			
 	}
 
-	public ContainerExecResponse execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
-		return exec_container(new PathPair[] { 
-				new PathPair(codeDirHost,"/code"),
-				new PathPair(harnessRecipeDirHost,"/harness"),
-				new PathPair(config.getLibRoot(),"/testlib") },
+	public ContainerExecResponse<HarnessResponse> execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
+		try {
+			return exec_container(new PathPair[] { 
+					new PathPair(codeDirHost,"/code"),
+					new PathPair(harnessRecipeDirHost,"/harness"),
+					new PathPair(config.getLibRoot(),"/testlib") },
 				"/harness/run-harness.sh /code /harness /testlib",
 				imageName,
-				null, restrictions);
+				null, 
+				restrictions,
+				new Function<String,HarnessResponse>() {
+					@Override
+						public HarnessResponse apply(String t) {
+						try {
+							ObjectMapper o = new ObjectMapper();
+							return o.readValue(t, HarnessResponse.class);
+						} catch (IOException e) {
+							return new HarnessResponse("Failed to deserialise response from harness: "+e.getMessage());
+						}
+					}
+				});
+		} catch (ContainerExecutionException e) {
+			return new ContainerExecResponse<>(false,new HarnessResponse(e.getMessage()),-1);
+		}
 	}
 
-	public ContainerExecResponse execValidator(File validatorDirectory, String harnessResponse,
+	public ContainerExecResponse<ValidatorResponse> execValidator(File validatorDirectory, HarnessResponse harnessResponse,
 			String imageName, ContainerRestrictions restrictions) {
-		return exec_container(new PathPair[] { 
-				new PathPair(validatorDirectory,"/validator"),
-				new PathPair(config.getLibRoot(),"/testlib") },
+		ObjectMapper o = new ObjectMapper();
+		List<Measurement> m = harnessResponse.getTestParts().stream().
+				map(p -> p.getMeasurements()).
+				collect(ArrayList::new, ArrayList::addAll, ArrayList::addAll);
+
+		try {
+			return exec_container(new PathPair[] { 
+					new PathPair(validatorDirectory,"/validator"),
+					new PathPair(config.getLibRoot(),"/testlib") },
 				"/validator/run-validator.sh /validator /testlib",
 				imageName,
-				harnessResponse,
-				restrictions);
+				o.writeValueAsString(m),
+				restrictions,
+				new Function<String,ValidatorResponse>() {
+					@Override
+					public ValidatorResponse apply(String t) {
+						try {
+							ObjectMapper o = new ObjectMapper();
+							return o.readValue(t, ValidatorResponse.class);
+						} catch (IOException e) {
+							return new ValidatorResponse("Failed to deserialise response from validator: "+e.getMessage());
+						}							
+					}
+				});
+		} catch (ContainerExecutionException e) {
+			return new ContainerExecResponse<>(false,new ValidatorResponse(e.getMessage()),-1);
+		} catch (JsonProcessingException e) {
+			return new ContainerExecResponse<>(false,new ValidatorResponse("Failed to serialise measurement list"),-1);
+		}
 	}
 
 	

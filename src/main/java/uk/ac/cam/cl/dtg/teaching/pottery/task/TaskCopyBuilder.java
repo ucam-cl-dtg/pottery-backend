@@ -36,6 +36,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 /**
  * Class for building a taskcopy. Responsible for copying files, compilation
@@ -208,7 +210,7 @@ public class TaskCopyBuilder {
 		String image = taskInfo.getImage();
 
 		builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TEST);
-		ContainerExecResponse r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
+		ContainerExecResponse<String> r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
 		if (!r.isSuccess()) {
 			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile testing code in task. "+r.getResponse()));
 			return false;
@@ -216,7 +218,7 @@ public class TaskCopyBuilder {
 		
 		builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_SOLUTION);
 		// Test it against the model answer
-		ContainerExecResponse r2 = containerManager.execCompilation(
+		ContainerExecResponse<String> r2 = containerManager.execCompilation(
 				taskConfig.getSolutionDir(copyId),
 				taskConfig.getCompileDir(copyId), 
 				image,
@@ -227,7 +229,7 @@ public class TaskCopyBuilder {
 		}
 		
 		builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTION);
-		ContainerExecResponse r3 = containerManager.execHarness(
+		ContainerExecResponse<HarnessResponse> r3 = containerManager.execHarness(
 				taskConfig.getSolutionDir(copyId),
 				taskConfig.getHarnessDir(copyId), 
 				image, 
@@ -237,7 +239,7 @@ public class TaskCopyBuilder {
 			return false;
 		}
 		
-		ContainerExecResponse r4 = containerManager.execValidator(
+		ContainerExecResponse<ValidatorResponse> r4 = containerManager.execValidator(
 				taskConfig.getValidatorDir(copyId), 
 				r3.getResponse(), 
 				image,
