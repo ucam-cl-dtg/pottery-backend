@@ -36,8 +36,6 @@ import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
@@ -55,10 +53,6 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.WaitResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerKilledException;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
 
 @Singleton
 public class ContainerManager implements Stoppable {
@@ -142,7 +136,7 @@ public class ContainerManager implements Stoppable {
 
 	private AtomicInteger counter = new AtomicInteger(0);
 
-	public ExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, ContainerRestrictions restrictions) throws ContainerKilledException {
+	public ContainerExecResponse exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, ContainerRestrictions restrictions) {
 
 		String containerName = this.config.getContainerPrefix()+counter.incrementAndGet();
 		LOG.debug("Creating container {}",containerName);
@@ -150,7 +144,7 @@ public class ContainerManager implements Stoppable {
 		try {
 			DockerUtil.deleteContainerByName(containerName,docker);
 		} catch (RuntimeException e) {
-			return new ExecResponse(false,e.getMessage(),-1);
+			return new ContainerExecResponse(false,e.getMessage(),-1);
 		}	
 		
 		long startTime = System.currentTimeMillis();
@@ -217,11 +211,11 @@ public class ContainerManager implements Stoppable {
 							} catch (InterruptedException|ExecutionException e) {}
 						}
 						if (killed) {
-							throw new ContainerKilledException("Timed out after "+restrictions.getTimeoutSec()+" seconds", System.currentTimeMillis() - startTime);
+							return new ContainerExecResponse(false,"Timed out after "+restrictions.getTimeoutSec()+" seconds", System.currentTimeMillis() - startTime);
 						}	
 					}
 					if (diskUsageKiller.isKilled()) {
-						throw new ContainerKilledException("Excessive disk usage. Recorded "+diskUsageKiller.getBytesWritten()+" bytes written", System.currentTimeMillis() - startTime);
+						return new ContainerExecResponse(false,"Excessive disk usage. Recorded "+diskUsageKiller.getBytesWritten()+" bytes written", System.currentTimeMillis() - startTime);
 					}
 					
 					try {
@@ -234,7 +228,7 @@ public class ContainerManager implements Stoppable {
 					}
 					
 					boolean success = waitResponse.statusCode == 0;
-					return new ExecResponse(success, output.toString(),System.currentTimeMillis()-startTime);
+					return new ContainerExecResponse(success, output.toString(),System.currentTimeMillis()-startTime);
 				}
 				finally {
 					diskUsageKillerFuture.cancel(false);
@@ -247,78 +241,45 @@ public class ContainerManager implements Stoppable {
 			}
 		} catch (RuntimeException e) {
 			LOG.debug("Error executing container",e);
-			return new ExecResponse(false,e.getMessage(),System.currentTimeMillis() - startTime);
+			return new ContainerExecResponse(false,e.getMessage(),System.currentTimeMillis() - startTime);
 		}
 	}
 
-	public ExecResponse execTaskCompilation(File taskDirHost, String imageName, ContainerRestrictions restrictions) {
-		try {
-			ExecResponse r = exec_container(new PathPair[] {
-					new PathPair(taskDirHost,"/task")
-			}, "/task/compile-test.sh /task/test /task/harness /task/validator", imageName, null,restrictions);
-			return r;
-		} catch (ContainerKilledException e) {
-			return new ExecResponse(false,e.getMessage(),e.getExecutionTimeMs());
-		}
+	public ContainerExecResponse execTaskCompilation(File taskDirHost, String imageName, ContainerRestrictions restrictions) {
+		return exec_container(new PathPair[] {
+				new PathPair(taskDirHost,"/task")
+		}, "/task/compile-test.sh /task/test /task/harness /task/validator", imageName, null,restrictions);
 	}
 	
-	public CompilationResponse execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
-		try {
-			ExecResponse r = exec_container(new PathPair[] { 
-					new PathPair(codeDirHost,"/code"),
-					new PathPair(compilationRecipeDirHost,"/compile"),
-					new PathPair(config.getLibRoot(),"/testlib") },
-					"/compile/compile-solution.sh /code /testlib",
-					imageName,
-					null, restrictions);			
-			return new CompilationResponse(r.isSuccess(),r.getResponse(),r.getExecutionTimeMs());
-		} catch (ContainerKilledException e) {
-			return new CompilationResponse(false,e.getMessage(),e.getExecutionTimeMs());
-		}
+	public ContainerExecResponse execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
+		return exec_container(new PathPair[] { 
+				new PathPair(codeDirHost,"/code"),
+				new PathPair(compilationRecipeDirHost,"/compile"),
+				new PathPair(config.getLibRoot(),"/testlib") },
+				"/compile/compile-solution.sh /code /testlib",
+				imageName,
+				null, restrictions);			
 	}
 
-	public HarnessResponse execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
-		try {
-			ExecResponse r = exec_container(new PathPair[] { 
-					new PathPair(codeDirHost,"/code"),
-					new PathPair(harnessRecipeDirHost,"/harness"),
-					new PathPair(config.getLibRoot(),"/testlib") },
-					"/harness/run-harness.sh /code /harness /testlib",
-					imageName,
-					null, restrictions);
-			
-			ObjectMapper objectMapper = new ObjectMapper();
-			try {
-				return objectMapper.readValue(r.getResponse(),HarnessResponse.class);
-			} catch (IOException e) {
-				return new HarnessResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse(),r.getExecutionTimeMs());
-			}
-		} catch (ContainerKilledException e) {
-			return new HarnessResponse(e.getMessage(),e.getExecutionTimeMs());
-		}		
+	public ContainerExecResponse execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
+		return exec_container(new PathPair[] { 
+				new PathPair(codeDirHost,"/code"),
+				new PathPair(harnessRecipeDirHost,"/harness"),
+				new PathPair(config.getLibRoot(),"/testlib") },
+				"/harness/run-harness.sh /code /harness /testlib",
+				imageName,
+				null, restrictions);
 	}
 
-	public ValidationResponse execValidator(File validatorDirectory, HarnessResponse harnessResponse,
+	public ContainerExecResponse execValidator(File validatorDirectory, String harnessResponse,
 			String imageName, ContainerRestrictions restrictions) {
-		ObjectMapper o = new ObjectMapper();
-		try {
-			ExecResponse r = exec_container(new PathPair[] { 
-					new PathPair(validatorDirectory,"/validator"),
-					new PathPair(config.getLibRoot(),"/testlib") },
-					"/validator/run-validator.sh /validator /testlib",
-					imageName,
-					o.writeValueAsString(harnessResponse)+"\n\n", restrictions);
-			try {
-				return o.readValue(r.getResponse(),ValidationResponse.class);
-			} catch (IOException e) {
-				return new ValidationResponse("Failed to parse response ("+e.getMessage()+"): "+r.getResponse(),r.getExecutionTimeMs());
-			}
-		} catch (JsonProcessingException e) {
-			return new ValidationResponse("Failed to serialise harness response: "+e.getMessage(),-1);
-		} catch (ContainerKilledException e) {
-			return new ValidationResponse(e.getMessage(),e.getExecutionTimeMs());
-		}
-
+		return exec_container(new PathPair[] { 
+				new PathPair(validatorDirectory,"/validator"),
+				new PathPair(config.getLibRoot(),"/testlib") },
+				"/validator/run-validator.sh /validator /testlib",
+				imageName,
+				harnessResponse,
+				restrictions);
 	}
 
 	

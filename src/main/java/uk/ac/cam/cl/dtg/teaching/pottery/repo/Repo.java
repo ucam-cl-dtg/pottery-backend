@@ -22,6 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -53,12 +54,16 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock.AutoCloseableLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
@@ -74,9 +79,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
 
 public class Repo {
 	
@@ -208,6 +212,24 @@ public class Repo {
 		updateSubmission(builder != null ? builder.build() : null);
 	}
 	
+	private static List<HarnessPart> deserialiseResponse(String response) {
+		ObjectMapper o = new ObjectMapper();
+		try {
+			return o.readValue(response, new TypeReference<List<HarnessPart>>() {});
+		}
+		catch (IOException e) {
+			return Arrays.asList(new HarnessPart(
+					"Deserialising data returned from harness",
+					Arrays.asList("Deserialising data returned from harness"), 
+					Arrays.asList(new Measurement(
+							"correctness",
+							response,
+							Measurement.INTERPRETED_BAD,
+							"Failed to deserialise response from harness: "+e.getMessage(),
+							null))));
+		}
+	}
+	
 	/**
 	 * Schedule a particular version of the repo for testing later
 	 * 
@@ -226,9 +248,7 @@ public class Repo {
 			//	Means we've already scheduled (and possibly already run) the test for this tag
 			if (s != null) return s;
 		
-			Submission.Builder builder = Submission.builder()
-					.withRepoId(repoId)
-					.withTag(tag);
+			Submission.Builder builder = Submission.builder(repoId,tag);
 		
 			updateSubmission(builder);
 
@@ -239,7 +259,7 @@ public class Repo {
 					try {
 						t = taskIndex.getTask(taskId);
 					} catch (TaskNotFoundException e1) {
-						updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Task no longer available",0)));
+						updateSubmission(builder.setCompilationResponse("Task no longer available", false,0));					
 						return false;
 					}
 					try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
@@ -247,45 +267,46 @@ public class Repo {
 							try {
 								setVersionToTest(tag);
 							} catch (RepoStorageException e) {
-								updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Failed to reset repository to requested tag ("+tag+")",0)));
+								updateSubmission(builder.setCompilationResponse("Failed to reset repository to requested tag ("+tag+")",false,0));
 								return false;
 							}
 
 							File codeDir = repoTestingDirectory;
 							TaskInfo taskInfo = c.getInfo();
 							String image = taskInfo.getImage();
-							CompilationResponse compilationResponse = containerManager.execCompilation(codeDir, c.getCompileRoot(), image, taskInfo.getCompilationRestrictions());
-							updateSubmission(builder.withCompilationResponse(compilationResponse));
+							updateSubmission(builder.setStatus(Submission.STATUS_COMPILATION_RUNNING));
+							ContainerExecResponse compilationResponse = containerManager.execCompilation(codeDir, c.getCompileRoot(), image, taskInfo.getCompilationRestrictions());
+							updateSubmission(builder.setCompilationResponse(compilationResponse.getResponse(),compilationResponse.isSuccess(),compilationResponse.getExecutionTimeMs()));
 							if (!compilationResponse.isSuccess()) { return false; }
 
-							HarnessResponse harnessResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
-							updateSubmission(builder.withHarnessResponse(harnessResponse));
+							updateSubmission(builder.setStatus(Submission.STATUS_HARNESS_RUNNING));
+							ContainerExecResponse harnessResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
+							updateSubmission(builder.setHarnessResponse(deserialiseResponse(harnessResponse.getResponse()),harnessResponse.isSuccess(),harnessResponse.getExecutionTimeMs()));
 							if (!harnessResponse.isSuccess()) { return false; }
 
-							ValidationResponse validationResponse = containerManager.execValidator(c.getValidatorRoot(),harnessResponse, image,taskInfo.getValidatorRestrictions());
-							updateSubmission(builder.withValidationResponse(validationResponse));
+							updateSubmission(builder.setStatus(Submission.STATUS_VALIDATOR_RUNNING));
+							ContainerExecResponse validationResponse = containerManager.execValidator(c.getValidatorRoot(),harnessResponse.getResponse(), image,taskInfo.getValidatorRestrictions());
+							updateSubmission(builder.setHarnessResponse(deserialiseResponse(validationResponse.getResponse()),validationResponse.isSuccess(),validationResponse.getExecutionTimeMs()));
 							if (validationResponse.isSuccess()) { return false; }
 						}
 						finally {
-							builder.withStatus(Submission.STATUS_COMPLETE);
+							builder.setComplete();
+							
 							Submission s = builder.build();
 							try (TransactionQueryRunner q = database.getQueryRunner()) {
-								s = s.insert(q);
+								s.insert(q);
 								q.commit();
 							} catch (SQLException e) {
 								// This shouldn't happen, but if it does then we'll force 
 								// an error message out to the user
-								Submission.Builder builder = Submission.builder()
-										.withRepoId(repoId)
-										.withTag(tag)
-										.withCompilationResponse(new CompilationResponse(false,"Failed to store result in database: "+e.getMessage(),0));
-								updateSubmission(builder);
+								updateSubmission(Submission.builder(repoId,tag)
+										.setCompilationResponse("Failed to store result in database: "+e.getMessage(),false,0));
 								return false;
 							}
 							updateSubmission(s);
 						}
 					} catch (TaskNotFoundException e1) {
-						updateSubmission(builder.withCompilationResponse(new CompilationResponse(false,"Task no longer available",0)));
+						updateSubmission(builder.setCompilationResponse("Task no longer available",false,0));
 						return false;
 					}
 					return true;

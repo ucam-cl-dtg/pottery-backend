@@ -20,6 +20,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.dbutils.QueryRunner;
@@ -29,208 +31,268 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessStep;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationStep;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
 
 public class Submission {
 
-	public static final String STATUS_PENDING = "PENDING";
-	public static final String STATUS_COMPLETE = "COMPLETE";
+	public static final String STATUS_PENDING = "pending";
+
+	public static final String STATUS_COMPILATION_RUNNING = "compilation_running";
+	public static final String STATUS_COMPILATION_FAILED = "compilation_failed";
+	public static final String STATUS_COMPILATION_COMPLETE = "compilation_complete";
+
+	public static final String STATUS_HARNESS_RUNNING = "harness_running";	
+	public static final String STATUS_HARNESS_FAILED = "harness_failed";
+	public static final String STATUS_HARNESS_COMPLETE = "harness_complete";
 	
-	private final Integer submissionId;
+	public static final String STATUS_VALIDATOR_RUNNING = "validator_running";
+	public static final String STATUS_VALIDATOR_FAILED = "validator_failed";
+	public static final String STATUS_VALIDATOR_COMPLETE = "validator_complete";
+
+	
+	public static final String STATUS_COMPLETE = "complete";
+	
 	private final String repoId;
 	private final String tag;
-	private final CompilationResponse compilationResponse;
-	private final HarnessResponse harnessResponse;
-	private final ValidationResponse validationResponse;	
-	private final String status;
 
-	private Submission(Integer submissionId, String repoId, String tag, CompilationResponse compilationResponse,
-			HarnessResponse harnessResponse, ValidationResponse validationResponse, String status) {
+	private String compilationOutput;
+
+	private long compilationTimeMs;
+	private long harnessTimeMs;
+	private long validatorTimeMs;
+	
+	private long waitTimeMs;
+	
+	private List<HarnessPart> testParts;
+	
+	private String summaryMessage;
+
+	private String status;
+		
+	private Submission(String repoId, String tag, String compilationOutput, long compilationTimeMs,
+			long harnessTimeMs, long validatorTimeMs, long waitTimeMs, List<HarnessPart> testParts,
+			String summaryMessage, String status) {
 		super();
-		this.submissionId = submissionId;
 		this.repoId = repoId;
 		this.tag = tag;
-		this.compilationResponse = compilationResponse;
-		this.harnessResponse = harnessResponse;
-		this.validationResponse = validationResponse;
+		this.compilationOutput = compilationOutput;
+		this.compilationTimeMs = compilationTimeMs;
+		this.harnessTimeMs = harnessTimeMs;
+		this.validatorTimeMs = validatorTimeMs;
+		this.waitTimeMs = waitTimeMs;
+		this.testParts = testParts;
+		this.summaryMessage = summaryMessage;
 		this.status = status;
 	}
 
-	public Integer getSubmissionId() {
-		return submissionId;
-	}
-
+	
+	
 	public String getRepoId() {
 		return repoId;
 	}
+
+
 
 	public String getTag() {
 		return tag;
 	}
 
+
+
+	public String getCompilationOutput() {
+		return compilationOutput;
+	}
+
+
+
+
+	public long getCompilationTimeMs() {
+		return compilationTimeMs;
+	}
+
+
+
+	public long getHarnessTimeMs() {
+		return harnessTimeMs;
+	}
+
+
+
+	public long getValidatorTimeMs() {
+		return validatorTimeMs;
+	}
+
+
+
+	public long getWaitTimeMs() {
+		return waitTimeMs;
+	}
+
+
+
+	public List<HarnessPart> getTestParts() {
+		return testParts;
+	}
+
+
+
+	public String getSummaryMessage() {
+		return summaryMessage;
+	}
+
+
+
 	public String getStatus() {
 		return status;
 	}
 
-	public CompilationResponse getCompilationResponse() {
-		return compilationResponse;
-	}
 
-	public HarnessResponse getHarnessResponse() {
-		return harnessResponse;
-	}
 
-	public ValidationResponse getValidationResponse() {
-		return validationResponse;
-	}
-
-	public static Builder builder() {
-		return new Builder();
+	public static Builder builder(String repoId, String tag) {
+		return new Builder(repoId,tag);
 	}
 	
 	public static class Builder {
 		
-		private String repoId;
-		private String tag;
-		private Integer submissionId;
-		private CompilationResponse compilationResponse;
-		private ValidationResponse validationResponse;
-		private HarnessResponse harnessResponse;
-		private String status = STATUS_PENDING;
+		private final String repoId;
+		private final String tag;
+		private String compilationOutput;
+		private long compilationTimeMs = -1;
+		private long harnessTimeMs = -1;
+		private long validatorTimeMs = -1;
+		private long waitTimeMs;
+		private List<HarnessPart> testParts;
+		private String summaryMessage;
+		private String status;
 		
-		private Builder() {}
-		
-		public Builder withRepoId(String repoId) {
+		private Builder(String repoId, String tag) {
 			this.repoId = repoId;
-			return this;
-		}
-		
-		public Builder withTag(String tag) {
 			this.tag = tag;
-			return this;
+			this.status = STATUS_PENDING;
 		}
 		
-		public Builder withSubmissionId(int submissionId) {
-			this.submissionId = submissionId;
-			return this;
-		}
-		
-		public Builder withCompilationResponse(CompilationResponse r) {
-			this.compilationResponse = r;
-			return this;
-		}
-		
-		public Builder withHarnessResponse(HarnessResponse r) {
-			this.harnessResponse = r;
-			return this;
-		}
-		
-		public Builder withValidationResponse(ValidationResponse r) {
-			this.validationResponse = r;
-			return this;
-		}
-		
-		public Builder withStatus(String status) {
+		public Builder setStatus(String status) {
 			this.status = status;
 			return this;
 		}
 		
+		public Builder setSummaryMessage(String summaryMessage) {
+			this.summaryMessage = summaryMessage;
+			return this;
+		}
+		
+		public Builder setCompilationResponse(String compilationOutput, boolean success, long executionTimeMs) {
+			this.status = success ?  STATUS_COMPILATION_COMPLETE : STATUS_COMPILATION_FAILED;
+			this.compilationOutput = compilationOutput;
+			this.compilationTimeMs = executionTimeMs;
+			return this;
+		}
+		
+		public Builder setHarnessResponse(List<HarnessPart> testParts, boolean success, long executionTimeMs) {
+			this.status = success ?  STATUS_HARNESS_COMPLETE : STATUS_HARNESS_FAILED;
+			this.testParts = Collections.unmodifiableList(new ArrayList<>(testParts));
+			this.harnessTimeMs = executionTimeMs;
+			return this;
+		}
+		
+		public Builder setValidatorResponse(List<HarnessPart> testParts, boolean success, long executionTimeMs) {
+			this.status = success ?  STATUS_VALIDATOR_COMPLETE : STATUS_VALIDATOR_FAILED;
+			this.testParts = Collections.unmodifiableList(new ArrayList<>(testParts));
+			this.validatorTimeMs = executionTimeMs;
+			return this;
+		}
+		
+		public Builder setWaitTimeMs(long waitTimeMs) {
+			this.waitTimeMs = waitTimeMs;
+			return this;
+		}
+		
 		public Submission build() {
-			return new Submission(submissionId,repoId,tag,compilationResponse,harnessResponse,validationResponse,status);
-		}	
+			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testParts, summaryMessage, status);
+		}
+
+		public void setComplete() {
+
+			if (STATUS_PENDING.equals(status) ||
+					STATUS_COMPILATION_RUNNING.equals(status)) {
+				status = STATUS_COMPILATION_FAILED;
+				return;
+			}
+
+			if (STATUS_COMPILATION_COMPLETE.equals(status) ||
+					STATUS_HARNESS_RUNNING.equals(status)) {
+				status = STATUS_HARNESS_FAILED;
+				return;
+			}
+
+			if (STATUS_HARNESS_COMPLETE.equals(status) ||
+					STATUS_VALIDATOR_RUNNING.equals(status)) {
+				status = STATUS_VALIDATOR_FAILED;
+				return;
+			}
+
+			status = STATUS_COMPLETE;
+		}
 	}
+			
 	
-	public Submission insert(TransactionQueryRunner q) throws SQLException {
-		if (submissionId != null) throw new SQLException("Submission already exists in database with submissionid="+submissionId);
-		int s = Database.nextVal("seqsubmission", q);
+	public void insert(TransactionQueryRunner q) throws SQLException {
 		ObjectMapper mapper = new ObjectMapper();
+
 		try {		
 			q.update("INSERT into submissions ("
-					+ "submissionid,"
 					+ "repoid,"
 					+ "tag,"
 					+ "status,"
-					+ "compilationsuccess,"
-					+ "compilationresponse,"
-					+ "compilationfailmessage,"
+					+ "compilationoutput,"
 					+ "compilationTimeMs,"
-					+ "harnesssuccess,"
-					+ "harnessresponse,"
-					+ "harnessfailmessage,"
 					+ "harnessTimeMs,"
-					+ "validationsuccess,"
-					+ "validationresponse,"
-					+ "validationfailmessage,"
-					+ "validationTimeMs) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-					s,
+					+ "validatorTimeMs,"
+					+ "waitTimeMs,"
+					+ "summaryMessage,"
+					+ "testParts"
+					+ ") VALUES (?,?,?,?,?,?,?,?,?,?)",
 					repoId,
 					tag,
 					status,
-					compilationResponse == null ? null : compilationResponse.isSuccess(),
-					compilationResponse == null ? null : mapper.writeValueAsString(compilationResponse.getResponse()),
-					compilationResponse == null ? null : compilationResponse.getFailMessage(),
-					compilationResponse == null ? null :compilationResponse.getExecutionTimeMs(),
-					harnessResponse == null ? null : harnessResponse.isSuccess(),
-					harnessResponse == null ? null : mapper.writeValueAsString(harnessResponse.getResponse()),
-					harnessResponse == null ? null : harnessResponse.getFailMessage(),
-					harnessResponse == null ? null : harnessResponse.getExecutionTimeMs(),
-					validationResponse == null ? null : validationResponse.isSuccess(),
-					validationResponse == null ? null : mapper.writeValueAsString(validationResponse.getResponse()),
-					validationResponse == null ? null : validationResponse.getFailMessage(),
-					validationResponse == null ? null : validationResponse.getExecutionTimeMs()
-					);
+					compilationOutput,
+					compilationTimeMs,
+					harnessTimeMs,
+					validatorTimeMs,
+					waitTimeMs,
+					summaryMessage,
+					testParts == null ? null : mapper.writeValueAsString(testParts));
 		} catch (JsonProcessingException e) {
 			throw new SQLException("Failed to serialise object",e);
 		}
 		q.commit();
-		
-		return new Submission(s,repoId,tag,compilationResponse,harnessResponse,validationResponse,status);
 	}
 	
 	public void update(TransactionQueryRunner q) throws SQLException {
 		ObjectMapper mapper = new ObjectMapper();
 		try {
 			q.update("update submissions set "
-					+ "repoid=?,"
-					+ "tag=?,"
 					+ "status=?,"
-					+ "compilationsuccess=?,"
-					+ "compilationresponse=?,"
-					+ "compilationfailmessage=?,"
-					+ "compilationTimeMs=?"
-					+ "harnesssuccess=?,"
-					+ "harnessresponse=?,"
-					+ "harnessfailmessage=?,"
-					+ "harnessTimeMs=?"
-					+ "validationsuccess=?,"
-					+ "validationresponse=?,"
-					+ "validationfailmessage=?"
-					+ "validationTimeMs=?"
+					+ "compilationoutput=?,"
+					+ "compilationTimeMs=?,"
+					+ "harnessTimeMs=?,"
+					+ "validatorTimeMs=?"
+					+ "waitTimeMs=?,"
+					+ "summaryMessage=?,"
+					+ "testParts=?"
 					+ " where "
-					+ "submissionid=?",
-					repoId,
-					tag,
+					+ "repoId=? and tag=?",
 					status,
-					compilationResponse == null ? null :compilationResponse.isSuccess(),
-					compilationResponse == null ? null :mapper.writeValueAsString(compilationResponse.getResponse()),
-					compilationResponse == null ? null :compilationResponse.getFailMessage(),
-					compilationResponse == null ? null :compilationResponse.getExecutionTimeMs(),
-					harnessResponse == null ? null : harnessResponse.isSuccess(),
-					harnessResponse == null ? null : mapper.writeValueAsString(harnessResponse.getResponse()),
-					harnessResponse == null ? null : harnessResponse.getFailMessage(),
-					harnessResponse == null ? null : harnessResponse.getExecutionTimeMs(),
-					validationResponse == null ? null : validationResponse.isSuccess(),
-					validationResponse == null ? null : mapper.writeValueAsString(validationResponse.getResponse()),
-					validationResponse == null ? null : validationResponse.getFailMessage(),
-					validationResponse == null ? null : validationResponse.getExecutionTimeMs(),					
-					submissionId
-					);
+					compilationOutput,
+					compilationTimeMs,
+					harnessTimeMs,
+					validatorTimeMs,
+					waitTimeMs,
+					summaryMessage,
+					testParts == null ? null : mapper.writeValueAsString(testParts),
+					repoId,
+					tag);
 		} catch (JsonProcessingException e) {
 			throw new SQLException("Failed to serialise object",e);
 		}
@@ -239,43 +301,25 @@ public class Submission {
 	
 	
 	private static Submission resultSetToSubmission(ResultSet rs) throws SQLException {
-		try {
-			Builder b = builder()
-					.withRepoId(rs.getString("repoId"))
-					.withTag(rs.getString("tag"))
-					.withSubmissionId(rs.getInt("submissionId"));
-					
+		try {					
 			ObjectMapper o = new ObjectMapper();
-			boolean compilationSuccess = rs.getBoolean("compilationSuccess");
+			String testPartsString = rs.getString("testParts");
+			List<HarnessPart> testParts = null;
 			if (!rs.wasNull()) {
-				b.withCompilationResponse(new CompilationResponse(
-						compilationSuccess,
-						rs.getString("compilationfailmessage"),
-						rs.getString("compilationresponse"),
-						rs.getLong("compilationTimeMs")));
+				testParts = o.readValue(testPartsString,new TypeReference<List<HarnessPart>>() {});
 			}
-
-			boolean harnessSuccess = rs.getBoolean("harnessSuccess");
-			if (!rs.wasNull()) {
-				b.withHarnessResponse(new HarnessResponse(
-						harnessSuccess,
-						o.readValue(rs.getString("harnessresponse"),new TypeReference<List<HarnessStep>>() {}),
-						rs.getString("harnessfailmessage"),
-						rs.getLong("harnessTimeMs")));
-			}
-
-			boolean validationSuccess = rs.getBoolean("validationSuccess");
-			if (!rs.wasNull()) {
-				b.withValidationResponse(new ValidationResponse(
-						validationSuccess,
-						o.readValue(rs.getString("validationresponse"),new TypeReference<List<ValidationStep>>() {}),
-						rs.getString("validationfailmessage"),
-						rs.getLong("validationTimeMs")));
-			}
-
-			b.withStatus(rs.getString("status"));
-
-			return b.build();
+			
+			return new Submission(
+					rs.getString("repoId"),
+					rs.getString("tag"),
+					rs.getString("compilationOutput"),
+					rs.getLong("compilationTimeMs"),
+					rs.getLong("harnessTimeMs"),
+					rs.getLong("validatorTimeMs"),
+					rs.getLong("waitTimeMs"),
+					testParts,
+					rs.getString("summaryMessage"),
+					rs.getString("status"));
 		} catch (IOException e) {
 			throw new SQLException("Failed to deserialise json object",e);
 		}

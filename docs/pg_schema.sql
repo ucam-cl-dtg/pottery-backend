@@ -2,12 +2,16 @@
 -- PostgreSQL database dump
 --
 
+-- Dumped from database version 9.5.3
+-- Dumped by pg_dump version 9.5.3
+
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SET check_function_bodies = false;
 SET client_min_messages = warning;
+SET row_security = off;
 
 --
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: 
@@ -30,7 +34,7 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
--- Name: repos; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
+-- Name: repos; Type: TABLE; Schema: public; Owner: pottery
 --
 
 CREATE TABLE repos (
@@ -41,50 +45,30 @@ CREATE TABLE repos (
 );
 
 
-ALTER TABLE public.repos OWNER TO postgres;
+ALTER TABLE repos OWNER TO pottery;
 
 --
--- Name: seqsubmission; Type: SEQUENCE; Schema: public; Owner: pottery
---
-
-CREATE SEQUENCE seqsubmission
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER TABLE public.seqsubmission OWNER TO pottery;
-
---
--- Name: submissions; Type: TABLE; Schema: public; Owner: pottery; Tablespace: 
+-- Name: submissions; Type: TABLE; Schema: public; Owner: pottery
 --
 
 CREATE TABLE submissions (
-    submissionid integer NOT NULL,
     repoid character varying(255) NOT NULL,
     tag character varying(255) NOT NULL,
     status character varying(255) NOT NULL,
-    compilationsuccess boolean,
-    compilationresponse text,
-    harnesssuccess boolean,
-    harnessresponse text,
-    validationsuccess boolean,
-    validationresponse text,
-    compilationfailmessage text,
-    harnessfailmessage text,
-    validationfailmessage text,
-    compilationtimems integer,
-    harnesstimems integer,
-    validationtimems integer
+    compilationoutput text,
+    compilationtimems bigint DEFAULT '-1'::integer NOT NULL,
+    harnesstimems bigint DEFAULT '-1'::integer NOT NULL,
+    validatortimems bigint DEFAULT '-1'::integer NOT NULL,
+    waittimems bigint DEFAULT '-1'::integer NOT NULL,
+    summarymessage text,
+    testparts text
 );
 
 
-ALTER TABLE public.submissions OWNER TO pottery;
+ALTER TABLE submissions OWNER TO pottery;
 
 --
--- Name: tasks; Type: TABLE; Schema: public; Owner: pottery; Tablespace: 
+-- Name: tasks; Type: TABLE; Schema: public; Owner: pottery
 --
 
 CREATE TABLE tasks (
@@ -96,10 +80,10 @@ CREATE TABLE tasks (
 );
 
 
-ALTER TABLE public.tasks OWNER TO pottery;
+ALTER TABLE tasks OWNER TO pottery;
 
 --
--- Name: repos_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres; Tablespace: 
+-- Name: repos_pkey; Type: CONSTRAINT; Schema: public; Owner: pottery
 --
 
 ALTER TABLE ONLY repos
@@ -107,35 +91,19 @@ ALTER TABLE ONLY repos
 
 
 --
--- Name: submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: pottery; Tablespace: 
+-- Name: submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: pottery
 --
 
 ALTER TABLE ONLY submissions
-    ADD CONSTRAINT submissions_pkey PRIMARY KEY (submissionid);
+    ADD CONSTRAINT submissions_pkey PRIMARY KEY (repoid, tag);
 
 
 --
--- Name: tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: pottery; Tablespace: 
+-- Name: tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: pottery
 --
 
 ALTER TABLE ONLY tasks
     ADD CONSTRAINT tasks_pkey PRIMARY KEY (taskid);
-
-
---
--- Name: uniquerepotag; Type: CONSTRAINT; Schema: public; Owner: pottery; Tablespace: 
---
-
-ALTER TABLE ONLY submissions
-    ADD CONSTRAINT uniquerepotag UNIQUE (repoid, tag);
-
-
---
--- Name: submissions_repoid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: pottery
---
-
-ALTER TABLE ONLY submissions
-    ADD CONSTRAINT submissions_repoid_fkey FOREIGN KEY (repoid) REFERENCES repos(repoid) ON DELETE CASCADE;
 
 
 --
@@ -149,13 +117,13 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 
 
 --
--- Name: repos; Type: ACL; Schema: public; Owner: postgres
+-- Name: repos; Type: ACL; Schema: public; Owner: pottery
 --
 
 REVOKE ALL ON TABLE repos FROM PUBLIC;
-REVOKE ALL ON TABLE repos FROM postgres;
-GRANT ALL ON TABLE repos TO postgres;
+REVOKE ALL ON TABLE repos FROM pottery;
 GRANT ALL ON TABLE repos TO pottery;
+GRANT ALL ON TABLE repos TO postgres;
 
 
 --

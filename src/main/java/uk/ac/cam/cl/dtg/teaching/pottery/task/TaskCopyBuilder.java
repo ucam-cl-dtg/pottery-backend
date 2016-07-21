@@ -27,8 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
@@ -36,9 +36,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.CompilationResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.java.dto.ValidationResponse;
 
 /**
  * Class for building a taskcopy. Responsible for copying files, compilation
@@ -211,7 +208,7 @@ public class TaskCopyBuilder {
 		String image = taskInfo.getImage();
 
 		builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TEST);
-		ExecResponse r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
+		ContainerExecResponse r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
 		if (!r.isSuccess()) {
 			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile testing code in task. "+r.getResponse()));
 			return false;
@@ -219,34 +216,34 @@ public class TaskCopyBuilder {
 		
 		builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_SOLUTION);
 		// Test it against the model answer
-		CompilationResponse r2 = containerManager.execCompilation(
+		ContainerExecResponse r2 = containerManager.execCompilation(
 				taskConfig.getSolutionDir(copyId),
 				taskConfig.getCompileDir(copyId), 
 				image,
 				taskInfo.getCompilationRestrictions());
 		if (!r2.isSuccess()) {
-			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile solution when testing task during registration. " + r2.getFailMessage()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile solution when testing task during registration. " + r2.getResponse()));
 			return false;
 		}
 		
 		builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTION);
-		HarnessResponse r3 = containerManager.execHarness(
+		ContainerExecResponse r3 = containerManager.execHarness(
 				taskConfig.getSolutionDir(copyId),
 				taskConfig.getHarnessDir(copyId), 
 				image, 
 				taskInfo.getHarnessRestrictions());
 		if (!r3.isSuccess()) {
-			builderInfo.setException(new InvalidTaskSpecificationException("Failed to run harness when testing task during registration. " + r3.getFailMessage()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to run harness when testing task during registration. " + r3.getResponse()));
 			return false;
 		}
 		
-		ValidationResponse r4 = containerManager.execValidator(
+		ContainerExecResponse r4 = containerManager.execValidator(
 				taskConfig.getValidatorDir(copyId), 
-				r3, 
+				r3.getResponse(), 
 				image,
 				taskInfo.getValidatorRestrictions());
 		if (!r4.isSuccess()) {
-			builderInfo.setException(new InvalidTaskSpecificationException("Failed to validate harness results when testing task during registration. " + r4.getFailMessage()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to validate harness results when testing task during registration. " + r4.getResponse()));
 			return false;
 		}
 		
