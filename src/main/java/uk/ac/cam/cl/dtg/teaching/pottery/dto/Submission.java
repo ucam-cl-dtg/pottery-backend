@@ -20,9 +20,10 @@ package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
@@ -33,6 +34,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Interpretation;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 public class Submission {
 
@@ -64,15 +68,14 @@ public class Submission {
 	
 	private long waitTimeMs;
 	
-	private List<HarnessPart> testParts;
+	private List<TestStep> testSteps;
 	
 	private String summaryMessage;
 
 	private String status;
-		
-	private Submission(String repoId, String tag, String compilationOutput, long compilationTimeMs,
-			long harnessTimeMs, long validatorTimeMs, long waitTimeMs, List<HarnessPart> testParts,
-			String summaryMessage, String status) {
+	
+	public Submission(String repoId, String tag, String compilationOutput, long compilationTimeMs, long harnessTimeMs,
+			long validatorTimeMs, long waitTimeMs, List<TestStep> testSteps, String summaryMessage, String status) {
 		super();
 		this.repoId = repoId;
 		this.tag = tag;
@@ -81,13 +84,13 @@ public class Submission {
 		this.harnessTimeMs = harnessTimeMs;
 		this.validatorTimeMs = validatorTimeMs;
 		this.waitTimeMs = waitTimeMs;
-		this.testParts = testParts;
+		this.testSteps = testSteps;
 		this.summaryMessage = summaryMessage;
 		this.status = status;
 	}
 
-	
-	
+
+
 	public String getRepoId() {
 		return repoId;
 	}
@@ -130,9 +133,8 @@ public class Submission {
 	}
 
 
-
-	public List<HarnessPart> getTestParts() {
-		return testParts;
+	public List<TestStep> getTestSteps() {
+		return testSteps;
 	}
 
 
@@ -162,7 +164,8 @@ public class Submission {
 		private long harnessTimeMs = -1;
 		private long validatorTimeMs = -1;
 		private long waitTimeMs;
-		private List<HarnessPart> testParts;
+		private List<HarnessPart> harnessParts;
+		private List<Interpretation> validatorInterpretations;
 		private String summaryMessage;
 		private String status;
 		
@@ -189,17 +192,27 @@ public class Submission {
 			return this;
 		}
 		
-		public Builder setHarnessResponse(List<HarnessPart> testParts, boolean success, long executionTimeMs) {
-			this.status = success ?  STATUS_HARNESS_COMPLETE : STATUS_HARNESS_FAILED;
-			this.testParts = Collections.unmodifiableList(new ArrayList<>(testParts));
+		/**
+		 * Update the builder with harness response. Note that this only takes a shallow copy of its arguments
+		 * 
+		 * @param h
+		 * @param success
+		 * @param executionTimeMs
+		 * @return
+		 */
+		public Builder setHarnessResponse(HarnessResponse h, long executionTimeMs) {
+			this.status = h.isCompleted() ?  STATUS_HARNESS_COMPLETE : STATUS_HARNESS_FAILED;
+			this.harnessParts = h.getTestParts();
 			this.harnessTimeMs = executionTimeMs;
+			this.summaryMessage = h.getMessage();
 			return this;
 		}
 		
-		public Builder setValidatorResponse(List<HarnessPart> testParts, boolean success, long executionTimeMs) {
-			this.status = success ?  STATUS_VALIDATOR_COMPLETE : STATUS_VALIDATOR_FAILED;
-			this.testParts = Collections.unmodifiableList(new ArrayList<>(testParts));
+		public Builder setValidatorResponse(ValidatorResponse v, long executionTimeMs) {
+			this.status = v.isCompleted() ?  STATUS_VALIDATOR_COMPLETE : STATUS_VALIDATOR_FAILED;
+			this.validatorInterpretations = v.getInterpretations();
 			this.validatorTimeMs = executionTimeMs;
+			this.summaryMessage = v.getMessage();
 			return this;
 		}
 		
@@ -209,7 +222,13 @@ public class Submission {
 		}
 		
 		public Submission build() {
-			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testParts, summaryMessage, status);
+			Map<String, Interpretation> i =	
+					validatorInterpretations == null ? 
+							null :
+							validatorInterpretations.stream().collect(Collectors.toMap(Interpretation::getId, Function.identity()));
+			List<TestStep> testSteps = harnessParts.stream().map(p->new TestStep(p,i)).collect(Collectors.toList());
+			
+			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testSteps, summaryMessage, status);
 		}
 
 		public void setComplete() {
@@ -241,6 +260,7 @@ public class Submission {
 		ObjectMapper mapper = new ObjectMapper();
 
 		try {		
+			// missing fields
 			q.update("INSERT into submissions ("
 					+ "repoid,"
 					+ "tag,"
@@ -251,7 +271,7 @@ public class Submission {
 					+ "validatorTimeMs,"
 					+ "waitTimeMs,"
 					+ "summaryMessage,"
-					+ "testParts"
+					+ "testSteps"
 					+ ") VALUES (?,?,?,?,?,?,?,?,?,?)",
 					repoId,
 					tag,
@@ -262,7 +282,7 @@ public class Submission {
 					validatorTimeMs,
 					waitTimeMs,
 					summaryMessage,
-					testParts == null ? null : mapper.writeValueAsString(testParts));
+					testSteps == null ? null : mapper.writeValueAsString(testSteps));
 		} catch (JsonProcessingException e) {
 			throw new SQLException("Failed to serialise object",e);
 		}
@@ -280,7 +300,7 @@ public class Submission {
 					+ "validatorTimeMs=?"
 					+ "waitTimeMs=?,"
 					+ "summaryMessage=?,"
-					+ "testParts=?"
+					+ "testSteps=?"
 					+ " where "
 					+ "repoId=? and tag=?",
 					status,
@@ -290,7 +310,7 @@ public class Submission {
 					validatorTimeMs,
 					waitTimeMs,
 					summaryMessage,
-					testParts == null ? null : mapper.writeValueAsString(testParts),
+					testSteps == null ? null : mapper.writeValueAsString(testSteps),
 					repoId,
 					tag);
 		} catch (JsonProcessingException e) {
@@ -303,10 +323,10 @@ public class Submission {
 	private static Submission resultSetToSubmission(ResultSet rs) throws SQLException {
 		try {					
 			ObjectMapper o = new ObjectMapper();
-			String testPartsString = rs.getString("testParts");
-			List<HarnessPart> testParts = null;
+			String testPartsString = rs.getString("testSteps");
+			List<TestStep> testSteps = null;
 			if (!rs.wasNull()) {
-				testParts = o.readValue(testPartsString,new TypeReference<List<HarnessPart>>() {});
+				testSteps = o.readValue(testPartsString,new TypeReference<List<TestStep>>() {});
 			}
 			
 			return new Submission(
@@ -317,7 +337,7 @@ public class Submission {
 					rs.getLong("harnessTimeMs"),
 					rs.getLong("validatorTimeMs"),
 					rs.getLong("waitTimeMs"),
-					testParts,
+					testSteps,
 					rs.getString("summaryMessage"),
 					rs.getString("status"));
 		} catch (IOException e) {

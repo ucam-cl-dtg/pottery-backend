@@ -22,7 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.SQLException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -54,7 +54,7 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
@@ -79,8 +79,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 public class Repo {
 	
@@ -212,24 +213,6 @@ public class Repo {
 		updateSubmission(builder != null ? builder.build() : null);
 	}
 	
-	private static List<HarnessPart> deserialiseResponse(String response) {
-		ObjectMapper o = new ObjectMapper();
-		try {
-			return o.readValue(response, new TypeReference<List<HarnessPart>>() {});
-		}
-		catch (IOException e) {
-			return Arrays.asList(new HarnessPart(
-					"Deserialising data returned from harness",
-					Arrays.asList("Deserialising data returned from harness"), 
-					Arrays.asList(new Measurement(
-							"correctness",
-							response,
-							Measurement.INTERPRETED_BAD,
-							"Failed to deserialise response from harness: "+e.getMessage(),
-							null))));
-		}
-	}
-	
 	/**
 	 * Schedule a particular version of the repo for testing later
 	 * 
@@ -280,14 +263,40 @@ public class Repo {
 							if (!compilationResponse.isSuccess()) { return false; }
 
 							updateSubmission(builder.setStatus(Submission.STATUS_HARNESS_RUNNING));
-							ContainerExecResponse harnessResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
-							updateSubmission(builder.setHarnessResponse(deserialiseResponse(harnessResponse.getResponse()),harnessResponse.isSuccess(),harnessResponse.getExecutionTimeMs()));
-							if (!harnessResponse.isSuccess()) { return false; }
+							ContainerExecResponse harnessContainerResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
+							
+							ObjectMapper o = new ObjectMapper();
+							HarnessResponse harnessResponse;
+							try {
+								harnessResponse = o.readValue(harnessContainerResponse.getResponse(),HarnessResponse.class);
+							}
+							catch (IOException e) {
+								harnessResponse = new HarnessResponse("Failed to deserialise harness response: "+e.getMessage());
+							}
+							updateSubmission(builder.setHarnessResponse(harnessResponse,harnessContainerResponse.getExecutionTimeMs()));
+							if (!harnessResponse.isCompleted()) { return false; }
 
 							updateSubmission(builder.setStatus(Submission.STATUS_VALIDATOR_RUNNING));
-							ContainerExecResponse validationResponse = containerManager.execValidator(c.getValidatorRoot(),harnessResponse.getResponse(), image,taskInfo.getValidatorRestrictions());
-							updateSubmission(builder.setHarnessResponse(deserialiseResponse(validationResponse.getResponse()),validationResponse.isSuccess(),validationResponse.getExecutionTimeMs()));
-							if (validationResponse.isSuccess()) { return false; }
+							List<Measurement> m = harnessResponse.getTestParts().stream().
+									map(p -> p.getMeasurements()).
+									collect(ArrayList::new, ArrayList::addAll, ArrayList::addAll);
+							ContainerExecResponse validationContainerResponse;
+							try {
+								String serializedMeasurements = o.writeValueAsString(m);
+								validationContainerResponse = containerManager.execValidator(c.getValidatorRoot(),serializedMeasurements, image,taskInfo.getValidatorRestrictions());
+							} catch (JsonProcessingException e1) {
+								updateSubmission(builder.setValidatorResponse(new ValidatorResponse("Failed to serialise measurements: "+e1.getMessage()), 0));
+								return false;
+							}
+							ValidatorResponse validatorResponse;
+							try {
+								validatorResponse = o.readValue(validationContainerResponse.getResponse(), ValidatorResponse.class);
+							}
+							catch (IOException e) {
+								validatorResponse = new ValidatorResponse("Failed to deserialise validator response: "+e.getMessage());
+							}
+							updateSubmission(builder.setValidatorResponse(validatorResponse,validationContainerResponse.getExecutionTimeMs()));
+							if (!validatorResponse.isCompleted()) { return false; }
 						}
 						finally {
 							builder.setComplete();
