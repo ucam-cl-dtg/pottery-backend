@@ -237,6 +237,7 @@ public class ContainerManager implements Stoppable {
 					}
 					
 					boolean success = waitResponse.statusCode == 0;
+					LOG.debug("Container response: {}",output.toString());
 					return new ContainerExecResponse<>(success, converter.apply(output.toString()),System.currentTimeMillis()-startTime);
 				}
 				finally {
