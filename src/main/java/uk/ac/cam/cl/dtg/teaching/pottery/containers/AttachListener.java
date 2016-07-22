@@ -39,7 +39,11 @@ class AttachListener implements WebSocketListener {
 	public void onWebSocketConnect(Session session) {
 		if (data != null) {
 			try {
-				session.getRemote().sendString(data);
+				StringBuffer toSend = new StringBuffer(data);
+				// Push a load of newlines down the pipe at the end to make sure that
+				// we don't get blocked on line buffering
+				for(int i=0;i<10;++i) toSend.append(System.lineSeparator());
+				session.getRemote().sendString(toSend.toString());
 			} catch (IOException e) {
 				throw new RuntimeException("Failed to send input data to container",e);
 			}
