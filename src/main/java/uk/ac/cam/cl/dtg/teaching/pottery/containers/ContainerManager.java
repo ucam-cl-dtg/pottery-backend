@@ -318,14 +318,21 @@ public class ContainerManager implements Stoppable {
 		List<Measurement> m = harnessResponse.getTestParts().stream().
 				map(p -> p.getMeasurements()).
 				collect(ArrayList::new, ArrayList::addAll, ArrayList::addAll);
+		String stdin;
+		try {
+			stdin = o.writeValueAsString(m);
+		} catch (JsonProcessingException e) {
+			return new ContainerExecResponse<>(false,new ValidatorResponse("Failed to serialise measurement list"),-1);
+		}
 
+		
 		try {
 			return exec_container(new PathPair[] { 
 					new PathPair(validatorDirectory,"/validator"),
 					new PathPair(config.getLibRoot(),"/testlib") },
 				"/validator/run-validator.sh /validator /testlib",
 				imageName,
-				o.writeValueAsString(m),
+				stdin,
 				restrictions,
 				new Function<String,ValidatorResponse>() {
 					@Override
@@ -340,8 +347,6 @@ public class ContainerManager implements Stoppable {
 				});
 		} catch (ContainerExecutionException e) {
 			return new ContainerExecResponse<>(false,new ValidatorResponse(e.getMessage()),-1);
-		} catch (JsonProcessingException e) {
-			return new ContainerExecResponse<>(false,new ValidatorResponse("Failed to serialise measurement list"),-1);
 		}
 	}
 
