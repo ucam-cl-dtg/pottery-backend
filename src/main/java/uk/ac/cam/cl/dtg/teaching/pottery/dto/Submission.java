@@ -226,7 +226,7 @@ public class Submission {
 					validatorInterpretations == null ? 
 							null :
 							validatorInterpretations.stream().collect(Collectors.toMap(Interpretation::getId, Function.identity()));
-			List<TestStep> testSteps = harnessParts.stream().map(p->new TestStep(p,i)).collect(Collectors.toList());
+			List<TestStep> testSteps = harnessParts == null ? null : harnessParts.stream().map(p->new TestStep(p,i)).collect(Collectors.toList());
 			
 			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testSteps, summaryMessage, status);
 		}
