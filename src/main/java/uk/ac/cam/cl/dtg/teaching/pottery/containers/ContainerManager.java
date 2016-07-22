@@ -302,7 +302,7 @@ public class ContainerManager implements Stoppable {
 							ObjectMapper o = new ObjectMapper();
 							return o.readValue(t, HarnessResponse.class);
 						} catch (IOException e) {
-							return new HarnessResponse("Failed to deserialise response from harness: "+e.getMessage());
+							return new HarnessResponse("Failed to deserialise response from harness: "+e.getMessage()+". Response was "+t);
 						}
 					}
 				});
@@ -333,7 +333,7 @@ public class ContainerManager implements Stoppable {
 							ObjectMapper o = new ObjectMapper();
 							return o.readValue(t, ValidatorResponse.class);
 						} catch (IOException e) {
-							return new ValidatorResponse("Failed to deserialise response from validator: "+e.getMessage());
+							return new ValidatorResponse("Failed to deserialise response from validator: "+e.getMessage()+". Response was "+t);
 						}							
 					}
 				});
