@@ -40,19 +40,19 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorRes
 
 public class Submission {
 
-	public static final String STATUS_PENDING = "pending";
+	public static final String STATUS_PENDING = "PENDING";
 
-	public static final String STATUS_COMPILATION_RUNNING = "compilation_running";
-	public static final String STATUS_COMPILATION_FAILED = "compilation_failed";
-	public static final String STATUS_COMPILATION_COMPLETE = "compilation_complete";
+	public static final String STATUS_COMPILATION_RUNNING = "COMPILATION_RUNNING";
+	public static final String STATUS_COMPILATION_FAILED = "COMPILATION_FAILED";
+	public static final String STATUS_COMPILATION_COMPLETE = "COMPILATION_COMPLETE";
 
-	public static final String STATUS_HARNESS_RUNNING = "harness_running";	
-	public static final String STATUS_HARNESS_FAILED = "harness_failed";
-	public static final String STATUS_HARNESS_COMPLETE = "harness_complete";
+	public static final String STATUS_HARNESS_RUNNING = "HARNESS_RUNNING";	
+	public static final String STATUS_HARNESS_FAILED = "HARNESS_FAILED";
+	public static final String STATUS_HARNESS_COMPLETE = "HARNESS_COMPLETE";
 	
-	public static final String STATUS_VALIDATOR_RUNNING = "validator_running";
-	public static final String STATUS_VALIDATOR_FAILED = "validator_failed";
-	public static final String STATUS_VALIDATOR_COMPLETE = "validator_complete";
+	public static final String STATUS_VALIDATOR_RUNNING = "VALIDATOR_RUNNING";
+	public static final String STATUS_VALIDATOR_FAILED = "VALIDATOR_FAILED";
+	public static final String STATUS_VALIDATOR_COMPLETE = "VALIDATOR_COMPLETE";
 
 	
 	public static final String STATUS_COMPLETE = "complete";
