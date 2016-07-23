@@ -119,5 +119,16 @@ public class BuilderInfo {
 		this.validatorResponse = validatorResponse;
 	}	
 	
-	
+
+	public static int statusToInt(String status) {
+		if (STATUS_NOT_STARTED.equals(status)) return 0;
+		if (STATUS_SCHEDULED.equals(status)) return 1;
+		if (STATUS_COPYING_FILES.equals(status)) return 2;
+		if (STATUS_COMPILING_TEST.equals(status)) return 3;
+		if (STATUS_COMPILING_SOLUTION.equals(status)) return 4;
+		if (STATUS_TESTING_SOLUTION.equals(status)) return 5;
+		if (STATUS_SUCCESS.equals(status)) return 6;
+		if (STATUS_FAILURE.equals(status)) return 6;
+		return -1;
+	}
 }
