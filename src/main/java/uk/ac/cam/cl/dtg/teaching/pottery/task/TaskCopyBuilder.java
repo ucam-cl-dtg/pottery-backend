@@ -213,7 +213,7 @@ public class TaskCopyBuilder {
 		ContainerExecResponse<String> r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
 		builderInfo.setTestCompileResponse(r.getResponse());
 		if (!r.isSuccess()) {
-			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile testing code in task. "+r.getResponse()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile testing code in task. Compiler response was: "+r.getRawResponse()));
 			return false;
 		}
 		
@@ -226,7 +226,7 @@ public class TaskCopyBuilder {
 				taskInfo.getCompilationRestrictions());
 		builderInfo.setSolutionCompileResponse(r2.getResponse());
 		if (!r2.isSuccess()) {
-			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile solution when testing task during registration. " + r2.getResponse()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile solution when testing task during registration. Compiler response was: " + r2.getRawResponse()));
 			return false;
 		}
 		
@@ -238,7 +238,7 @@ public class TaskCopyBuilder {
 				taskInfo.getHarnessRestrictions());
 		builderInfo.setHarnessResponse(r3.getResponse());
 		if (!r3.getResponse().isCompleted()) {
-			builderInfo.setException(new InvalidTaskSpecificationException("Failed to run harness when testing task during registration. " + r3.getResponse()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to run harness when testing task during registration. Harness response was: " + r3.getRawResponse()));
 			return false;
 		}
 		
@@ -249,7 +249,7 @@ public class TaskCopyBuilder {
 				taskInfo.getValidatorRestrictions());
 		builderInfo.setValidatorResponse(r4.getResponse());
 		if (!r4.getResponse().isCompleted()) {
-			builderInfo.setException(new InvalidTaskSpecificationException("Failed to validate harness results when testing task during registration. " + r4.getResponse()));
+			builderInfo.setException(new InvalidTaskSpecificationException("Failed to validate harness results when testing task during registration. Validator response was: " + r4.getRawResponse()));
 			return false;
 		}
 		
