@@ -61,7 +61,8 @@ CREATE TABLE submissions (
     validatortimems bigint DEFAULT '-1'::integer NOT NULL,
     waittimems bigint DEFAULT '-1'::integer NOT NULL,
     summarymessage text,
-    teststeps text
+    teststeps text,
+    datescheduled timestamp without time zone
 );
 
 
