@@ -238,7 +238,7 @@ public class ContainerManager implements Stoppable {
 					
 					boolean success = waitResponse.statusCode == 0;
 					LOG.debug("Container response: {}",output.toString());
-					return new ContainerExecResponse<>(success, converter.apply(output.toString()),System.currentTimeMillis()-startTime);
+					return new ContainerExecResponse<>(success, converter.apply(output.toString()),output.toString(),System.currentTimeMillis()-startTime);
 				}
 				finally {
 					diskUsageKillerFuture.cancel(false);
@@ -266,7 +266,7 @@ public class ContainerManager implements Stoppable {
 					restrictions,
 					Function.identity());
 		} catch (ContainerExecutionException e) {
-			return new ContainerExecResponse<>(false,e.getMessage(),-1);
+			return new ContainerExecResponse<>(false,e.getMessage(),e.getMessage(),-1);
 		}
 	}
 	
@@ -282,7 +282,7 @@ public class ContainerManager implements Stoppable {
 				restrictions,
 				Function.identity());
 		} catch (ContainerExecutionException e) {
-			return new ContainerExecResponse<>(false,e.getMessage(),-1);
+			return new ContainerExecResponse<>(false,e.getMessage(),e.getMessage(),-1);
 		}			
 	}
 
@@ -308,7 +308,7 @@ public class ContainerManager implements Stoppable {
 					}
 				});
 		} catch (ContainerExecutionException e) {
-			return new ContainerExecResponse<>(false,new HarnessResponse(e.getMessage()),-1);
+			return new ContainerExecResponse<>(false,new HarnessResponse(e.getMessage()),e.getMessage(),-1);
 		}
 	}
 
@@ -322,7 +322,7 @@ public class ContainerManager implements Stoppable {
 		try {
 			stdin = o.writeValueAsString(m);
 		} catch (JsonProcessingException e) {
-			return new ContainerExecResponse<>(false,new ValidatorResponse("Failed to serialise measurement list"),-1);
+			return new ContainerExecResponse<>(false,new ValidatorResponse("Failed to serialise measurement list"),"Failed to serialise measurement list",-1);
 		}
 
 		
@@ -346,7 +346,7 @@ public class ContainerManager implements Stoppable {
 					}
 				});
 		} catch (ContainerExecutionException e) {
-			return new ContainerExecResponse<>(false,new ValidatorResponse(e.getMessage()),-1);
+			return new ContainerExecResponse<>(false,new ValidatorResponse(e.getMessage()),e.getMessage(),-1);
 		}
 	}
 
