@@ -106,10 +106,10 @@ public class TasksController {
 	@POST
 	@Path("/create")
 	@ApiOperation(value="Create a new task",response=TaskInfo.class)
-	public String create() throws TaskStorageException {
+	public Response create() throws TaskStorageException {
 		Task newTask = taskFactory.createInstance();
 		taskIndex.add(newTask);
-		return newTask.getTaskId();
+		return Response.ok().entity("{\"taskId\":\""+newTask.getTaskId()+"\"}").build();
 	}
 	
 	@GET
