@@ -21,14 +21,16 @@ public class ContainerExecResponse<T> {
 	
 	private boolean success;
 	private T response;
+	private String rawResponse;
 	private long executionTimeMs;
 	
 	public ContainerExecResponse() {}
 	
-	public ContainerExecResponse(boolean success, T response, long executionTimeMs) {
+	public ContainerExecResponse(boolean success, T response, String rawResponse, long executionTimeMs) {
 		super();
 		this.success = success;
 		this.response = response;
+		this.rawResponse = rawResponse;
 		this.executionTimeMs = executionTimeMs;
 	}
 	
@@ -53,6 +55,10 @@ public class ContainerExecResponse<T> {
 	}
 	public void setResponse(T response) {
 		this.response = response;
+	}
+
+	public String getRawResponse() {
+		return rawResponse;
 	}
 	
 }
