@@ -100,7 +100,7 @@ public class TaskInfo {
 	@ApiModelProperty("The programming language being tested (currently only java)")
 	private String language;
 	
-	@ApiModelProperty("The problem statement as an HTML fragment")
+	@ApiModelProperty("The problem statement as an HTML fragment. Use /n to delimit new line characters if needed")
 	private String problemStatement;
 
 	@ApiModelProperty("Container restrictions on the compilation step")
