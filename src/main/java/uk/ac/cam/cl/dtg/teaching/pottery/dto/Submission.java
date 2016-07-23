@@ -55,7 +55,7 @@ public class Submission {
 	public static final String STATUS_VALIDATOR_COMPLETE = "VALIDATOR_COMPLETE";
 
 	
-	public static final String STATUS_COMPLETE = "complete";
+	public static final String STATUS_COMPLETE = "COMPLETE";
 	
 	private final String repoId;
 	private final String tag;
