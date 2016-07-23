@@ -20,6 +20,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -67,6 +69,7 @@ public class Submission {
 	private long validatorTimeMs;
 	
 	private long waitTimeMs;
+	private Date dateScheduled;
 	
 	private List<TestStep> testSteps;
 	
@@ -75,7 +78,7 @@ public class Submission {
 	private String status;
 	
 	public Submission(String repoId, String tag, String compilationOutput, long compilationTimeMs, long harnessTimeMs,
-			long validatorTimeMs, long waitTimeMs, List<TestStep> testSteps, String summaryMessage, String status) {
+			long validatorTimeMs, long waitTimeMs, List<TestStep> testSteps, String summaryMessage, String status, Date dateScheduled) {
 		super();
 		this.repoId = repoId;
 		this.tag = tag;
@@ -87,9 +90,12 @@ public class Submission {
 		this.testSteps = testSteps;
 		this.summaryMessage = summaryMessage;
 		this.status = status;
+		this.dateScheduled = dateScheduled;
 	}
 
-
+	public Date getDateScheduled() {
+		return dateScheduled;
+	}
 
 	public String getRepoId() {
 		return repoId;
@@ -157,6 +163,7 @@ public class Submission {
 	
 	public static class Builder {
 		
+		private final Date dateScheduled;
 		private final String repoId;
 		private final String tag;
 		private String compilationOutput;
@@ -173,6 +180,7 @@ public class Submission {
 			this.repoId = repoId;
 			this.tag = tag;
 			this.status = STATUS_PENDING;
+			this.dateScheduled = new Date();
 		}
 		
 		public Builder setStatus(String status) {
@@ -216,8 +224,8 @@ public class Submission {
 			return this;
 		}
 		
-		public Builder setWaitTimeMs(long waitTimeMs) {
-			this.waitTimeMs = waitTimeMs;
+		public Builder setStarted() {
+			this.waitTimeMs = System.currentTimeMillis() - dateScheduled.getTime();
 			return this;
 		}
 		
@@ -228,7 +236,7 @@ public class Submission {
 							validatorInterpretations.stream().collect(Collectors.toMap(Interpretation::getId, Function.identity()));
 			List<TestStep> testSteps = harnessParts == null ? null : harnessParts.stream().map(p->new TestStep(p,i)).collect(Collectors.toList());
 			
-			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testSteps, summaryMessage, status);
+			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testSteps, summaryMessage, status,dateScheduled);
 		}
 
 		public void setComplete() {
@@ -260,7 +268,6 @@ public class Submission {
 		ObjectMapper mapper = new ObjectMapper();
 
 		try {		
-			// missing fields
 			q.update("INSERT into submissions ("
 					+ "repoid,"
 					+ "tag,"
@@ -271,8 +278,9 @@ public class Submission {
 					+ "validatorTimeMs,"
 					+ "waitTimeMs,"
 					+ "summaryMessage,"
-					+ "testSteps"
-					+ ") VALUES (?,?,?,?,?,?,?,?,?,?)",
+					+ "testSteps,"
+					+ "dateScheduled"
+					+ ") VALUES (?,?,?,?,?,?,?,?,?,?,?)",
 					repoId,
 					tag,
 					status,
@@ -282,7 +290,8 @@ public class Submission {
 					validatorTimeMs,
 					waitTimeMs,
 					summaryMessage,
-					testSteps == null ? null : mapper.writeValueAsString(testSteps));
+					testSteps == null ? null : mapper.writeValueAsString(testSteps),
+					new Timestamp(dateScheduled.getTime()));
 		} catch (JsonProcessingException e) {
 			throw new SQLException("Failed to serialise object",e);
 		}
@@ -300,7 +309,8 @@ public class Submission {
 					+ "validatorTimeMs=?"
 					+ "waitTimeMs=?,"
 					+ "summaryMessage=?,"
-					+ "testSteps=?"
+					+ "testSteps=?,"
+					+ "dateScheduled=?"
 					+ " where "
 					+ "repoId=? and tag=?",
 					status,
@@ -311,6 +321,7 @@ public class Submission {
 					waitTimeMs,
 					summaryMessage,
 					testSteps == null ? null : mapper.writeValueAsString(testSteps),
+					new Timestamp(dateScheduled.getTime()),
 					repoId,
 					tag);
 		} catch (JsonProcessingException e) {
@@ -339,7 +350,8 @@ public class Submission {
 					rs.getLong("waitTimeMs"),
 					testSteps,
 					rs.getString("summaryMessage"),
-					rs.getString("status"));
+					rs.getString("status"),
+					rs.getTimestamp("dateScheduled"));
 		} catch (IOException e) {
 			throw new SQLException("Failed to deserialise json object",e);
 		}

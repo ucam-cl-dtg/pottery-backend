@@ -233,6 +233,7 @@ public class Repo {
 			w.schedule(new Job() {
 				@Override
 				public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws InterruptedException {					
+					updateSubmission(builder.setStarted());
 					Task t;
 					try {
 						t = taskIndex.getTask(taskId);
