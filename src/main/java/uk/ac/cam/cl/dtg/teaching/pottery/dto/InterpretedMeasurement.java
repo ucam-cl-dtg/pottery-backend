@@ -19,6 +19,9 @@ package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Interpretation;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
 
@@ -29,14 +32,19 @@ public class InterpretedMeasurement {
 	private String result;
 	private String explanation;
 	
-	public InterpretedMeasurement(String criterion, String measurement, String result, String explanation) {
+	@JsonCreator
+	public InterpretedMeasurement(
+			@JsonProperty("criterion") String criterion, 
+			@JsonProperty("measurement") String measurement, 
+			@JsonProperty("result") String result, 
+			@JsonProperty("explanation") String explanation) {
 		super();
 		this.criterion = criterion;
 		this.measurement = measurement;
 		this.result = result;
 		this.explanation = explanation;
 	}
-
+	
 	public InterpretedMeasurement(Measurement m,Map<String,Interpretation> imap) {
 		super();
 		this.criterion = m.getCriterion();
