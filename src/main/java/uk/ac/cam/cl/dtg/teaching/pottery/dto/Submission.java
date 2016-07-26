@@ -73,7 +73,7 @@ public class Submission {
 	
 	private List<TestStep> testSteps;
 	
-	private String summaryMessage;
+	private String errorMessage;
 
 	private String status;
 	
@@ -84,7 +84,7 @@ public class Submission {
 	private String interpretation;
 	
 	public Submission(String repoId, String tag, String compilationOutput, long compilationTimeMs, long harnessTimeMs,
-			long validatorTimeMs, long waitTimeMs, List<TestStep> testSteps, String summaryMessage, String status, Date dateScheduled, String interpretation) {
+			long validatorTimeMs, long waitTimeMs, List<TestStep> testSteps, String errorMessage, String status, Date dateScheduled, String interpretation) {
 		super();
 		this.repoId = repoId;
 		this.tag = tag;
@@ -94,7 +94,7 @@ public class Submission {
 		this.validatorTimeMs = validatorTimeMs;
 		this.waitTimeMs = waitTimeMs;
 		this.testSteps = testSteps;
-		this.summaryMessage = summaryMessage;
+		this.errorMessage = errorMessage;
 		this.status = status;
 		this.dateScheduled = dateScheduled;
 		this.interpretation = interpretation;
@@ -156,8 +156,8 @@ public class Submission {
 
 
 
-	public String getSummaryMessage() {
-		return summaryMessage;
+	public String getErrorMessage() {
+		return errorMessage;
 	}
 
 
@@ -184,7 +184,7 @@ public class Submission {
 		private long waitTimeMs;
 		private List<HarnessPart> harnessParts;
 		private List<Interpretation> validatorInterpretations;
-		private String summaryMessage;
+		private String errorMessage;
 		private String status;
 		private String interpretation;
 		
@@ -199,9 +199,16 @@ public class Submission {
 			this.status = status;
 			return this;
 		}
-		
-		public Builder setSummaryMessage(String summaryMessage) {
-			this.summaryMessage = summaryMessage;
+
+		public Builder addErrorMessage(String errorMessage) {
+			if (errorMessage != null) {
+				if (this.errorMessage == null) {
+					this.errorMessage = errorMessage;
+				}
+				else {
+					this.errorMessage += " "+errorMessage;
+				}
+			}
 			return this;
 		}
 		
@@ -224,7 +231,7 @@ public class Submission {
 			this.status = h.isCompleted() ?  STATUS_HARNESS_COMPLETE : STATUS_HARNESS_FAILED;
 			this.harnessParts = h.getTestParts();
 			this.harnessTimeMs = executionTimeMs;
-			this.summaryMessage = h.getMessage();
+			this.errorMessage = h.getErrorMessage();
 			return this;
 		}
 		
@@ -232,7 +239,7 @@ public class Submission {
 			this.status = v.isCompleted() ?  STATUS_VALIDATOR_COMPLETE : STATUS_VALIDATOR_FAILED;
 			this.validatorInterpretations = v.getInterpretations();
 			this.validatorTimeMs = executionTimeMs;
-			this.summaryMessage = v.getMessage();
+			this.errorMessage = v.getErrorMessage();
 			return this;
 		}
 		
@@ -248,7 +255,7 @@ public class Submission {
 							validatorInterpretations.stream().collect(Collectors.toMap(Interpretation::getId, Function.identity()));
 			List<TestStep> testSteps = harnessParts == null ? null : harnessParts.stream().map(p->new TestStep(p,i)).collect(Collectors.toList());
 			
-			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testSteps, summaryMessage, status,dateScheduled,interpretation);
+			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testSteps, errorMessage, status,dateScheduled,interpretation);
 		}
 
 		public Builder setInterpretation(String interpretation) {
@@ -261,18 +268,21 @@ public class Submission {
 			if (STATUS_PENDING.equals(status) ||
 					STATUS_COMPILATION_RUNNING.equals(status)) {
 				status = STATUS_COMPILATION_FAILED;
+				interpretation = INTERPRETATION_BAD;
 				return;
 			}
 
 			if (STATUS_COMPILATION_COMPLETE.equals(status) ||
 					STATUS_HARNESS_RUNNING.equals(status)) {
 				status = STATUS_HARNESS_FAILED;
+				interpretation = INTERPRETATION_BAD;
 				return;
 			}
 
 			if (STATUS_HARNESS_COMPLETE.equals(status) ||
 					STATUS_VALIDATOR_RUNNING.equals(status)) {
 				status = STATUS_VALIDATOR_FAILED;
+				interpretation = INTERPRETATION_BAD;
 				return;
 			}
 
@@ -294,7 +304,7 @@ public class Submission {
 					+ "harnessTimeMs,"
 					+ "validatorTimeMs,"
 					+ "waitTimeMs,"
-					+ "summaryMessage,"
+					+ "errorMessage,"
 					+ "testSteps,"
 					+ "dateScheduled,"
 					+ "interpretation"
@@ -307,7 +317,7 @@ public class Submission {
 					harnessTimeMs,
 					validatorTimeMs,
 					waitTimeMs,
-					summaryMessage,
+					errorMessage,
 					testSteps == null ? null : mapper.writeValueAsString(testSteps),
 					new Timestamp(dateScheduled.getTime()),
 					interpretation);
@@ -327,7 +337,7 @@ public class Submission {
 					+ "harnessTimeMs=?,"
 					+ "validatorTimeMs=?"
 					+ "waitTimeMs=?,"
-					+ "summaryMessage=?,"
+					+ "errorMessage=?,"
 					+ "testSteps=?,"
 					+ "dateScheduled=?,"
 					+ "interpretation=?"
@@ -339,7 +349,7 @@ public class Submission {
 					harnessTimeMs,
 					validatorTimeMs,
 					waitTimeMs,
-					summaryMessage,
+					errorMessage,
 					testSteps == null ? null : mapper.writeValueAsString(testSteps),
 					new Timestamp(dateScheduled.getTime()),
 					interpretation,
@@ -370,10 +380,10 @@ public class Submission {
 					rs.getLong("validatorTimeMs"),
 					rs.getLong("waitTimeMs"),
 					testSteps,
-					rs.getString("summaryMessage"),
+					rs.getString("errorMessage"),
 					rs.getString("status"),
 					rs.getTimestamp("dateScheduled"),
-					rs.getString("interpretation"));
+					rs.getString("interpretation"));								  
 		} catch (IOException e) {
 			throw new SQLException("Failed to deserialise json object",e);
 		}

@@ -257,19 +257,26 @@ public class Repo {
 							updateSubmission(builder.setStatus(Submission.STATUS_COMPILATION_RUNNING));
 							ContainerExecResponse<String> compilationResponse = containerManager.execCompilation(codeDir, c.getCompileRoot(), image, taskInfo.getCompilationRestrictions());
 							updateSubmission(builder.setCompilationResponse(compilationResponse.getResponse(),compilationResponse.isSuccess(),compilationResponse.getExecutionTimeMs()));
-							if (!compilationResponse.isSuccess()) { return false; }
+							if (!compilationResponse.isSuccess()) { 
+								updateSubmission(builder.addErrorMessage("Compilation failed, no tests were run"));
+								return false; 
+							}
 
 							updateSubmission(builder.setStatus(Submission.STATUS_HARNESS_RUNNING));
 							ContainerExecResponse<HarnessResponse> harnessResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
 							updateSubmission(builder.setHarnessResponse(harnessResponse.getResponse(),harnessResponse.getExecutionTimeMs()));
-							if (!harnessResponse.getResponse().isCompleted()) { return false; }
+							updateSubmission(builder.addErrorMessage(harnessResponse.getResponse().getErrorMessage()));
+							if (!harnessResponse.getResponse().isCompleted()) {
+								return false; 	
+							}
 
 							updateSubmission(builder.setStatus(Submission.STATUS_VALIDATOR_RUNNING));
 							
 							ContainerExecResponse<ValidatorResponse> validatorResponse = containerManager.execValidator(c.getValidatorRoot(), harnessResponse.getResponse(), image,taskInfo.getValidatorRestrictions());
+
 							
 							boolean acceptableFound = false;
-							boolean badFound = false;
+							boolean badFound = validatorResponse.getResponse().getErrorMessage()!=null;
 							for(Interpretation i : validatorResponse.getResponse().getInterpretations()) {
 								if (i.getResult().equals(Interpretation.INTERPRETED_ACCEPTABLE)) {
 									acceptableFound = true;
@@ -290,9 +297,13 @@ public class Repo {
 								interpretation = Submission.INTERPRETATION_GOOD;
 							}
 							
+							
 							updateSubmission(builder.setValidatorResponse(validatorResponse.getResponse(),validatorResponse.getExecutionTimeMs())
-									.setInterpretation(interpretation));
-							if (!validatorResponse.getResponse().isCompleted()) { return false; }
+									.setInterpretation(interpretation)
+									.addErrorMessage(validatorResponse.getResponse().getErrorMessage())); 
+							if (!validatorResponse.getResponse().isCompleted()) { 
+								return false; 
+							}
 						}
 						finally {
 							builder.setComplete();
