@@ -30,7 +30,7 @@ public class ContainerRestrictions {
 	
 	public ContainerRestrictions() {
 		super();
-		this.timeoutSec = -1;
+		this.timeoutSec = 60;
 		this.diskWriteLimitMegabytes = 0;
 		this.ramLimitMegabytes = 10;
 	}
