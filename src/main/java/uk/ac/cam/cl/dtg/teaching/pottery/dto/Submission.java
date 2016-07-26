@@ -265,6 +265,10 @@ public class Submission {
 		
 		public void setComplete() {
 
+			if (errorMessage != null) {
+				interpretation = INTERPRETATION_BAD;
+			}
+			
 			if (STATUS_PENDING.equals(status) ||
 					STATUS_COMPILATION_RUNNING.equals(status)) {
 				status = STATUS_COMPILATION_FAILED;
@@ -385,7 +389,7 @@ public class Submission {
 					rs.getTimestamp("dateScheduled"),
 					rs.getString("interpretation"));								  
 		} catch (IOException e) {
-			throw new SQLException("Failed to deserialise json object",e);
+			throw new SQLException("Failed to deserialise json object "+e.getMessage(),e);
 		}
 	}
 	

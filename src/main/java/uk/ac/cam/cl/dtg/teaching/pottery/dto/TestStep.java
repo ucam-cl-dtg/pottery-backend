@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Interpretation;
 
@@ -60,8 +63,14 @@ public class TestStep {
 	 */
 	private String errorDetail;
 
-	public TestStep(List<String> testSteps, String testSummary, List<InterpretedMeasurement> measurements,
-			String errorSummary, String errorDetail) {
+	
+	@JsonCreator
+	public TestStep(
+			@JsonProperty("testSteps") List<String> testSteps, 
+			@JsonProperty("testSummary") String testSummary, 
+			@JsonProperty("measurements") List<InterpretedMeasurement> measurements,
+			@JsonProperty("errorSummary") String errorSummary, 
+			@JsonProperty("errorDetail") String errorDetail) {
 		super();
 		this.testSteps = testSteps;
 		this.testSummary = testSummary;
