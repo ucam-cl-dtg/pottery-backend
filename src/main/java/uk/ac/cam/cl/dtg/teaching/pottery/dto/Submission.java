@@ -200,13 +200,13 @@ public class Submission {
 			return this;
 		}
 
-		public Builder addErrorMessage(String errorMessage) {
-			if (errorMessage != null) {
+		public Builder addErrorMessage(String m) {
+			if (m != null) {
 				if (this.errorMessage == null) {
-					this.errorMessage = errorMessage;
+					this.errorMessage = m;
 				}
 				else {
-					this.errorMessage += " "+errorMessage;
+					this.errorMessage += " "+m;
 				}
 			}
 			return this;
@@ -231,7 +231,6 @@ public class Submission {
 			this.status = h.isCompleted() ?  STATUS_HARNESS_COMPLETE : STATUS_HARNESS_FAILED;
 			this.harnessParts = h.getTestParts();
 			this.harnessTimeMs = executionTimeMs;
-			this.errorMessage = h.getErrorMessage();
 			return this;
 		}
 		
@@ -239,7 +238,6 @@ public class Submission {
 			this.status = v.isCompleted() ?  STATUS_VALIDATOR_COMPLETE : STATUS_VALIDATOR_FAILED;
 			this.validatorInterpretations = v.getInterpretations();
 			this.validatorTimeMs = executionTimeMs;
-			this.errorMessage = v.getErrorMessage();
 			return this;
 		}
 		
