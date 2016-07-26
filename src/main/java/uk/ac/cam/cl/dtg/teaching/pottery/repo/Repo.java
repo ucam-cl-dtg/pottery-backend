@@ -76,6 +76,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Interpretation;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 public class Repo {
@@ -265,8 +266,32 @@ public class Repo {
 
 							updateSubmission(builder.setStatus(Submission.STATUS_VALIDATOR_RUNNING));
 							
-							ContainerExecResponse<ValidatorResponse> validatorResponse = containerManager.execValidator(c.getValidatorRoot(), harnessResponse.getResponse(), image,taskInfo.getValidatorRestrictions());							
-							updateSubmission(builder.setValidatorResponse(validatorResponse.getResponse(),validatorResponse.getExecutionTimeMs()));
+							ContainerExecResponse<ValidatorResponse> validatorResponse = containerManager.execValidator(c.getValidatorRoot(), harnessResponse.getResponse(), image,taskInfo.getValidatorRestrictions());
+							
+							boolean acceptableFound = false;
+							boolean badFound = false;
+							for(Interpretation i : validatorResponse.getResponse().getInterpretations()) {
+								if (i.getResult().equals(Interpretation.INTERPRETED_ACCEPTABLE)) {
+									acceptableFound = true;
+								}
+								else if (i.getResult().equals(Interpretation.INTERPRETED_BAD)) {
+									badFound = true;
+								}
+							}
+							
+							String interpretation;
+							if (badFound) {
+								interpretation = Submission.INTERPRETATION_BAD;
+							}
+							else if (acceptableFound) {
+								interpretation = Submission.INTERPRETATION_ACCEPTABLE;
+							}
+							else {
+								interpretation = Submission.INTERPRETATION_GOOD;
+							}
+							
+							updateSubmission(builder.setValidatorResponse(validatorResponse.getResponse(),validatorResponse.getExecutionTimeMs())
+									.setInterpretation(interpretation));
 							if (!validatorResponse.getResponse().isCompleted()) { return false; }
 						}
 						finally {

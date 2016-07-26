@@ -77,8 +77,14 @@ public class Submission {
 
 	private String status;
 	
+	public static final String INTERPRETATION_BAD = "BAD";
+	public static final String INTERPRETATION_ACCEPTABLE = "ACCEPTABLE";
+	public static final String INTERPRETATION_GOOD = "GOOD";
+	
+	private String interpretation;
+	
 	public Submission(String repoId, String tag, String compilationOutput, long compilationTimeMs, long harnessTimeMs,
-			long validatorTimeMs, long waitTimeMs, List<TestStep> testSteps, String summaryMessage, String status, Date dateScheduled) {
+			long validatorTimeMs, long waitTimeMs, List<TestStep> testSteps, String summaryMessage, String status, Date dateScheduled, String interpretation) {
 		super();
 		this.repoId = repoId;
 		this.tag = tag;
@@ -91,8 +97,13 @@ public class Submission {
 		this.summaryMessage = summaryMessage;
 		this.status = status;
 		this.dateScheduled = dateScheduled;
+		this.interpretation = interpretation;
 	}
 
+	public String getInterpretation() {
+		return interpretation;
+	}
+	
 	public Date getDateScheduled() {
 		return dateScheduled;
 	}
@@ -175,6 +186,7 @@ public class Submission {
 		private List<Interpretation> validatorInterpretations;
 		private String summaryMessage;
 		private String status;
+		private String interpretation;
 		
 		private Builder(String repoId, String tag) {
 			this.repoId = repoId;
@@ -236,9 +248,14 @@ public class Submission {
 							validatorInterpretations.stream().collect(Collectors.toMap(Interpretation::getId, Function.identity()));
 			List<TestStep> testSteps = harnessParts == null ? null : harnessParts.stream().map(p->new TestStep(p,i)).collect(Collectors.toList());
 			
-			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testSteps, summaryMessage, status,dateScheduled);
+			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testSteps, summaryMessage, status,dateScheduled,interpretation);
 		}
 
+		public Builder setInterpretation(String interpretation) {
+			this.interpretation = interpretation;
+			return this;
+		}
+		
 		public void setComplete() {
 
 			if (STATUS_PENDING.equals(status) ||
@@ -279,8 +296,9 @@ public class Submission {
 					+ "waitTimeMs,"
 					+ "summaryMessage,"
 					+ "testSteps,"
-					+ "dateScheduled"
-					+ ") VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+					+ "dateScheduled,"
+					+ "interpretation"
+					+ ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
 					repoId,
 					tag,
 					status,
@@ -291,7 +309,8 @@ public class Submission {
 					waitTimeMs,
 					summaryMessage,
 					testSteps == null ? null : mapper.writeValueAsString(testSteps),
-					new Timestamp(dateScheduled.getTime()));
+					new Timestamp(dateScheduled.getTime()),
+					interpretation);
 		} catch (JsonProcessingException e) {
 			throw new SQLException("Failed to serialise object",e);
 		}
@@ -310,7 +329,8 @@ public class Submission {
 					+ "waitTimeMs=?,"
 					+ "summaryMessage=?,"
 					+ "testSteps=?,"
-					+ "dateScheduled=?"
+					+ "dateScheduled=?,"
+					+ "interpretation=?"
 					+ " where "
 					+ "repoId=? and tag=?",
 					status,
@@ -322,6 +342,7 @@ public class Submission {
 					summaryMessage,
 					testSteps == null ? null : mapper.writeValueAsString(testSteps),
 					new Timestamp(dateScheduled.getTime()),
+					interpretation,
 					repoId,
 					tag);
 		} catch (JsonProcessingException e) {
@@ -351,7 +372,8 @@ public class Submission {
 					testSteps,
 					rs.getString("summaryMessage"),
 					rs.getString("status"),
-					rs.getTimestamp("dateScheduled"));
+					rs.getTimestamp("dateScheduled"),
+					rs.getString("interpretation"));
 		} catch (IOException e) {
 			throw new SQLException("Failed to deserialise json object",e);
 		}
