@@ -17,6 +17,7 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
+import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,10 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.core.UriInfo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,10 +110,12 @@ public class TasksController {
 	@POST
 	@Path("/create")
 	@ApiOperation(value="Create a new task",response=TaskInfo.class)
-	public Response create() throws TaskStorageException {
+	public Response create(@Context UriInfo uriInfo) throws TaskStorageException {
 		Task newTask = taskFactory.createInstance();
 		taskIndex.add(newTask);
-		return Response.ok().entity("{\"taskId\":\""+newTask.getTaskId()+"\"}").build();
+		String uri = uriInfo.getBaseUri().toString();
+		uri = uri.replaceAll("/api/", "/git/"+newTask.getTaskId());
+		return Response.ok().entity(String.format("{\"taskId\":\"%s\",\"remote\":\"%s\"}",newTask.getTaskId(),uri)).build();
 	}
 	
 	@GET
