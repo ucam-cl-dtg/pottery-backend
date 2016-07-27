@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -190,7 +191,8 @@ public class ContainerManager implements Stoppable {
 						@Override
 						public Boolean call() throws Exception {
 							try {
-								return DockerUtil.killContainer(containerId,docker);
+								DockerUtil.killContainer(containerId,docker);
+								return true;
 							} catch (RuntimeException e) {
 								LOG.error("Caught exception killing container",e);
 								return false;
@@ -210,18 +212,12 @@ public class ContainerManager implements Stoppable {
 					WaitResponse waitResponse = docker.waitContainer(containerId);
 				
 					if (timeoutKiller != null) {
-						boolean killed = false;				
-						if (!timeoutKiller.isDone()) {
-							timeoutKiller.cancel(false);
-						}
-						else {
-							try {
-								killed = timeoutKiller.get();
-							} catch (InterruptedException|ExecutionException e) {}
-						}
-						if (killed) {
-							throw new ContainerExecutionException("Timed out after "+restrictions.getTimeoutSec()+" seconds");
-						}	
+						timeoutKiller.cancel(false);
+						try {
+							if (timeoutKiller.get()) {
+								throw new ContainerExecutionException("Timed out after "+restrictions.getTimeoutSec()+" seconds");	
+							}
+						} catch (InterruptedException|ExecutionException|CancellationException e) {}
 					}
 					if (diskUsageKiller.isKilled()) {
 						throw new ContainerExecutionException("Excessive disk usage. Recorded "+diskUsageKiller.getBytesWritten()+" bytes written");
@@ -250,8 +246,8 @@ public class ContainerManager implements Stoppable {
 				docker.deleteContainer(containerId, true, true);
 			}
 		} catch (RuntimeException e) {
-			LOG.debug("Error executing container",e);
-			throw new ContainerExecutionException(e.getMessage());
+			LOG.error("Error executing container",e);
+			throw new ContainerExecutionException("An error ("+e.getClass().getName()+") occurred when executing container: "+e.getMessage());
 		}
 	}
 
