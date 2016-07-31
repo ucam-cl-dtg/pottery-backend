@@ -29,6 +29,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
@@ -210,7 +211,7 @@ public class TaskCopyBuilder {
 		String image = taskInfo.getImage();
 
 		builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TEST);
-		ContainerExecResponse<String> r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getCompilationRestrictions());
+		ContainerExecResponse<String> r = containerManager.execTaskCompilation(taskCopy.getLocation(),image,taskInfo.getTaskCompilationRestrictions());
 		builderInfo.setTestCompileResponse(r.getResponse());
 		if (!r.isSuccess()) {
 			builderInfo.setException(new InvalidTaskSpecificationException("Failed to compile testing code in task. Compiler response was: "+r.getRawResponse()));

@@ -112,15 +112,20 @@ public class TaskInfo {
 	@ApiModelProperty("Container restrictions on the validator")
 	private ContainerRestrictions validatorRestrictions;
 
+	@ApiModelProperty("Container restrictions on the task compilation step (i.e. compiling the test itself")
+	private ContainerRestrictions taskCompilationRestrictions;
+
+	
 	@ApiModelProperty("List of filenames (relative to the root of the project) to open as a starting point of the task")
 	private List<String> startingPointFiles;
 	
 	public TaskInfo(String taskId) {
 		super();
 		this.taskId = taskId;
-		this.compilationRestrictions = new ContainerRestrictions();
-		this.harnessRestrictions = new ContainerRestrictions();
-		this.validatorRestrictions = new ContainerRestrictions();
+		this.compilationRestrictions = ContainerRestrictions.candidateRestriction(null);
+		this.harnessRestrictions = ContainerRestrictions.candidateRestriction(null);
+		this.validatorRestrictions = ContainerRestrictions.candidateRestriction(null);
+		this.taskCompilationRestrictions = ContainerRestrictions.authorRestriction(null);
 	}
 	
 	@JsonCreator
@@ -135,6 +140,7 @@ public class TaskInfo {
 				@JsonProperty("compilationRestrictions") ContainerRestrictions compilationRestrictions,
 				@JsonProperty("harnessRestrictions") ContainerRestrictions harnessRestrictions,
 				@JsonProperty("validatorRestrictions") ContainerRestrictions validatorRestrictions,
+				@JsonProperty("taskCompilationRestrictions") ContainerRestrictions taskCompilationRestrictions,
 				@JsonProperty("startingPointFiles") List<String> startingPointFiles) {
 		super();
 		this.type = type;
@@ -145,9 +151,10 @@ public class TaskInfo {
 		this.recommendedTimeMinutes = recommendedTimeMinutes;
 		this.language = language;
 		this.problemStatement = problemStatement;
-		this.compilationRestrictions = compilationRestrictions != null ? compilationRestrictions : new ContainerRestrictions(); 
-		this.harnessRestrictions = harnessRestrictions != null ? harnessRestrictions : new ContainerRestrictions();
-		this.validatorRestrictions = validatorRestrictions != null ? validatorRestrictions : new ContainerRestrictions();
+		this.compilationRestrictions = ContainerRestrictions.candidateRestriction(compilationRestrictions); 
+		this.harnessRestrictions = ContainerRestrictions.candidateRestriction(harnessRestrictions);
+		this.validatorRestrictions = ContainerRestrictions.candidateRestriction(validatorRestrictions);
+		this.taskCompilationRestrictions = ContainerRestrictions.authorRestriction(taskCompilationRestrictions);
 		this.startingPointFiles = startingPointFiles;
 	}
 
@@ -163,6 +170,9 @@ public class TaskInfo {
 		return validatorRestrictions;
 	}
 
+	public ContainerRestrictions getTaskCompilationRestrictions() {
+		return taskCompilationRestrictions;
+	}
 
 
 	public String getTaskId() {

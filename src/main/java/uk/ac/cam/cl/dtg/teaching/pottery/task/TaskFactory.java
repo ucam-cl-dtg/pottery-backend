@@ -89,9 +89,10 @@ public class TaskFactory {
 						30, 
 						"java", 
 						"<p>Template task</p>",
-						new ContainerRestrictions(),
-						new ContainerRestrictions(),
-						new ContainerRestrictions(),
+						ContainerRestrictions.candidateRestriction(null),
+						ContainerRestrictions.candidateRestriction(null),
+						ContainerRestrictions.candidateRestriction(null),
+						ContainerRestrictions.authorRestriction(null),
 						null);
 				i.save(stdTemplate);
 				g.add().addFilepattern("task.json").call();

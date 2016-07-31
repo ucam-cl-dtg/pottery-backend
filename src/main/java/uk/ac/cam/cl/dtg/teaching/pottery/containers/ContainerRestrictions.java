@@ -28,13 +28,6 @@ public class ContainerRestrictions {
 	
 	private int ramLimitMegabytes;
 	
-	public ContainerRestrictions() {
-		super();
-		this.timeoutSec = 60;
-		this.diskWriteLimitMegabytes = 0;
-		this.ramLimitMegabytes = 10;
-	}
-	
 	@JsonCreator
 	public ContainerRestrictions(
 			@JsonProperty("timeoutSec") int timeoutSec, 
@@ -58,4 +51,24 @@ public class ContainerRestrictions {
 		return ramLimitMegabytes;
 	}
 	
+	/**
+	 * Restrictions to impose on a candidate
+	 * @param v
+	 * @return
+	 */
+	public static ContainerRestrictions candidateRestriction(ContainerRestrictions v) {
+		if (v != null) return v;
+		return new ContainerRestrictions(60,1,10);
+	}
+
+	/**
+	 * Restrictions for an author of a test i.e. to compile the task itself
+	 * @param v
+	 * @return
+	 */
+	public static ContainerRestrictions authorRestriction(ContainerRestrictions v) {
+		if (v != null) return v;
+		return new ContainerRestrictions(500,50,50);
+	}
+
 }
