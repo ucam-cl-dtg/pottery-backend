@@ -45,7 +45,7 @@ public class Criterion {
 		UNITS.put("mempeak",Units.UNIT_BYTES);
 		//Peak Memory usage is reported through the ManagementFactory API for instrumentation agents on a JVM
 		
-		DESCRIPTIONS.put("memtotal","Total Allocation: Every time memory is (heao) (de)allocated a cost is incurred.  Because of this some programs benefit from a statically allocated object pool.");
+		DESCRIPTIONS.put("memtotal","Total Allocation: Every time memory is (heap) (de)allocated a cost is incurred.  Because of this some programs benefit from a statically allocated object pool.");
 		UNITS.put("memtotal",Units.UNIT_BYTES);
 		// At the moment it looks like the only way to do this is to use java instrumentation to rewrite classes when loaded to count calls to new (or to rewrite constructors taking care for arrays and superclasses).
 		
