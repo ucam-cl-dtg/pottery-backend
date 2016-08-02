@@ -67,7 +67,10 @@ import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
@@ -176,16 +179,21 @@ public class Repo {
 	 * @param database
 	 * @return
 	 * @throws SubmissionStorageException 
+	 * @throws SubmissionNotFoundException 
 	 * @throws SQLException
 	 */
-	public Submission getSubmission(String tag, Database database) throws SubmissionStorageException {
+	public Submission getSubmission(String tag, Database database) throws SubmissionStorageException, SubmissionNotFoundException {
 		synchronized (lockFields) {
 				if (currentSubmission != null && currentSubmission.getTag().equals(tag)) {
 					return currentSubmission;
 				}
 		}	
 		try (TransactionQueryRunner q = database.getQueryRunner()) {
-			return Submission.getByRepoIdAndTag(repoId, tag, q);
+			Submission s = Submission.getByRepoIdAndTag(repoId, tag, q);
+			if (s == null) {
+				throw new SubmissionNotFoundException("Failed to find a submission with tag "+tag+" on repository "+repoId);
+			}
+			return s;
 		} catch (SQLException e) {
 			throw new SubmissionStorageException("Failed to load submission from database",e);
 		}
@@ -218,15 +226,26 @@ public class Repo {
 	 * @return
 	 * @throws RepoExpiredException 
 	 * @throws SubmissionStorageException 
+	 * @throws RepoTagNotFoundException 
+	 * @throws RepoStorageException 
+	 * @throws SubmissionNotFoundException 
 	 */
-	public Submission scheduleSubmission(String tag, Worker w, Database db) throws RepoExpiredException, SubmissionStorageException {
+	public Submission scheduleSubmission(String tag, Worker w, Database db) throws RepoExpiredException, SubmissionStorageException, RepoTagNotFoundException, RepoStorageException {
 		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		
 		synchronized (lockFields) {
-			Submission s = getSubmission(tag, db);
-			//	Means we've already scheduled (and possibly already run) the test for this tag
-			if (s != null) return s;
+			try {
+				Submission s = getSubmission(tag, db);
+				//	Means we've already scheduled (and possibly already run) the test for this tag
+				return s;
+			} catch (SubmissionNotFoundException e) {
+				// Lets make one
+			}
 		
+			if (!existsTag(tag)) {
+				throw new RepoTagNotFoundException("Tag "+tag+" does not exist in repository");
+			}
+			
 			Submission.Builder builder = Submission.builder(repoId,tag);
 		
 			updateSubmission(builder);
@@ -389,8 +408,9 @@ public class Repo {
 	 * @param tag the tag of interest
 	 * @return a list of file names relative to the root of the repository
 	 * @throws RepoStorageException
+	 * @throws RepoTagNotFoundException 
 	 */
-	public List<String> listFiles(String tag) throws RepoStorageException {
+	public List<String> listFiles(String tag) throws RepoStorageException, RepoTagNotFoundException {
 		try (AutoCloseableLock l = lock.takeFileReadingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				Repository repo = git.getRepository();
@@ -499,13 +519,17 @@ public class Repo {
 	 * @param tag the tag to reset to
 	 * @throws RepoStorageException if something goes wrong
 	 * @throws RepoExpiredException 
+	 * @throws RepoTagNotFoundException 
 	 */
-	public void reset(String tag) throws RepoStorageException, RepoExpiredException {
+	public void reset(String tag) throws RepoStorageException, RepoExpiredException, RepoTagNotFoundException {
 		if (isExpired()) throw new RepoExpiredException("This repository expired at "+expiryDate+" and is no longer editable");
 		try (AutoCloseableLock l = lock.takeFileWritingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				Repository r = git.getRepository();
 				Ref tagRef = r.findRef(tag);
+				if (tagRef == null) { 
+					throw new RepoTagNotFoundException("Tag "+tag+" not found in repository "+repoId);
+				}
 				Ref peeled = r.peel(tagRef);
 				ObjectId tagObjectId = peeled != null ? peeled.getPeeledObjectId() : tagRef.getObjectId();
 				ObjectId headObjectId = r.findRef("HEAD").getObjectId();
@@ -644,8 +668,9 @@ public class Repo {
 	 * @return a StreamingOutput instance containing the data
 	 * @throws RepoStorageException if something goes wrong
 	 * @throws RepoFileNotFoundException 
+	 * @throws RepoTagNotFoundException 
 	 */
-	public StreamingOutput readFile(String tag, String fileName) throws RepoStorageException, RepoFileNotFoundException {
+	public StreamingOutput readFile(String tag, String fileName) throws RepoStorageException, RepoFileNotFoundException, RepoTagNotFoundException {
 		try (AutoCloseableLock l = lock.takeFileReadingLock()) {
 			try (Git git = Git.open(repoDirectory)) {
 				Repository repo = git.getRepository();
@@ -692,7 +717,7 @@ public class Repo {
 	
 	private RevTree getRevTree(String tag, Repository repo, RevWalk revWalk)
 			throws AmbiguousObjectException, IncorrectObjectTypeException,
-			IOException, RepoStorageException, MissingObjectException, NoHeadInRepoException {
+			IOException, RepoStorageException, MissingObjectException, NoHeadInRepoException, RepoTagNotFoundException {
 		RevTree tree;
 		try {
 			ObjectId tagId = repo.resolve(Constants.HEAD.equals(tag) ? Constants.HEAD : Constants.R_TAGS+tag);
@@ -701,7 +726,7 @@ public class Repo {
 					throw new NoHeadInRepoException("Failed to find HEAD in repo.");
 				}
 				else {
-					throw new RepoStorageException("Failed to find tag "+tag);
+					throw new RepoTagNotFoundException("Failed to find tag "+tag);
 				}
 			}
 			RevCommit revCommit = revWalk.parseCommit(tagId);
@@ -720,15 +745,15 @@ public class Repo {
 	 * @param repoId the ID of the repo to open
 	 * @param config server configuration
 	 * @param database database connection
-	 * @return a repo object for this repository
-	 * @throws RepoStorageException if the repository does not exist or if it can't be opened
+	 * @return a repo object for this repository 
+	 * @throws RepoNotFoundException if the repository does not exist or if it can't be opened 
 	 */
-	static Repo openRepo(String repoId, RepoConfig config, Database database) throws RepoStorageException {
+	static Repo openRepo(String repoId, RepoConfig config, Database database) throws RepoNotFoundException {
 		
 		File repoDirectory = config.getRepoDir(repoId);
 		
 		if (!repoDirectory.exists()) {
-			throw new RepoStorageException("Failed to find repository directory "+repoDirectory);
+			throw new RepoNotFoundException("Failed to find repository directory "+repoDirectory);
 		}
 		
 		try(TransactionQueryRunner q = database.getQueryRunner()) {
@@ -737,11 +762,11 @@ public class Repo {
 				return new Repo(repoId,config, r.getTaskId(),r.isUsingTestingVersion(),r.getExpiryDate());
 			}
 			else {
-				throw new RepoStorageException("Repository with ID "+repoId+" does not exist in database");
+				throw new RepoNotFoundException("Repository with ID "+repoId+" does not exist in database");
 			}			
 		}
 		catch (SQLException e) {
-			throw new RepoStorageException("Failed to lookup repository with ID "+repoId+" in database",e);
+			throw new RepoNotFoundException("Failed to lookup repository with ID "+repoId+" in database",e);
 		}
 		
 	}

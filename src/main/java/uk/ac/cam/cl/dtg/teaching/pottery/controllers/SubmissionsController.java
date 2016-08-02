@@ -33,7 +33,9 @@ import com.wordnik.swagger.annotations.ApiOperation;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
@@ -66,7 +68,7 @@ public class SubmissionsController {
 	@ApiOperation(value="Schedules a test by creating a submission",
 			notes="A submission is created from a tag in the code repository used by the candidate.",position=0)
 	public Submission scheduleTest(@PathParam("repoId") String repoId, @PathParam("tag") String tag) 
-			throws SubmissionNotFoundException, RepoStorageException, RepoExpiredException, SubmissionStorageException {
+			throws SubmissionNotFoundException, RepoStorageException, RepoExpiredException, SubmissionStorageException, RepoNotFoundException, RepoTagNotFoundException {
 		Repo r = repoFactory.getInstance(repoId);
 		return r.scheduleSubmission(tag, worker,database);
 	}
@@ -76,7 +78,7 @@ public class SubmissionsController {
 	@ApiOperation(value="Poll the submission information",
 		notes="Use this call to poll for the results of testing.",position=1)
 	public Submission getSubmission(@PathParam("repoId") String repoId, @PathParam("tag") String tag) 
-			throws SubmissionNotFoundException, RepoStorageException, SubmissionStorageException {
+			throws SubmissionNotFoundException, RepoStorageException, SubmissionStorageException, RepoNotFoundException {
 		return repoFactory.getInstance(repoId).getSubmission(tag,database);
 	}
 }

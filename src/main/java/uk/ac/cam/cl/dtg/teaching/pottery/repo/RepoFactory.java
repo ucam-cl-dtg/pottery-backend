@@ -33,6 +33,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 
 @Singleton
@@ -74,7 +75,7 @@ public class RepoFactory {
 		}
 	}
 	
-	public Repo getInstance(String repoId) throws RepoStorageException {
+	public Repo getInstance(String repoId) throws RepoStorageException, RepoNotFoundException {
 		try {
 			return cache.get(repoId);
 		} catch (ExecutionException e) {
@@ -82,13 +83,16 @@ public class RepoFactory {
 			if (e.getCause() instanceof RepoStorageException) {
 				throw (RepoStorageException)e.getCause();
 			}
+			else if (e.getCause() instanceof RepoNotFoundException) {
+				throw (RepoNotFoundException)e.getCause();
+			}
 			else {
 				throw new Error(e);
 			}
 		}
 	}
 
-	public Repo createInstance(String taskId, boolean usingTestingVersion, Date expiryDate) throws RepoStorageException {
+	public Repo createInstance(String taskId, boolean usingTestingVersion, Date expiryDate) throws RepoStorageException, RepoNotFoundException {
 		final String newRepoId = uuidGenerator.generate();
 		try {
 			return cache.get(newRepoId, new Callable<Repo>() {
@@ -100,6 +104,9 @@ public class RepoFactory {
 		} catch (ExecutionException e) {
 			if (e.getCause() instanceof RepoStorageException) {
 				throw (RepoStorageException)e.getCause();
+			}
+			else if (e.getCause() instanceof RepoNotFoundException) {
+				throw (RepoNotFoundException)e.getCause();
 			}
 			else {
 				throw new Error(e);
