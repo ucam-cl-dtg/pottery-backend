@@ -294,7 +294,7 @@ public class Repo {
 								interpretation = Submission.INTERPRETATION_ACCEPTABLE;
 							}
 							else {
-								interpretation = Submission.INTERPRETATION_GOOD;
+								interpretation = Submission.INTERPRETATION_EXCELLENT;
 							}
 							
 							

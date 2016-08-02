@@ -77,9 +77,9 @@ public class Submission {
 
 	private String status;
 	
-	public static final String INTERPRETATION_BAD = "BAD";
-	public static final String INTERPRETATION_ACCEPTABLE = "ACCEPTABLE";
-	public static final String INTERPRETATION_GOOD = "GOOD";
+	public static final String INTERPRETATION_BAD = Interpretation.INTERPRETED_BAD;
+	public static final String INTERPRETATION_ACCEPTABLE = Interpretation.INTERPRETED_ACCEPTABLE;
+	public static final String INTERPRETATION_EXCELLENT = Interpretation.INTERPRETED_EXCELLENT;
 	
 	private String interpretation;
 	
