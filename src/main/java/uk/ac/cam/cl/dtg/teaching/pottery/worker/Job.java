@@ -34,4 +34,10 @@ public interface Job {
 	 * @throws Exception
 	 */
 	public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager, Database database) throws Exception;
+	
+	/**
+	 * Textual description of the job
+	 * @return
+	 */
+	public String getDescription();
 }

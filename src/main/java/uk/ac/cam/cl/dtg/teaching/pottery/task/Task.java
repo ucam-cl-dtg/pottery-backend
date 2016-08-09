@@ -183,6 +183,11 @@ public class Task {
 							Database database) throws Exception {
 						return storeNewRegisteredCopy(w, database);
 					}
+
+					@Override
+					public String getDescription() {
+						return "Storing new registered copy of task "+taskId;
+					}
 				});
 			} catch (TaskStorageException e) {
 				registeredBuilder = TaskCopyBuilder.createFailurePlaceholder(sha1, config, e);
@@ -270,6 +275,11 @@ public class Task {
 					public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
 							Database database) throws Exception {
 						return storeNewTestCopy(w, database);
+					}
+
+					@Override
+					public String getDescription() {
+						return "Storing new testing copy of "+taskId;
 					}
 				});
 			} catch (TaskStorageException e) {
@@ -430,6 +440,11 @@ public class Task {
 						ContainerManager containerManager, Database database) throws Exception {
 					c.destroy();
 					return true;
+				}
+
+				@Override
+				public String getDescription() {
+					return "Destroy task copy of task "+taskId;
 				}						
 			});
 		}

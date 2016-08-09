@@ -29,7 +29,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
@@ -90,6 +89,12 @@ public class TaskCopyBuilder {
 			public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
 					Database database) throws Exception {				
 				return copyFiles(sha1, taskId, copyId, taskConfig, taskDefDir);
+			}
+
+			@Override
+			public String getDescription() {
+				return "Copy files into copy of task "+taskId;
+				
 			}			
 		};
 		this.compileTests = new Job() {
@@ -98,6 +103,11 @@ public class TaskCopyBuilder {
 					Database database) throws Exception {
 				
 				return compileFiles(taskConfig, taskDefDir, containerManager);
+			}
+
+			@Override
+			public String getDescription() {
+				return "Compile tests for task "+ taskId;
 			}			
 		};
 	}

@@ -42,6 +42,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.controllers.GuiceDependencyController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
+import uk.ac.cam.cl.dtg.teaching.pottery.controllers.WorkerController;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
@@ -54,6 +55,7 @@ public class ApplicationModule implements Module {
 		binder.bind(SubmissionsController.class);
 		binder.bind(RepoController.class);
 		binder.bind(TasksController.class);
+		binder.bind(WorkerController.class);
 		binder.bind(ExceptionHandler.class);
 		binder.bind(CorsResponseFilter.class);
 		binder.bind(CorsRequestFilter.class);

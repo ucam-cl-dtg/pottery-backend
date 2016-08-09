@@ -17,8 +17,13 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,37 +51,64 @@ public class Worker implements Stoppable {
 	private ContainerManager containerManager;
 	
 	private Database database;
-	
+		
 	@Inject
 	public Worker(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager, Database database) {
 		super();
-		this.threadPool = Executors.newFixedThreadPool(2);
+		this.threadPool = Executors.newFixedThreadPool(1);
 		this.taskIndex = taskIndex;
 		this.repoFactory = repoFactory;
 		this.containerManager = containerManager;
 		this.database = database;
 	}
 
+	public synchronized void rebuildThreadPool(int numThreads) {
+		List<Runnable> pending = this.threadPool.shutdownNow();
+		try {
+			this.threadPool.awaitTermination(1, TimeUnit.MINUTES);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		this.threadPool = Executors.newFixedThreadPool(numThreads);
+		for(Runnable r : pending) {
+			this.threadPool.execute(r);
+		}
+	}
+	
+	public List<JobStatus> getQueue() {
+		synchronized (queue) {
+			return new LinkedList<>(queue);
+		}
+	}
+	
 	/**
 	 * Schedule a sequence of jobs
 	 * @param jobs the jobs to be run in sequence (if a job fails then we stop there)
 	 */
-	public void schedule(Job... jobs) {
+	public synchronized void schedule(Job... jobs) {
 		threadPool.execute(new JobIteration(jobs,0));
 	} 
+	
+	private final SortedSet<JobStatus> queue = new TreeSet<JobStatus>();
 	
 	private class JobIteration implements Runnable {
 		private Job[] jobs;
 		private int index;
-			
+		private JobStatus status;	
+		
 		public JobIteration(Job[] jobs, int index) {
 			super();
 			this.jobs = jobs;
 			this.index = index;
+			this.status = new JobStatus(jobs[index].getDescription());
+			synchronized (queue) {
+				queue.add(status);
+			}
 		}
 		
 		@Override
 		public void run() {
+			status.setStatus(JobStatus.STATUS_RUNNING);
 			try {
 				boolean result = jobs[index].execute(taskIndex, repoFactory, containerManager, database);
 				if (result && index < jobs.length -1) {
@@ -84,6 +116,10 @@ public class Worker implements Stoppable {
 				}
 			} catch (Exception e) {
 				LOG.error("Unhandled exception in worker",e);
+			} finally {
+				synchronized (queue) {
+					queue.remove(status);
+				}
 			}
 		}
 	}

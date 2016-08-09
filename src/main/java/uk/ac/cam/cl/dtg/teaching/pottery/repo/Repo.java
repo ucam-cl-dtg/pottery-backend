@@ -324,6 +324,11 @@ public class Repo {
 								return false; 
 							}
 						}
+						catch (InterruptedException e) {
+							updateSubmission(Submission.builder(repoId,tag)
+									.setCompilationResponse("Job was interrupted, please retry",false,0));
+							return false;
+						}
 						finally {
 							builder.setComplete();
 							
@@ -345,6 +350,11 @@ public class Repo {
 						return false;
 					}
 					return true;
+				}
+
+				@Override
+				public String getDescription() {
+					return "Testing submission "+repoId+":"+tag;
 				}			
 			});
 			return currentSubmission;
