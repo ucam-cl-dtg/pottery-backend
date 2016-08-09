@@ -192,7 +192,6 @@ public class ContainerManager implements Stoppable {
 						@Override
 						public Boolean call() throws Exception {
 							try {
-								LOG.error("Trying to kill container {}",containerId);
 								DockerUtil.killContainer(containerId,docker);
 								return true;
 							} catch (RuntimeException e) {
@@ -201,7 +200,6 @@ public class ContainerManager implements Stoppable {
 							}
 						}					
 					}, restrictions.getTimeoutSec(),TimeUnit.SECONDS);
-					LOG.error("Scheduled timout killer for {}",containerId);
 				}
 				
 				DiskUsageKiller diskUsageKiller = new DiskUsageKiller(containerId,docker,restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024);
