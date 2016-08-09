@@ -53,7 +53,9 @@ public class DiskUsageKiller implements Runnable {
 				}
 			} 
 		} catch (RuntimeException e) {
-			LOG.error("Caught exception when trying to kill container for disk usage",e);
+			if (!e.getMessage().startsWith("No such container: ")) { // avoid the race condition where the container exits just before we kill it 
+				LOG.error("Caught exception when trying to kill container for disk usage",e);
+			}
 		}
 	}
 	
