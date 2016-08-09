@@ -25,14 +25,16 @@ import org.eclipse.jetty.websocket.api.WebSocketListener;
 class AttachListener implements WebSocketListener {
 	private StringBuffer output;
 	private String data;
-	
+	private boolean closed = false;
 	public AttachListener(StringBuffer output, String data) {
 		this.output = output;
 		this.data = data;
 	}
 
 	@Override
-	public void onWebSocketClose(int statusCode, String reason) {			
+	public synchronized void onWebSocketClose(int statusCode, String reason) {
+		closed = true;
+		this.notifyAll();
 	}
 
 	@Override
@@ -63,5 +65,11 @@ class AttachListener implements WebSocketListener {
 	@Override
 	public void onWebSocketText(String message) {
 		output.append(message);
-	}		
+	}
+	
+	public synchronized void waitForClose() throws InterruptedException {
+		while(!this.closed) {
+			this.wait();
+		}
+	}
 }

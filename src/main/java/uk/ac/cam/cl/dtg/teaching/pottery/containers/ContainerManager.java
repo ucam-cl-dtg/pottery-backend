@@ -46,6 +46,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import uk.ac.cam.cl.dtg.teaching.docker.Docker;
+import uk.ac.cam.cl.dtg.teaching.docker.DockerPatch;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Container;
@@ -80,7 +81,7 @@ public class ContainerManager implements Stoppable {
 	@Inject
 	public ContainerManager(ContainerEnvConfig config) throws IOException {
 		this.config = config;
-		this.docker = new Docker("localhost",2375).api();
+		this.docker = new Docker("localhost",2375,2).api();
 		this.scheduler = Executors.newSingleThreadScheduledExecutor();
 		FileUtil.mkdir(config.getLibRoot());
 		
@@ -191,6 +192,7 @@ public class ContainerManager implements Stoppable {
 						@Override
 						public Boolean call() throws Exception {
 							try {
+								LOG.error("Trying to kill container {}",containerId);
 								DockerUtil.killContainer(containerId,docker);
 								return true;
 							} catch (RuntimeException e) {
@@ -199,6 +201,7 @@ public class ContainerManager implements Stoppable {
 							}
 						}					
 					}, restrictions.getTimeoutSec(),TimeUnit.SECONDS);
+					LOG.error("Scheduled timout killer for {}",containerId);
 				}
 				
 				DiskUsageKiller diskUsageKiller = new DiskUsageKiller(containerId,docker,restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024);
@@ -209,7 +212,14 @@ public class ContainerManager implements Stoppable {
 					Future<Session> session = docker.attach(containerId,true,true,true,true,true,l);
 					
 					// Wait for container to finish (or be killed)
-					WaitResponse waitResponse = docker.waitContainer(containerId);
+					boolean success = false;
+					try {
+						l.waitForClose();
+						WaitResponse waitResponse = docker.waitContainer(containerId);
+						success = waitResponse.statusCode == 0;
+					} catch (InterruptedException e1) {
+						// carry on from here
+					}
 				
 					if (timeoutKiller != null) {
 						timeoutKiller.cancel(false);
@@ -232,7 +242,6 @@ public class ContainerManager implements Stoppable {
 						LOG.error("An exception occurred collecting the websocket session from the future",e.getCause());
 					}
 					
-					boolean success = waitResponse.statusCode == 0;
 					LOG.debug("Container response: {}",output.toString());
 					return new ContainerExecResponse<>(success, converter.apply(output.toString()),output.toString(),System.currentTimeMillis()-startTime);
 				}
@@ -243,7 +252,7 @@ public class ContainerManager implements Stoppable {
 			
 			finally {
 				runningContainers.remove(containerId);
-				docker.deleteContainer(containerId, true, true);
+				DockerPatch.deleteContainer(docker, containerId, true, true);
 			}
 		} catch (RuntimeException e) {
 			LOG.error("Error executing container",e);
