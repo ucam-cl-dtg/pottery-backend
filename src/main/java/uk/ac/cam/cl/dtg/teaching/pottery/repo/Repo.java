@@ -300,7 +300,7 @@ public class Repo {
 								if (i.getResult().equals(Interpretation.INTERPRETED_ACCEPTABLE)) {
 									acceptableFound = true;
 								}
-								else if (i.getResult().equals(Interpretation.INTERPRETED_BAD)) {
+								else if (i.getResult().equals(Interpretation.INTERPRETED_FAILED)) {
 									badFound = true;
 								}
 							}
