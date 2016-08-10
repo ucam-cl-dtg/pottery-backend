@@ -1,3 +1,5 @@
+If using docker on aufs you might need to install the aufs-tools package if you see errors like "Couldn't run auplink before unmount: exec: \"auplink\": executable file not found in $PATH" in syslog
+
 Depending on your choice of distribution you might need to change the storage driver used by docker. See here for a guide:  https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/
 
 Here are rough notes for switching to the lvm storage driver on centos:
