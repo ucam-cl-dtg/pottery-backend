@@ -399,9 +399,7 @@ public class Task {
 			
 		TaskDefInfo info = new TaskDefInfo(taskId, null,null,null,false);
 
-		File templateRepo = config.getTaskTemplateDir("standard");
-
-		try (Git g = Git.cloneRepository().setURI(templateRepo.getPath()).setBare(true).setDirectory(taskDefDir)
+		try (Git g = Git.init().setBare(true).setDirectory(taskDefDir)
 				.call()) {
 			
 			TaskCopyBuilder testingBuilder = TaskCopyBuilder.createSuccessPlaceholder("HEAD",taskId,config);

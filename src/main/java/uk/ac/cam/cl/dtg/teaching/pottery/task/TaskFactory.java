@@ -17,13 +17,11 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
-import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
 import com.google.common.cache.CacheBuilder;
@@ -36,8 +34,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
@@ -72,34 +68,7 @@ public class TaskFactory {
 		this.database = database;
 		FileUtil.mkdir(config.getTaskDefinitionRoot());
 		FileUtil.mkdir(config.getTaskCopyRoot());
-		FileUtil.mkdir(config.getTaskTemplateRoot());
 		
-		// TODO: need to implement task template support. For the meantime we only use
-		// one template "standard" and if its not there use an empty stub
-		// We need to make a commit into it too because otherwise you can't clone it later
-		File stdTemplate = config.getTaskTemplateDir("standard");
-		if (!stdTemplate.exists()) {
-			try(Git g = Git.init().setDirectory(stdTemplate).call()) {
-				TaskInfo i = new TaskInfo(
-						"java", 
-						"Template", 
-						null, 
-						"template:java", 
-						"easy", 
-						30, 
-						"java", 
-						"<p>Template task</p>",
-						ContainerRestrictions.candidateRestriction(null),
-						ContainerRestrictions.candidateRestriction(null),
-						ContainerRestrictions.candidateRestriction(null),
-						ContainerRestrictions.authorRestriction(null),
-						null);
-				i.save(stdTemplate);
-				g.add().addFilepattern("task.json").call();
-				g.commit().setMessage("Initial commit").call();
-			}
-		}
-
 		Stream.concat(
 				Stream.of(config.getTaskDefinitionRoot().listFiles()), 
 				Stream.of(config.getTaskCopyRoot().listFiles()))

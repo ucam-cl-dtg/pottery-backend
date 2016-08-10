@@ -30,10 +30,6 @@ public class TaskConfig {
 	public TaskConfig(File taskPrefix) {
 		this.taskPrefix = taskPrefix;
 	}
-
-	public File getTaskTemplateRoot() {
-		return new File(taskPrefix,"template");
-	}
 	
 	public File getTaskDefinitionRoot() {
 		return new File(taskPrefix,"def");
@@ -70,8 +66,4 @@ public class TaskConfig {
 	public File getSkeletonDir(String copyId) {
 		return new File(getTaskCopyDir(copyId),"skeleton");
 	}
-
-	public File getTaskTemplateDir(String string) {
-		return new File(getTaskTemplateRoot(),string);
-	}	
 }
