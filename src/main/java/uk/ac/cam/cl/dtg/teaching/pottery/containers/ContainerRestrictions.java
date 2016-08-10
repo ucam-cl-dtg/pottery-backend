@@ -28,15 +28,23 @@ public class ContainerRestrictions {
 	
 	private int ramLimitMegabytes;
 	
+	private boolean networkDisabled;
+	
 	@JsonCreator
 	public ContainerRestrictions(
 			@JsonProperty("timeoutSec") int timeoutSec, 
 			@JsonProperty("diskWriteLimitMegabytes") int diskWriteLimitMegabytes,
-			@JsonProperty("ramLimitMegabytes") int ramLimitMegabytes) {
+			@JsonProperty("ramLimitMegabytes") int ramLimitMegabytes,
+			@JsonProperty("networkDisabled") boolean networkDisabled) {
 		super();
 		this.timeoutSec = timeoutSec;
 		this.diskWriteLimitMegabytes = diskWriteLimitMegabytes;
 		this.ramLimitMegabytes = ramLimitMegabytes;
+		this.networkDisabled = networkDisabled;
+	}
+
+	public boolean isNetworkDisabled() {
+		return networkDisabled;
 	}
 
 	public int getTimeoutSec() {
@@ -58,7 +66,7 @@ public class ContainerRestrictions {
 	 */
 	public static ContainerRestrictions candidateRestriction(ContainerRestrictions v) {
 		if (v != null) return v;
-		return new ContainerRestrictions(60,1,10);
+		return new ContainerRestrictions(60,1,200,true);
 	}
 
 	/**
@@ -68,7 +76,7 @@ public class ContainerRestrictions {
 	 */
 	public static ContainerRestrictions authorRestriction(ContainerRestrictions v) {
 		if (v != null) return v;
-		return new ContainerRestrictions(500,50,50);
+		return new ContainerRestrictions(500,50,500,false);
 	}
 
 }
