@@ -252,19 +252,4 @@
 		</extensions>
 	</build>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.apache.james</groupId>
-				<artifactId>apache-mime4j</artifactId>
-				<version>0.6.1-iso8859encoding</version>
-			</dependency>
-			<dependency>
-				<groupId>commons-codec</groupId>
-				<artifactId>commons-codec</artifactId>
-				<version>1.5</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 </project>
