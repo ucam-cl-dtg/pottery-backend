@@ -53,7 +53,6 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.Container;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerHostConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
-import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerStartConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.SystemInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Version;
 import uk.ac.cam.cl.dtg.teaching.docker.model.WaitResponse;
@@ -132,10 +131,12 @@ public class ContainerManager implements Stoppable {
 	static class PathPair {
 		private File host;
 		private File container;
-		public PathPair(File host, String container) {
+		private boolean readWrite;
+		public PathPair(File host, String container,boolean readWrite) {
 			super();
 			this.host = host;
 			this.container = new File(container);
+			this.readWrite = readWrite;
 		}
 		public File getHost() {
 			return host;
@@ -143,11 +144,14 @@ public class ContainerManager implements Stoppable {
 		public File getContainer() {
 			return container;
 		}
+		public boolean isReadWrite() {
+			return readWrite;
+		}
 	}
 
 	private AtomicInteger counter = new AtomicInteger(0);
 
-	public <T> ContainerExecResponse<T> exec_container(ContainerManager.PathPair[] mapping, String command, String imageName, String stdin, ContainerRestrictions restrictions, Function<String,T> converter) throws ContainerExecutionException {
+	public <T> ContainerExecResponse<T> exec_container(ContainerManager.PathPair[] mapping, String[] command, String imageName, String stdin, ContainerRestrictions restrictions, Function<String,T> converter) throws ContainerExecutionException {
 
 		String containerName = this.config.getContainerPrefix()+counter.incrementAndGet();
 		LOG.debug("Creating container {}",containerName);
@@ -162,11 +166,19 @@ public class ContainerManager implements Stoppable {
 		try {
 			ContainerConfig config = new ContainerConfig();
 			config.setOpenStdin(true);
-			config.setCmd(Arrays.asList("/usr/bin/sudo","-u","#"+this.config.getUid(),"/bin/bash","-c",command));
+			config.setEnv(Arrays.asList("LOCAL_USER_ID="+this.config.getUid()));
+			config.setCmd(Arrays.asList(command));
 			config.setImage(imageName);
+			config.setNetworkDisabled(restrictions.isNetworkDisabled());
 			ContainerHostConfig hc = new ContainerHostConfig();			
 			hc.setMemory(restrictions.getRamLimitMegabytes() * 1024 * 1024);
 			hc.setMemorySwap(hc.getMemory()); // disable swap
+			String[] binds = new String[mapping.length];
+			for(int i=0;i<mapping.length;++i) {
+				LOG.debug("Added mapping {} -> {} readWrite:{}",mapping[i].getHost().getPath(),mapping[i].getContainer().getPath(),mapping[i].isReadWrite());
+				binds[i] = DockerUtil.bind(mapping[i].getHost(),mapping[i].getContainer(),!mapping[i].isReadWrite());
+			}
+			hc.setBinds(Arrays.asList(binds));
 			config.setHostConfig(hc);
 			Map<String,Map<String,String>> volumes = new HashMap<String,Map<String,String>>();
 			for(ContainerManager.PathPair p : mapping) {
@@ -177,14 +189,7 @@ public class ContainerManager implements Stoppable {
 			final String containerId = response.getId();
 			runningContainers.add(containerId);
 			try {				
-				ContainerStartConfig startConfig = new ContainerStartConfig();
-				String[] binds = new String[mapping.length];
-				for(int i=0;i<mapping.length;++i) {
-					LOG.debug("Added mapping {} -> {}",mapping[i].getHost().getPath(),mapping[i].getContainer().getPath());
-					binds[i] = DockerUtil.bind(mapping[i].getHost(),mapping[i].getContainer());
-				}
-				startConfig.setBinds(binds);
-				docker.startContainer(containerId,startConfig);
+				docker.startContainer(containerId);
 				
 				ScheduledFuture<Boolean> timeoutKiller = null;
 				if (restrictions.getTimeoutSec() > 0) {
@@ -261,9 +266,9 @@ public class ContainerManager implements Stoppable {
 	public ContainerExecResponse<String> execTaskCompilation(File taskDirHost, String imageName, ContainerRestrictions restrictions) {
 		try {
 			return exec_container(new PathPair[] {
-					new PathPair(taskDirHost,"/task")
+					new PathPair(taskDirHost,"/task",true)
 					}, 
-					"/task/compile-test.sh /task/test /task/harness /task/validator", 
+					new String[] {"/task/compile-test.sh","/task/test","/task/harness","/task/validator"}, 
 					imageName, 
 					null,
 					restrictions,
@@ -276,10 +281,10 @@ public class ContainerManager implements Stoppable {
 	public ContainerExecResponse<String> execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
 		try {
 			return exec_container(new PathPair[] { 
-					new PathPair(codeDirHost,"/code"),
-					new PathPair(compilationRecipeDirHost,"/compile"),
-					new PathPair(config.getLibRoot(),"/testlib") },
-				"/compile/compile-solution.sh /code /testlib",
+					new PathPair(codeDirHost,"/code",true),
+					new PathPair(compilationRecipeDirHost,"/compile",false),
+					new PathPair(config.getLibRoot(),"/testlib",false) },
+				new String[] { "/compile/compile-solution.sh","/code","/testlib"},
 				imageName,
 				null, 
 				restrictions,
@@ -292,10 +297,10 @@ public class ContainerManager implements Stoppable {
 	public ContainerExecResponse<HarnessResponse> execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
 		try {
 			return exec_container(new PathPair[] { 
-					new PathPair(codeDirHost,"/code"),
-					new PathPair(harnessRecipeDirHost,"/harness"),
-					new PathPair(config.getLibRoot(),"/testlib") },
-				"/harness/run-harness.sh /code /harness /testlib",
+					new PathPair(codeDirHost,"/code",true),
+					new PathPair(harnessRecipeDirHost,"/harness",false),
+					new PathPair(config.getLibRoot(),"/testlib",false) },
+				new String [] {"/harness/run-harness.sh","/code","/harness","/testlib"},
 				imageName,
 				null, 
 				restrictions,
@@ -331,9 +336,9 @@ public class ContainerManager implements Stoppable {
 		
 		try {
 			return exec_container(new PathPair[] { 
-					new PathPair(validatorDirectory,"/validator"),
-					new PathPair(config.getLibRoot(),"/testlib") },
-				"/validator/run-validator.sh /validator /testlib",
+					new PathPair(validatorDirectory,"/validator",false),
+					new PathPair(config.getLibRoot(),"/testlib",false) },
+				new String[] {"/validator/run-validator.sh","/validator","/testlib" },
 				imageName,
 				stdin,
 				restrictions,
