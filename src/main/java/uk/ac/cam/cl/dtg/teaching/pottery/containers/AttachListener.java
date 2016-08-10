@@ -25,7 +25,9 @@ import org.eclipse.jetty.websocket.api.WebSocketListener;
 class AttachListener implements WebSocketListener {
 	private StringBuffer output;
 	private String data;
-	private boolean closed = false;
+	
+	private boolean closed = true;
+	
 	public AttachListener(StringBuffer output, String data) {
 		this.output = output;
 		this.data = data;
@@ -39,6 +41,9 @@ class AttachListener implements WebSocketListener {
 
 	@Override
 	public void onWebSocketConnect(Session session) {
+		synchronized (this) {
+			closed = false;
+		}
 		if (data != null) {
 			try {
 				StringBuffer toSend = new StringBuffer(data);
