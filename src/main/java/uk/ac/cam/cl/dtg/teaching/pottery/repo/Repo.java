@@ -488,7 +488,7 @@ public class Repo {
 				try {
 					git.tag().setName(newTag).call();
 				} catch (GitAPIException e) {
-					throw new RepoStorageException("Failed to apply tag "+newTag+" to repo",e);
+					throw new RepoStorageException("Failed to apply tag "+newTag+" to repo "+repoId,e);
 				}
 				return newTag;
 			} 
