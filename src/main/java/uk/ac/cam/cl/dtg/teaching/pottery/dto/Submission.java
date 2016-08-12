@@ -76,6 +76,8 @@ public class Submission {
 	private String errorMessage;
 
 	private String status;
+
+	private boolean needsRetry;
 	
 	public static final String INTERPRETATION_BAD = Interpretation.INTERPRETED_FAILED;
 	public static final String INTERPRETATION_ACCEPTABLE = Interpretation.INTERPRETED_ACCEPTABLE;
@@ -84,7 +86,7 @@ public class Submission {
 	private String interpretation;
 	
 	public Submission(String repoId, String tag, String compilationOutput, long compilationTimeMs, long harnessTimeMs,
-			long validatorTimeMs, long waitTimeMs, List<TestStep> testSteps, String errorMessage, String status, Date dateScheduled, String interpretation) {
+			long validatorTimeMs, long waitTimeMs, List<TestStep> testSteps, String errorMessage, String status, Date dateScheduled, String interpretation, boolean needsRetry) {
 		super();
 		this.repoId = repoId;
 		this.tag = tag;
@@ -98,8 +100,14 @@ public class Submission {
 		this.status = status;
 		this.dateScheduled = dateScheduled;
 		this.interpretation = interpretation;
+		this.needsRetry = needsRetry;
 	}
 
+	public boolean isNeedsRetry() {
+		return needsRetry;
+	}
+	
+	
 	public String getInterpretation() {
 		return interpretation;
 	}
@@ -187,6 +195,7 @@ public class Submission {
 		private String errorMessage;
 		private String status;
 		private String interpretation;
+		private boolean needsRetry;
 		
 		private Builder(String repoId, String tag) {
 			this.repoId = repoId;
@@ -200,6 +209,11 @@ public class Submission {
 			return this;
 		}
 
+		public Builder setRetry() {
+			this.needsRetry = true;
+			return this;
+		}
+		
 		public Builder addErrorMessage(String m) {
 			if (m != null) {
 				if (this.errorMessage == null) {
@@ -243,6 +257,14 @@ public class Submission {
 		
 		public Builder setStarted() {
 			this.waitTimeMs = System.currentTimeMillis() - dateScheduled.getTime();
+			this.errorMessage = null;
+			this.compilationOutput = null;
+			this.validatorInterpretations = null;
+			this.harnessParts = null;
+			this.compilationTimeMs = -1;
+			this.validatorTimeMs = -1;
+			this.harnessTimeMs = -1;
+			this.interpretation = null;
 			return this;
 		}
 		
@@ -253,7 +275,7 @@ public class Submission {
 							validatorInterpretations.stream().collect(Collectors.toMap(Interpretation::getId, Function.identity()));
 			List<TestStep> testSteps = harnessParts == null ? null : harnessParts.stream().map(p->new TestStep(p,i)).collect(Collectors.toList());
 			
-			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testSteps, errorMessage, status,dateScheduled,interpretation);
+			return new Submission(repoId, tag, compilationOutput, compilationTimeMs, harnessTimeMs, validatorTimeMs, waitTimeMs, testSteps, errorMessage, status,dateScheduled,interpretation,needsRetry);
 		}
 
 		public Builder setInterpretation(String interpretation) {
@@ -262,7 +284,7 @@ public class Submission {
 		}
 		
 		public void setComplete() {
-
+			
 			if (errorMessage != null) {
 				interpretation = INTERPRETATION_BAD;
 			}
@@ -287,7 +309,7 @@ public class Submission {
 				interpretation = INTERPRETATION_BAD;
 				return;
 			}
-
+			
 			status = STATUS_COMPLETE;
 		}
 	}
@@ -385,7 +407,8 @@ public class Submission {
 					rs.getString("errorMessage"),
 					rs.getString("status"),
 					rs.getTimestamp("dateScheduled"),
-					rs.getString("interpretation"));								  
+					rs.getString("interpretation"),
+					false);								  
 		} catch (IOException e) {
 			throw new SQLException("Failed to deserialise json object "+e.getMessage(),e);
 		}

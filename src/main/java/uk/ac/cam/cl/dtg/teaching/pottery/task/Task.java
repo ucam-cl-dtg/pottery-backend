@@ -179,9 +179,14 @@ public class Task {
 
 				registeredBuilder.schedule(w, new Job() {
 					@Override
-					public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
-							Database database) throws Exception {
-						return storeNewRegisteredCopy(w, database);
+					public int execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
+							Database database) {
+						if (storeNewRegisteredCopy(w, database)) {
+							return Job.STATUS_OK;
+						}
+						else {
+							return Job.STATUS_RETRY;
+						}
 					}
 
 					@Override
@@ -272,9 +277,14 @@ public class Task {
 				
 				testingBuilder.schedule(w, new Job() {
 					@Override
-					public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
-							Database database) throws Exception {
-						return storeNewTestCopy(w, database);
+					public int execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
+							Database database) {
+						if (storeNewTestCopy(w, database)) {
+							return Job.STATUS_OK;
+						}
+						else {
+							return Job.STATUS_RETRY;
+						}
 					}
 
 					@Override
@@ -434,10 +444,17 @@ public class Task {
 		if (c != null) {
 			w.schedule(new Job() {
 				@Override
-				public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory,
-						ContainerManager containerManager, Database database) throws Exception {
-					c.destroy();
-					return true;
+				public int execute(TaskIndex taskIndex, RepoFactory repoFactory,
+						ContainerManager containerManager, Database database) {
+					try {
+						c.destroy();
+						return Job.STATUS_OK;
+					} catch (IOException e) {
+						LOG.error("IOException attempting to destroy task copy id {}",c.getCopyId(),e);
+					} catch (InterruptedException e) {
+						LOG.error("Interrupted when attempting to destroy task copy id {}",c.getCopyId(),e);
+					}
+					return Job.STATUS_FAILED;
 				}
 
 				@Override

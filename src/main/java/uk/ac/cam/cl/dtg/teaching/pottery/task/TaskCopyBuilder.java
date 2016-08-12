@@ -25,6 +25,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.ac.cam.cl.dtg.teaching.docker.APIUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
@@ -86,9 +87,9 @@ public class TaskCopyBuilder {
 		this.taskCopy = null;
 		this.copyFiles = new Job() {
 			@Override
-			public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
-					Database database) throws Exception {				
-				return copyFiles(sha1, taskId, copyId, taskConfig, taskDefDir);
+			public int execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
+					Database database) {				
+				return copyFiles(sha1, taskId, copyId, taskConfig, taskDefDir) ? Job.STATUS_OK : Job.STATUS_FAILED;
 			}
 
 			@Override
@@ -99,10 +100,13 @@ public class TaskCopyBuilder {
 		};
 		this.compileTests = new Job() {
 			@Override
-			public boolean execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
-					Database database) throws Exception {
-				
-				return compileFiles(taskConfig, taskDefDir, containerManager);
+			public int execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager,
+					Database database) {
+				try {
+					return compileFiles(taskConfig, taskDefDir, containerManager) ? Job.STATUS_OK : Job.STATUS_FAILED;
+				} catch (APIUnavailableException e) {
+					return Job.STATUS_RETRY;
+				}
 			}
 
 			@Override
@@ -213,7 +217,7 @@ public class TaskCopyBuilder {
 		return true;
 	}
 	private boolean compileFiles(TaskConfig taskConfig, final File taskDefDir,
-			ContainerManager containerManager) {
+			ContainerManager containerManager) throws APIUnavailableException {
 		String copyId = taskCopy.getCopyId();		
 
 		LOG.info("Compiling tests for {} into {}",taskDefDir,copyId);

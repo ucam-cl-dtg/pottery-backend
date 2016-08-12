@@ -45,6 +45,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import uk.ac.cam.cl.dtg.teaching.docker.APIUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerPatch;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
@@ -52,10 +53,10 @@ import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Container;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerHostConfig;
+import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.docker.model.SystemInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Version;
-import uk.ac.cam.cl.dtg.teaching.docker.model.WaitResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
@@ -71,40 +72,46 @@ public class ContainerManager implements Stoppable {
 	
 	private ContainerEnvConfig config;
 
-	private DockerApi docker;
+	// Lazy initialized - use getDockerApi to access this
+	private DockerApi dockerApi;
 	
 	private ScheduledExecutorService scheduler;
 	
 	private ConcurrentSkipListSet<String> runningContainers = new ConcurrentSkipListSet<>();
 	
 	@Inject
-	public ContainerManager(ContainerEnvConfig config) throws IOException {
+	public ContainerManager(ContainerEnvConfig config) throws IOException, APIUnavailableException {
 		this.config = config;
-		this.docker = new Docker("localhost",2375,2).api();
 		this.scheduler = Executors.newSingleThreadScheduledExecutor();
 		FileUtil.mkdir(config.getLibRoot());
-		
-		if (LOG.isInfoEnabled()) {
-			Version v = docker.getVersion();		
-			LOG.info("Connected to docker, API version: {}",v.getApiVersion());
-		}
-		
-		SystemInfo info = docker.systemInfo();
-		if (info.getSwapLimit() == null || !info.getSwapLimit().booleanValue()) {
-			LOG.warn("WARNING: swap limits are disabled for this kernel. Add \"cgroup_enable=memory swapaccount=1\" to your kernel command line");
-		}
-		
-		for(Container i : docker.listContainers(true, null, null, null, null)) {
-			String matchedName = getPotteryTransientName(i);
-			if (matchedName != null) {
-				LOG.warn("Deleting old container named {}",matchedName);
-				try {
-					docker.deleteContainer(i.getId(), true, true);
-				} catch (RuntimeException e) {
-					LOG.error("Error deleting old container",e);
+	}
+	
+	private synchronized DockerApi getDockerApi() throws APIUnavailableException {
+		if (dockerApi == null) {
+			DockerApi docker = new Docker("localhost",2375,2).api();
+			if (LOG.isInfoEnabled()) {
+				Version v = docker.getVersion();		
+				LOG.info("Connected to docker, API version: {}",v.getApiVersion());
+			}
+			SystemInfo info = docker.systemInfo();
+			if (info.getSwapLimit() == null || !info.getSwapLimit().booleanValue()) {
+				LOG.warn("WARNING: swap limits are disabled for this kernel. Add \"cgroup_enable=memory swapaccount=1\" to your kernel command line");
+			}
+			
+			for(Container i : docker.listContainers(true, null, null, null, null)) {
+				String matchedName = getPotteryTransientName(i);
+				if (matchedName != null) {
+					LOG.warn("Deleting old container named {}",matchedName);
+					try {
+						docker.deleteContainer(i.getId(), true, true);
+					} catch (RuntimeException e) {
+						LOG.error("Error deleting old container",e);
+					}
 				}
 			}
+			dockerApi = docker;
 		}
+		return dockerApi;
 	}
 	
 	private String getPotteryTransientName(Container i) {
@@ -116,16 +123,21 @@ public class ContainerManager implements Stoppable {
 	}
 	
 	@Override
-	public void stop() {
+	public void stop() {		
 		LOG.info("Shutting down scheduler");
 		for(Runnable r : scheduler.shutdownNow()) {
 			r.run();
 		}
 		LOG.info("Killing remaining containers");
-		for(String containerId : runningContainers) {
-			DockerUtil.killContainer(containerId, docker);
+		try {
+			DockerApi docker = getDockerApi();
+			for(String containerId : runningContainers) {
+				DockerUtil.killContainer(containerId, docker);
+			}
+			docker.close();
+		} catch (APIUnavailableException e) {
+			LOG.error("Unable to remove running containers, API unavailable",e);
 		}
-		docker.close();
 	}
 	
 	static class PathPair {
@@ -151,16 +163,12 @@ public class ContainerManager implements Stoppable {
 
 	private AtomicInteger counter = new AtomicInteger(0);
 
-	public <T> ContainerExecResponse<T> exec_container(ContainerManager.PathPair[] mapping, String[] command, String imageName, String stdin, ContainerRestrictions restrictions, Function<String,T> converter) throws ContainerExecutionException {
+	public <T> ContainerExecResponse<T> exec_container(ContainerManager.PathPair[] mapping, String[] command, String imageName, String stdin, ContainerRestrictions restrictions, Function<String,T> converter) throws ContainerExecutionException, APIUnavailableException {
 
 		String containerName = this.config.getContainerPrefix()+counter.incrementAndGet();
 		LOG.debug("Creating container {}",containerName);
-			
-		try {
-			DockerUtil.deleteContainerByName(containerName,docker);
-		} catch (RuntimeException e) {
-			throw new ContainerExecutionException(e.getMessage());
-		}	
+					
+		DockerApi docker = getDockerApi();
 		
 		long startTime = System.currentTimeMillis();
 		try {
@@ -218,8 +226,12 @@ public class ContainerManager implements Stoppable {
 					boolean success = false;
 					try {
 						l.waitForClose();
-						WaitResponse waitResponse = docker.waitContainer(containerId);
-						success = waitResponse.statusCode == 0;
+						ContainerInfo i = docker.inspectContainer(containerId,false);
+						if (i.getState().getRunning()) {
+							DockerUtil.killContainer(containerId,docker);
+							i = docker.inspectContainer(containerId, false);
+						}
+						success = i.getState().getExitCode() == 0;
 					} catch (InterruptedException e1) {
 						// carry on from here
 					}
@@ -263,7 +275,7 @@ public class ContainerManager implements Stoppable {
 		}
 	}
 
-	public ContainerExecResponse<String> execTaskCompilation(File taskDirHost, String imageName, ContainerRestrictions restrictions) {
+	public ContainerExecResponse<String> execTaskCompilation(File taskDirHost, String imageName, ContainerRestrictions restrictions) throws APIUnavailableException {
 		try {
 			return exec_container(new PathPair[] {
 					new PathPair(taskDirHost,"/task",true)
@@ -278,7 +290,7 @@ public class ContainerManager implements Stoppable {
 		}
 	}
 	
-	public ContainerExecResponse<String> execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
+	public ContainerExecResponse<String> execCompilation(File codeDirHost, File compilationRecipeDirHost, String imageName, ContainerRestrictions restrictions) throws APIUnavailableException {
 		try {
 			return exec_container(new PathPair[] { 
 					new PathPair(codeDirHost,"/code",true),
@@ -294,7 +306,7 @@ public class ContainerManager implements Stoppable {
 		}			
 	}
 
-	public ContainerExecResponse<HarnessResponse> execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, ContainerRestrictions restrictions) {
+	public ContainerExecResponse<HarnessResponse> execHarness(File codeDirHost, File harnessRecipeDirHost, String imageName, ContainerRestrictions restrictions) throws APIUnavailableException {
 		try {
 			return exec_container(new PathPair[] { 
 					new PathPair(codeDirHost,"/code",true),
@@ -321,7 +333,7 @@ public class ContainerManager implements Stoppable {
 	}
 
 	public ContainerExecResponse<ValidatorResponse> execValidator(File validatorDirectory, HarnessResponse harnessResponse,
-			String imageName, ContainerRestrictions restrictions) {
+			String imageName, ContainerRestrictions restrictions) throws APIUnavailableException {
 		ObjectMapper o = new ObjectMapper();
 		List<Measurement> m = harnessResponse.getTestParts().stream().
 				map(p -> p.getMeasurements()).
