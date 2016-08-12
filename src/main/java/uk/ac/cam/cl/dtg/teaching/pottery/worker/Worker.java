@@ -86,7 +86,7 @@ public class Worker implements Stoppable {
 	 * @param jobs the jobs to be run in sequence (if a job fails then we stop there)
 	 */
 	public synchronized void schedule(Job... jobs) {
-		threadPool.execute(new JobIteration(jobs,0));
+		threadPool.execute(new JobIteration(jobs,0,false));
 	} 
 	
 	private final SortedSet<JobStatus> queue = new TreeSet<JobStatus>();
@@ -95,11 +95,19 @@ public class Worker implements Stoppable {
 		private Job[] jobs;
 		private int index;
 		private JobStatus status;	
+		private boolean withPause;
 		
-		public JobIteration(Job[] jobs, int index) {
+		/**
+		 * Create an iteration ready to execute the nth item of the jobs list
+		 * @param jobs
+		 * @param index
+		 * @param withPause set to true if you want a 2 second pause before running the job (e.g. for retries)
+		 */
+		public JobIteration(Job[] jobs, int index,boolean withPause) {
 			super();
 			this.jobs = jobs;
 			this.index = index;
+			this.withPause = withPause;
 			this.status = new JobStatus(jobs[index].getDescription());
 			synchronized (queue) {
 				queue.add(status);
@@ -109,10 +117,22 @@ public class Worker implements Stoppable {
 		@Override
 		public void run() {
 			status.setStatus(JobStatus.STATUS_RUNNING);
+			if (withPause) {
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					LOG.error("Interrupted",e);
+				}
+			}
 			try {
-				boolean result = jobs[index].execute(taskIndex, repoFactory, containerManager, database);
-				if (result && index < jobs.length -1) {
-					threadPool.execute(new JobIteration(jobs,index+1));
+				int result = jobs[index].execute(taskIndex, repoFactory, containerManager, database);
+				if (result == Job.STATUS_OK) {
+					if (index < jobs.length -1) {
+						threadPool.execute(new JobIteration(jobs,index+1,false));
+					}
+				}
+				else if (result == Job.STATUS_RETRY) {
+					threadPool.execute(new JobIteration(jobs,index,true));
 				}
 			} catch (Exception e) {
 				LOG.error("Unhandled exception in worker",e);
