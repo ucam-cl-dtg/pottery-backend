@@ -26,7 +26,7 @@ class AttachListener implements WebSocketListener {
 	private StringBuffer output;
 	private String data;
 	
-	private boolean closed = true;
+	private boolean closed = false;
 	
 	public AttachListener(StringBuffer output, String data) {
 		this.output = output;
@@ -41,9 +41,6 @@ class AttachListener implements WebSocketListener {
 
 	@Override
 	public void onWebSocketConnect(Session session) {
-		synchronized (this) {
-			closed = false;
-		}
 		if (data != null) {
 			try {
 				StringBuffer toSend = new StringBuffer(data);
@@ -58,7 +55,9 @@ class AttachListener implements WebSocketListener {
 	}
 
 	@Override
-	public void onWebSocketError(Throwable cause) {
+	public synchronized void onWebSocketError(Throwable cause) {
+		closed = true;
+		this.notifyAll();
 		throw new RuntimeException("WebSocket error attaching to container",cause);
 	}
 
