@@ -60,9 +60,10 @@ CREATE TABLE submissions (
     harnesstimems bigint DEFAULT '-1'::integer NOT NULL,
     validatortimems bigint DEFAULT '-1'::integer NOT NULL,
     waittimems bigint DEFAULT '-1'::integer NOT NULL,
-    summarymessage text,
+    errormessage text,
     teststeps text,
-    datescheduled timestamp without time zone
+    datescheduled timestamp without time zone,
+    interpretation character varying(255)
 );
 
 
