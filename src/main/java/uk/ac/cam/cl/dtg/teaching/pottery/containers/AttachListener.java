@@ -71,9 +71,12 @@ class AttachListener implements WebSocketListener {
 		output.append(message);
 	}
 	
-	public synchronized void waitForClose() throws InterruptedException {
+	public synchronized boolean waitForClose(long timeoutMs) throws InterruptedException {
+		long startTime = System.currentTimeMillis();
 		while(!this.closed) {
-			this.wait();
+			this.wait(timeoutMs);
+			if (System.currentTimeMillis() - startTime >= timeoutMs) { return false; }
 		}
+		return true;
 	}
 }

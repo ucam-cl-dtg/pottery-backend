@@ -224,14 +224,25 @@ public class ContainerManager implements Stoppable {
 					
 					// Wait for container to finish (or be killed)
 					boolean success = false;
+					boolean knownStopped = false;
 					try {
-						l.waitForClose();
-						ContainerInfo i = docker.inspectContainer(containerId,false);
-						if (i.getState().getRunning()) {
-							DockerUtil.killContainer(containerId,docker);
-							i = docker.inspectContainer(containerId, false);
+						while (!knownStopped && !l.waitForClose(60*1000)) {
+							ContainerInfo i = docker.inspectContainer(containerId,false);
+							if (i.getState().getRunning()) {
+								knownStopped = true;
+								success = i.getState().getExitCode() == 0;
+							}
 						}
-						success = i.getState().getExitCode() == 0;
+						
+						// Check to make sure its really stopped the container
+						if (!knownStopped) {
+							ContainerInfo i = docker.inspectContainer(containerId,false);
+							if (i.getState().getRunning()) {
+								DockerUtil.killContainer(containerId,docker);
+								i = docker.inspectContainer(containerId, false);
+							}
+							success = i.getState().getExitCode() == 0;
+						}
 					} catch (InterruptedException e1) {
 						// carry on from here
 					}
@@ -245,7 +256,7 @@ public class ContainerManager implements Stoppable {
 						} catch (InterruptedException|ExecutionException|CancellationException e) {}
 					}
 					if (diskUsageKiller.isKilled()) {
-						throw new ContainerExecutionException("Excessive disk usage. Recorded "+diskUsageKiller.getBytesWritten()+" bytes written");
+						throw new ContainerExecutionException("Excessive disk usage. Recorded "+diskUsageKiller.getBytesWritten()+" bytes written. Limit is "+restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024);
 					}
 					
 					try {
