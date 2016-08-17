@@ -35,11 +35,14 @@ public class DiskUsageKiller implements Runnable {
 	
 	private boolean killed = false;
 	private int bytesWritten = 0;
+
+	private AttachListener attachListener;
 	
-	public DiskUsageKiller(String containerId, DockerApi docker, int maxBytes) {
+	public DiskUsageKiller(String containerId, DockerApi docker, int maxBytes, AttachListener l) {
 		this.containerId = containerId;
 		this.docker = docker;
 		this.maxBytes = maxBytes;
+		this.attachListener = l;
 	}
 	
 	@Override
@@ -48,6 +51,7 @@ public class DiskUsageKiller implements Runnable {
 			ContainerInfo i = docker.inspectContainer(containerId, true);
 			if (i != null && i.getSizeRw() > this.maxBytes) {
 				boolean killed = DockerUtil.killContainer(containerId, docker);
+				attachListener.notifyClose();
 				synchronized(this) {
 					this.bytesWritten = i.getSizeRw();
 					this.killed = killed;

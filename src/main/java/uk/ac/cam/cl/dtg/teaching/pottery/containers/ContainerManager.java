@@ -198,6 +198,8 @@ public class ContainerManager implements Stoppable {
 			runningContainers.add(containerId);
 			try {				
 				docker.startContainer(containerId);
+				StringBuffer output = new StringBuffer();
+				AttachListener l = new AttachListener(output,stdin);
 				
 				ScheduledFuture<Boolean> timeoutKiller = null;
 				if (restrictions.getTimeoutSec() > 0) {
@@ -206,6 +208,7 @@ public class ContainerManager implements Stoppable {
 						public Boolean call() throws Exception {
 							try {
 								DockerUtil.killContainer(containerId,docker);
+								l.notifyClose();
 								return true;
 							} catch (RuntimeException e) {
 								LOG.error("Caught exception killing container",e);
@@ -215,36 +218,38 @@ public class ContainerManager implements Stoppable {
 					}, restrictions.getTimeoutSec(),TimeUnit.SECONDS);
 				}
 				
-				DiskUsageKiller diskUsageKiller = new DiskUsageKiller(containerId,docker,restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024);
+				DiskUsageKiller diskUsageKiller = new DiskUsageKiller(containerId,docker,restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024,l);
 				ScheduledFuture<?> diskUsageKillerFuture = scheduler.scheduleAtFixedRate(diskUsageKiller,10L, 10L, TimeUnit.SECONDS);
 				try {
-					StringBuffer output = new StringBuffer();
-					AttachListener l = new AttachListener(output,stdin);
 					Future<Session> session = docker.attach(containerId,true,true,true,true,true,l);
 					
 					// Wait for container to finish (or be killed)
 					boolean success = false;
 					boolean knownStopped = false;
-					try {
-						while (!knownStopped && !l.waitForClose(60*1000)) {
+					boolean closed = false;
+
+					while (!closed) {
+						try {
+							closed = l.waitForClose(60*1000);
+						} catch (InterruptedException e) {}
+						if (!closed) {
 							ContainerInfo i = docker.inspectContainer(containerId,false);
-							if (i.getState().getRunning()) {
+							if (!i.getState().getRunning()) {
 								knownStopped = true;
+								closed = true;
 								success = i.getState().getExitCode() == 0;
 							}
 						}
-						
-						// Check to make sure its really stopped the container
-						if (!knownStopped) {
-							ContainerInfo i = docker.inspectContainer(containerId,false);
-							if (i.getState().getRunning()) {
-								DockerUtil.killContainer(containerId,docker);
-								i = docker.inspectContainer(containerId, false);
-							}
-							success = i.getState().getExitCode() == 0;
+					}
+
+					// Check to make sure its really stopped the container
+					if (!knownStopped) {
+						ContainerInfo i = docker.inspectContainer(containerId,false);
+						if (i.getState().getRunning()) {
+							DockerUtil.killContainer(containerId,docker);
+							i = docker.inspectContainer(containerId, false);
 						}
-					} catch (InterruptedException e1) {
-						// carry on from here
+						success = i.getState().getExitCode() == 0;
 					}
 				
 					if (timeoutKiller != null) {
@@ -260,9 +265,9 @@ public class ContainerManager implements Stoppable {
 					}
 					
 					try {
-						session.get().disconnect();
-					} catch (IOException e) {
-						LOG.error("Failed to disconnect from websocket session with container "+containerId,e);
+						session.get().close();
+//					} catch (IOException e) {
+//						LOG.error("Failed to disconnect from websocket session with container "+containerId,e);
 					} catch (InterruptedException e) {
 					} catch (ExecutionException e) {
 						LOG.error("An exception occurred collecting the websocket session from the future",e.getCause());
