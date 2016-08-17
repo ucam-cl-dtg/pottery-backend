@@ -82,6 +82,7 @@ public class RepoController {
 		notes="Starts a new repository for solving the specified task",position=0)
 	public RepoInfo makeRepo(@FormParam("taskId") String taskId,@FormParam("usingTestingVersion") Boolean usingTestingVersion,@FormParam("validityMinutes") Integer validityMinutes) 
 			throws TaskNotFoundException, RepoExpiredException, RepoStorageException, RetiredTaskException, RepoNotFoundException {
+		if (taskId == null) throw new TaskNotFoundException("No taskId specified");
 		if (usingTestingVersion == null) usingTestingVersion = false;
 		if (validityMinutes == null) validityMinutes = 60;
 		Calendar cal = Calendar.getInstance();
