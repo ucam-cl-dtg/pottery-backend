@@ -45,6 +45,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import uk.ac.cam.cl.dtg.teaching.docker.APIListener;
 import uk.ac.cam.cl.dtg.teaching.docker.APIUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerPatch;
@@ -75,9 +76,13 @@ public class ContainerManager implements Stoppable {
 	// Lazy initialized - use getDockerApi to access this
 	private DockerApi dockerApi;
 	
+	private String apiStatus = "UNITITIALISED";
+	
 	private ScheduledExecutorService scheduler;
 	
 	private ConcurrentSkipListSet<String> runningContainers = new ConcurrentSkipListSet<>();
+	
+	private long smoothedCallTime = 0; 
 	
 	@Inject
 	public ContainerManager(ContainerEnvConfig config) throws IOException, APIUnavailableException {
@@ -86,9 +91,29 @@ public class ContainerManager implements Stoppable {
 		FileUtil.mkdir(config.getLibRoot());
 	}
 	
+	public synchronized String getApiStatus() { return apiStatus; }
+	
+	public synchronized long getSmoothedCallTime() { return smoothedCallTime; }
+	
 	private synchronized DockerApi getDockerApi() throws APIUnavailableException {
 		if (dockerApi == null) {
-			DockerApi docker = new Docker("localhost",2375,1).api();
+			DockerApi docker = new Docker("localhost",2375,1).api(new APIListener() {				
+				@Override
+				public void callCompleted(boolean apiAvailable, long timeTaken, String methodName) {
+					synchronized (ContainerManager.this) {
+						smoothedCallTime = (timeTaken>>3) + smoothedCallTime - (smoothedCallTime>>3);
+						if (!apiAvailable) {
+							apiStatus = "FAILED";
+						}
+						else if (smoothedCallTime > 1000) {
+							apiStatus = "SLOW_RESPONSE_TIME";
+						}
+						else {
+							apiStatus = "OK";
+						}
+					}
+				}
+			});
 			if (LOG.isInfoEnabled()) {
 				Version v = docker.getVersion();		
 				LOG.info("Connected to docker, API version: {}",v.getApiVersion());
@@ -110,6 +135,7 @@ public class ContainerManager implements Stoppable {
 				}
 			}
 			dockerApi = docker;
+			apiStatus = "OK";
 		}
 		return dockerApi;
 	}

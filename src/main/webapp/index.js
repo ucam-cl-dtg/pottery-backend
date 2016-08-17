@@ -406,6 +406,53 @@ $(document).ready(
 			});
 
 			
+			$("#setWorkersForm").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/worker/resize',
+					type: 'POST',
+					data : {"numThreads" : $("#workerThreads").val() },
+					success: function (result) {
+						reportSuccess(result);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});				
+				return false;				
+			});
+			
+			$("#getWorkQueueForm").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/worker',
+					type: 'GET',
+					success: function (result) {
+						reportSuccess(result);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+				return false;				
+			});
+
+			$("#serverStatusForm").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/status',
+					type: 'GET',
+					success: function (result) {
+						reportSuccess(result);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+				return false;				
+			});
+
+						
 			
 			
 		});

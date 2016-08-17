@@ -51,11 +51,18 @@ public class Worker implements Stoppable {
 	private ContainerManager containerManager;
 	
 	private Database database;
-		
+
+	private int numThreads;
+	
+	private long smoothedWaitTime = 0;
+	
+	private Object smoothedWaitTimeMutex = new Object();
+	
 	@Inject
 	public Worker(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager, Database database) {
 		super();
 		this.threadPool = Executors.newFixedThreadPool(1);
+		this.numThreads = 1;
 		this.taskIndex = taskIndex;
 		this.repoFactory = repoFactory;
 		this.containerManager = containerManager;
@@ -70,10 +77,13 @@ public class Worker implements Stoppable {
 			e.printStackTrace();
 		}
 		this.threadPool = Executors.newFixedThreadPool(numThreads);
+		this.numThreads = numThreads;
 		for(Runnable r : pending) {
 			this.threadPool.execute(r);
 		}
 	}
+	
+	public synchronized int getNumThreads() { return numThreads; }
 	
 	public List<JobStatus> getQueue() {
 		synchronized (queue) {
@@ -86,7 +96,7 @@ public class Worker implements Stoppable {
 	 * @param jobs the jobs to be run in sequence (if a job fails then we stop there)
 	 */
 	public synchronized void schedule(Job... jobs) {
-		threadPool.execute(new JobIteration(jobs,0,false));
+		threadPool.execute(new JobIteration(jobs,0,false,System.currentTimeMillis()));
 	} 
 	
 	private final SortedSet<JobStatus> queue = new TreeSet<JobStatus>();
@@ -96,6 +106,7 @@ public class Worker implements Stoppable {
 		private int index;
 		private JobStatus status;	
 		private boolean withPause;
+		private long enqueueTime;
 		
 		/**
 		 * Create an iteration ready to execute the nth item of the jobs list
@@ -103,12 +114,13 @@ public class Worker implements Stoppable {
 		 * @param index
 		 * @param withPause set to true if you want a 2 second pause before running the job (e.g. for retries)
 		 */
-		public JobIteration(Job[] jobs, int index,boolean withPause) {
+		public JobIteration(Job[] jobs, int index,boolean withPause, long enqeueTime) {
 			super();
 			this.jobs = jobs;
 			this.index = index;
 			this.withPause = withPause;
 			this.status = new JobStatus(jobs[index].getDescription());
+			this.enqueueTime = enqeueTime;
 			synchronized (queue) {
 				queue.add(status);
 			}
@@ -117,6 +129,7 @@ public class Worker implements Stoppable {
 		@Override
 		public void run() {
 			status.setStatus(JobStatus.STATUS_RUNNING);
+			long startTime = System.currentTimeMillis();
 			if (withPause) {
 				try {
 					Thread.sleep(2000);
@@ -128,12 +141,20 @@ public class Worker implements Stoppable {
 				int result = jobs[index].execute(taskIndex, repoFactory, containerManager, database);
 				if (result == Job.STATUS_OK) {
 					if (index < jobs.length -1) {
-						threadPool.execute(new JobIteration(jobs,index+1,false));
+						threadPool.execute(new JobIteration(jobs,index+1,false,enqueueTime));
 					}
 				}
 				else if (result == Job.STATUS_RETRY) {
-					threadPool.execute(new JobIteration(jobs,index,true));
+					threadPool.execute(new JobIteration(jobs,index,true,enqueueTime));
 				}
+				
+				if ((result == Job.STATUS_OK || result == Job.STATUS_FAILED) && index == 0) {
+					// We've run the first step to completion so update the waitTime
+					synchronized (smoothedWaitTimeMutex) {
+						smoothedWaitTime = ((startTime-enqueueTime)>>3) + smoothedWaitTime - (smoothedWaitTime >> 3);	
+					}
+				}
+				
 			} catch (Exception e) {
 				LOG.error("Unhandled exception in worker",e);
 			} finally {
@@ -141,6 +162,12 @@ public class Worker implements Stoppable {
 					queue.remove(status);
 				}
 			}
+		}
+	}
+	
+	public long getSmoothedWaitTime() {
+		synchronized (smoothedWaitTimeMutex) {
+			return smoothedWaitTime;
 		}
 	}
 	

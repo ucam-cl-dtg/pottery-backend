@@ -40,6 +40,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.GuiceDependencyController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
+import uk.ac.cam.cl.dtg.teaching.pottery.controllers.StatusController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.WorkerController;
@@ -57,6 +58,7 @@ public class ApplicationModule implements Module {
 		binder.bind(TasksController.class);
 		binder.bind(WorkerController.class);
 		binder.bind(ExceptionHandler.class);
+		binder.bind(StatusController.class);
 		binder.bind(CorsResponseFilter.class);
 		binder.bind(CorsRequestFilter.class);
 		binder.bind(AuthenticationPrincipalInterceptor.class);
