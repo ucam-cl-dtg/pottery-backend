@@ -88,7 +88,7 @@ public class ContainerManager implements Stoppable {
 	
 	private synchronized DockerApi getDockerApi() throws APIUnavailableException {
 		if (dockerApi == null) {
-			DockerApi docker = new Docker("localhost",2375,2).api();
+			DockerApi docker = new Docker("localhost",2375,1).api();
 			if (LOG.isInfoEnabled()) {
 				Version v = docker.getVersion();		
 				LOG.info("Connected to docker, API version: {}",v.getApiVersion());
