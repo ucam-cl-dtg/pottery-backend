@@ -79,4 +79,9 @@ class AttachListener implements WebSocketListener {
 		}
 		return true;
 	}
+
+	public synchronized void notifyClose() {
+		closed = true;
+		this.notifyAll();
+	}
 }
