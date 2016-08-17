@@ -61,7 +61,7 @@ public class WorkerController {
 
 	@POST
 	@Path("/resize")
-	@ApiOperation(value="List the ids of all tasks (not retired) that exist",response=String.class,responseContainer="List")
+	@ApiOperation(value="Change number of worker threads",response=String.class,responseContainer="List")
 	public Response resize(@FormParam("numThreads") int numThreads) {
 		worker.rebuildThreadPool(numThreads);
 		return Response.ok().entity("{ \"message\":\"Thread pool resized\" }").build();
