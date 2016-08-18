@@ -25,6 +25,7 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.WebApplicationException;
@@ -108,10 +109,9 @@ public class Repo {
 	private final boolean usingTestingVersion;
 	
 	/**
-	 * The currently scheduled submission for testing - you can only have one at a time per repo. 
-	 * Protected by the instance mutex
+	 * A map of submissions that have been tested. Keys are tags. You can only have one per tag.
 	 */
-	private Submission currentSubmission;	
+	private ConcurrentHashMap<String, Submission> activeSubmissions;	
 	
 	/**
 	 * If you are modifying the fields of this object then you should hold this
@@ -133,6 +133,7 @@ public class Repo {
 		this.taskId = taskId;
 		this.usingTestingVersion = usingTestingVersion;
 		this.expiryDate = expiryDate;
+		this.activeSubmissions = new ConcurrentHashMap<>();
 	}
 
 	/** 
@@ -185,9 +186,10 @@ public class Repo {
 	 */
 	public Submission getSubmission(String tag, Database database) throws SubmissionStorageException, SubmissionNotFoundException {
 		synchronized (lockFields) {
-				if (currentSubmission != null && currentSubmission.getTag().equals(tag)) {
-					return currentSubmission;
-				}
+			Submission s = activeSubmissions.get(tag);
+			if (s != null) { 
+				return s;
+			}
 		}	
 		try (TransactionQueryRunner q = database.getQueryRunner()) {
 			Submission s = Submission.getByRepoIdAndTag(repoId, tag, q);
@@ -201,13 +203,10 @@ public class Repo {
 	}
 	
 	/**
-	 * Internal method to update the submission whilst maintaining the lock policy
-	 * @param s
+	 * Internal method to update the submission 
 	 */
 	private void updateSubmission(Submission s) {
-		synchronized (lockFields) {
-			currentSubmission = s;
-		}
+		activeSubmissions.put(s.getTag(), s);
 	}
 	
 	/**
@@ -249,7 +248,8 @@ public class Repo {
 			
 			Submission.Builder builder = Submission.builder(repoId,tag);
 		
-			updateSubmission(builder);
+			Submission currentSubmission = builder.build();
+			updateSubmission(currentSubmission);
 
 			w.schedule(new Job() {
 				@Override
