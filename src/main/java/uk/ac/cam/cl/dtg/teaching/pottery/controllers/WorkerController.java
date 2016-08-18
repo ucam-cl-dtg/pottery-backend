@@ -33,6 +33,7 @@ import com.google.inject.Inject;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.JobStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
@@ -45,11 +46,13 @@ public class WorkerController {
 
 	private Worker worker;
 
+	private ContainerManager containerManager;
 	
 	@Inject
-	public WorkerController(Worker worker) {
+	public WorkerController(Worker worker,ContainerManager containerManager) {
 		super();
 		this.worker = worker;
+		this.containerManager = containerManager;
 	}
 		
 	@GET
@@ -61,9 +64,18 @@ public class WorkerController {
 
 	@POST
 	@Path("/resize")
-	@ApiOperation(value="Change number of worker threads",response=String.class,responseContainer="List")
+	@ApiOperation(value="Change number of worker threads",response=Response.class)
 	public Response resize(@FormParam("numThreads") int numThreads) {
 		worker.rebuildThreadPool(numThreads);
 		return Response.ok().entity("{ \"message\":\"Thread pool resized\" }").build();
 	}
+	
+	@POST
+	@Path("/timeoutMultiplier")
+	@ApiOperation(value="Set a multiplier on the default timeout of each task stage. If the server is running with a lot of workers and so is highly loaded then you might need to allow more time for all tasks to run",response=Response.class)
+	public Response setTimeoutMultiplier(@FormParam("multiplier") int multiplier) {
+		containerManager.setTimeoutMultiplier(multiplier);
+		return Response.ok().entity("{ \"message\":\"Thread pool resized\" }").build();
+	}
+	
 }

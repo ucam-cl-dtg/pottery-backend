@@ -241,7 +241,7 @@ public class ContainerManager implements Stoppable {
 								return false;
 							}
 						}					
-					}, restrictions.getTimeoutSec(),TimeUnit.SECONDS);
+					}, restrictions.getTimeoutSec() * timeoutMultiplier.get(),TimeUnit.SECONDS);
 				}
 				
 				DiskUsageKiller diskUsageKiller = new DiskUsageKiller(containerId,docker,restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024,l);
@@ -412,6 +412,11 @@ public class ContainerManager implements Stoppable {
 		}
 	}
 
-	
+	private AtomicInteger timeoutMultiplier = new AtomicInteger(1);
+
+	public void setTimeoutMultiplier(int multiplier) {
+		timeoutMultiplier.set(multiplier);
+	}
+
 
 }
