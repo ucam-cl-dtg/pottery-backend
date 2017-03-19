@@ -44,7 +44,7 @@ public class Database implements Stoppable {
 		try {
 			connectionPool = new ComboPooledDataSource();
 			connectionPool.setDriverClass("org.postgresql.Driver"); 
-			connectionPool.setJdbcUrl("jdbc:postgresql://localhost/pottery" );
+			connectionPool.setJdbcUrl("jdbc:postgresql://pottery-db/pottery" );
 			connectionPool.setUser("pottery");
 			connectionPool.setPassword("pottery");
 
