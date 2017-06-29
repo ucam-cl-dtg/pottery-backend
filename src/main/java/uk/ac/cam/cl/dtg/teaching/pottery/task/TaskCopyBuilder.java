@@ -105,6 +105,7 @@ public class TaskCopyBuilder {
 				try {
 					return compileFiles(taskConfig, taskDefDir, containerManager) ? Job.STATUS_OK : Job.STATUS_FAILED;
 				} catch (APIUnavailableException e) {
+					LOG.warn("Docker API unavailable. Retrying",e);
 					return Job.STATUS_RETRY;
 				}
 			}

@@ -279,11 +279,12 @@ public class Repo {
 							try {
 								compilationResponse = containerManager.execCompilation(codeDir, c.getCompileRoot(), image, taskInfo.getCompilationRestrictions());
 							} catch (APIUnavailableException e) {
+								LOG.warn("Docker API unavailable when trying to execute compilation step. Retrying",e);
 								updateSubmission(builder.addErrorMessage("Compilation failed, unable to contact the container API. Retrying...").setRetry());
 								return Job.STATUS_RETRY;
 							}
 							updateSubmission(builder.setCompilationResponse(compilationResponse.getResponse(),compilationResponse.isSuccess(),compilationResponse.getExecutionTimeMs()));
-							if (!compilationResponse.isSuccess()) { 
+							if (!compilationResponse.isSuccess()) {
 								updateSubmission(builder.addErrorMessage("Compilation failed, no tests were run"));
 								return Job.STATUS_FAILED;
 							}
@@ -293,6 +294,7 @@ public class Repo {
 							try {
 								harnessResponse = containerManager.execHarness(codeDir,c.getHarnessRoot(),image,taskInfo.getHarnessRestrictions());
 							} catch (APIUnavailableException e) {
+								LOG.warn("Docker API unavailable when trying to run harness step. Retrying",e);
 								updateSubmission(builder.addErrorMessage("Harness failed, unable to contact the container API. Retrying...").setRetry());
 								return Job.STATUS_RETRY;
 							}
@@ -308,6 +310,7 @@ public class Repo {
 							try {
 								validatorResponse = containerManager.execValidator(c.getValidatorRoot(), harnessResponse.getResponse(), image,taskInfo.getValidatorRestrictions());
 							} catch (APIUnavailableException e) {
+								LOG.warn("Docker API unavailable when trying to run validator step. Retrying",e);
 								updateSubmission(builder.addErrorMessage("Validation failed, unable to contact the container API. Retrying...").setRetry());
 								return Job.STATUS_RETRY;
 							}
