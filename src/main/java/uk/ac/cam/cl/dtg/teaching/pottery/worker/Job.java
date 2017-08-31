@@ -24,24 +24,30 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
 public interface Job {
 
-	public static final int STATUS_OK = 0;
-	public static final int STATUS_FAILED = 1;
-	public static final int STATUS_RETRY = 2;
-	
-	/**
-	 * Run the required task. 
-	 * @param taskIndex
-	 * @param repoFactory
-	 * @param containerManager
-	 * @param database
-	 * @return a status code indicating what should be done
-	 * @throws Exception
-	 */
-	public int execute(TaskIndex taskIndex, RepoFactory repoFactory, ContainerManager containerManager, Database database);
-	
-	/**
-	 * Textual description of the job
-	 * @return
-	 */
-	public String getDescription();
+  public static final int STATUS_OK = 0;
+  public static final int STATUS_FAILED = 1;
+  public static final int STATUS_RETRY = 2;
+
+  /**
+   * Run the required task.
+   *
+   * @param taskIndex
+   * @param repoFactory
+   * @param containerManager
+   * @param database
+   * @return a status code indicating what should be done
+   * @throws Exception
+   */
+  public int execute(
+      TaskIndex taskIndex,
+      RepoFactory repoFactory,
+      ContainerManager containerManager,
+      Database database);
+
+  /**
+   * Textual description of the job
+   *
+   * @return
+   */
+  public String getDescription();
 }

@@ -17,19 +17,16 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
-import java.io.IOException;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
-
-import org.eclipse.jgit.api.errors.GitAPIException;
-
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-
+import java.io.IOException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
@@ -41,78 +38,75 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 @Singleton
 public class TaskFactory {
 
-	/**
-	 * This object is used to generate new uuids for tasks
-	 */
-	private UUIDGenerator uuidGenerator = new UUIDGenerator();
+  /** This object is used to generate new uuids for tasks */
+  private UUIDGenerator uuidGenerator = new UUIDGenerator();
 
-	// Ensure that only only one Task object exists for any taskId so that 
-	// we guarantee mutual exclusion on the filesystem operations. 
-	private LoadingCache<String, Task> cache = 
-			CacheBuilder.newBuilder().
-			softValues().
-			build(new CacheLoader<String,Task>() {
-				@Override
-				public Task load(String key) throws Exception {
-					return Task.openTask(key, uuidGenerator, database, config);
-				}
-			});
+  // Ensure that only only one Task object exists for any taskId so that
+  // we guarantee mutual exclusion on the filesystem operations.
+  private LoadingCache<String, Task> cache =
+      CacheBuilder.newBuilder()
+          .softValues()
+          .build(
+              new CacheLoader<String, Task>() {
+                @Override
+                public Task load(String key) throws Exception {
+                  return Task.openTask(key, uuidGenerator, database, config);
+                }
+              });
 
-	private TaskConfig config;
-	
-	private Database database;
-	
-	@Inject
-	public TaskFactory(TaskConfig config, Database database) throws IOException, GitAPIException {
-		this.config = config;
-		this.database = database;
-		FileUtil.mkdir(config.getTaskDefinitionRoot());
-		FileUtil.mkdir(config.getTaskCopyRoot());
-		
-		Stream.concat(
-				Stream.of(config.getTaskDefinitionRoot().listFiles()), 
-				Stream.of(config.getTaskCopyRoot().listFiles()))
-			.filter(f -> !f.getName().startsWith("."))
-			.forEach(f -> uuidGenerator.reserve(f.getName()));		
-	}
-	
-	public Task getInstance(String taskId) throws InvalidTaskSpecificationException, TaskStorageException, TaskNotFoundException {
-		try{
-			return cache.get(taskId);
-		} catch (ExecutionException e) {
-			// this is thrown if an exception is thrown in the load method of the cache.
-			if (e.getCause() instanceof InvalidTaskSpecificationException) {					
-				throw (InvalidTaskSpecificationException)e.getCause();
-			}
-			else if (e.getCause() instanceof TaskStorageException) {
-				throw (TaskStorageException)e.getCause();
-			}
-			else if (e.getCause() instanceof TaskNotFoundException) {
-				throw (TaskNotFoundException)e.getCause();
-			}
-			else {
-				throw new Error(e);
-			}
-		}
-	}
-	
-	public Task createInstance() throws TaskStorageException  {
-		final String newRepoId = uuidGenerator.generate();
-		try {
-			return cache.get(newRepoId, new Callable<Task>() {
-				@Override
-				public Task call() throws Exception {
-					return Task.createTask(newRepoId,uuidGenerator, config, database);			
-				}
-			});
-		} catch (ExecutionException e) {
-			if (e.getCause() instanceof TaskStorageException) {					
-				throw (TaskStorageException)e.getCause();
-			}
-			else {
-				throw new Error(e);
-			}
-		}
-	}
-	
+  private TaskConfig config;
+
+  private Database database;
+
+  @Inject
+  public TaskFactory(TaskConfig config, Database database) throws IOException, GitAPIException {
+    this.config = config;
+    this.database = database;
+    FileUtil.mkdir(config.getTaskDefinitionRoot());
+    FileUtil.mkdir(config.getTaskCopyRoot());
+
+    Stream.concat(
+            Stream.of(config.getTaskDefinitionRoot().listFiles()),
+            Stream.of(config.getTaskCopyRoot().listFiles()))
+        .filter(f -> !f.getName().startsWith("."))
+        .forEach(f -> uuidGenerator.reserve(f.getName()));
+  }
+
+  public Task getInstance(String taskId)
+      throws InvalidTaskSpecificationException, TaskStorageException, TaskNotFoundException {
+    try {
+      return cache.get(taskId);
+    } catch (ExecutionException e) {
+      // this is thrown if an exception is thrown in the load method of the cache.
+      if (e.getCause() instanceof InvalidTaskSpecificationException) {
+        throw (InvalidTaskSpecificationException) e.getCause();
+      } else if (e.getCause() instanceof TaskStorageException) {
+        throw (TaskStorageException) e.getCause();
+      } else if (e.getCause() instanceof TaskNotFoundException) {
+        throw (TaskNotFoundException) e.getCause();
+      } else {
+        throw new Error(e);
+      }
+    }
+  }
+
+  public Task createInstance() throws TaskStorageException {
+    final String newRepoId = uuidGenerator.generate();
+    try {
+      return cache.get(
+          newRepoId,
+          new Callable<Task>() {
+            @Override
+            public Task call() throws Exception {
+              return Task.createTask(newRepoId, uuidGenerator, config, database);
+            }
+          });
+    } catch (ExecutionException e) {
+      if (e.getCause() instanceof TaskStorageException) {
+        throw (TaskStorageException) e.getCause();
+      } else {
+        throw new Error(e);
+      }
+    }
+  }
 }

@@ -22,61 +22,62 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ContainerRestrictions {
 
-	private int timeoutSec;
-	
-	private int diskWriteLimitMegabytes;
-	
-	private int ramLimitMegabytes;
-	
-	private boolean networkDisabled;
-	
-	@JsonCreator
-	public ContainerRestrictions(
-			@JsonProperty("timeoutSec") int timeoutSec, 
-			@JsonProperty("diskWriteLimitMegabytes") int diskWriteLimitMegabytes,
-			@JsonProperty("ramLimitMegabytes") int ramLimitMegabytes,
-			@JsonProperty("networkDisabled") boolean networkDisabled) {
-		super();
-		this.timeoutSec = timeoutSec;
-		this.diskWriteLimitMegabytes = diskWriteLimitMegabytes;
-		this.ramLimitMegabytes = ramLimitMegabytes;
-		this.networkDisabled = networkDisabled;
-	}
+  private int timeoutSec;
 
-	public boolean isNetworkDisabled() {
-		return networkDisabled;
-	}
+  private int diskWriteLimitMegabytes;
 
-	public int getTimeoutSec() {
-		return timeoutSec;
-	}
+  private int ramLimitMegabytes;
 
-	public int getDiskWriteLimitMegabytes() {
-		return diskWriteLimitMegabytes;
-	}
+  private boolean networkDisabled;
 
-	public int getRamLimitMegabytes() {
-		return ramLimitMegabytes;
-	}
-	
-	/**
-	 * Restrictions to impose on a candidate
-	 * @param v
-	 * @return
-	 */
-	public static ContainerRestrictions candidateRestriction(ContainerRestrictions v) {
-		if (v != null) return v;
-		return new ContainerRestrictions(60,1,200,true);
-	}
+  @JsonCreator
+  public ContainerRestrictions(
+      @JsonProperty("timeoutSec") int timeoutSec,
+      @JsonProperty("diskWriteLimitMegabytes") int diskWriteLimitMegabytes,
+      @JsonProperty("ramLimitMegabytes") int ramLimitMegabytes,
+      @JsonProperty("networkDisabled") boolean networkDisabled) {
+    super();
+    this.timeoutSec = timeoutSec;
+    this.diskWriteLimitMegabytes = diskWriteLimitMegabytes;
+    this.ramLimitMegabytes = ramLimitMegabytes;
+    this.networkDisabled = networkDisabled;
+  }
 
-	/**
-	 * Restrictions for an author of a test i.e. to compile the task itself
-	 * @param v
-	 * @return
-	 */
-	public static ContainerRestrictions authorRestriction(ContainerRestrictions v) {
-		if (v != null) return v;
-		return new ContainerRestrictions(500,50,500,false);
-	}
+  public boolean isNetworkDisabled() {
+    return networkDisabled;
+  }
 
+  public int getTimeoutSec() {
+    return timeoutSec;
+  }
+
+  public int getDiskWriteLimitMegabytes() {
+    return diskWriteLimitMegabytes;
+  }
+
+  public int getRamLimitMegabytes() {
+    return ramLimitMegabytes;
+  }
+
+  /**
+   * Restrictions to impose on a candidate
+   *
+   * @param v
+   * @return
+   */
+  public static ContainerRestrictions candidateRestriction(ContainerRestrictions v) {
+    if (v != null) return v;
+    return new ContainerRestrictions(60, 1, 200, true);
+  }
+
+  /**
+   * Restrictions for an author of a test i.e. to compile the task itself
+   *
+   * @param v
+   * @return
+   */
+  public static ContainerRestrictions authorRestriction(ContainerRestrictions v) {
+    if (v != null) return v;
+    return new ContainerRestrictions(500, 50, 500, false);
+  }
 }

@@ -17,54 +17,53 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
-import java.util.Map;
-import java.util.TreeMap;
-
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.inject.Inject;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
-
+import java.util.Map;
+import java.util.TreeMap;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 @Produces("application/json")
 @Path("/status")
-@Api(value = "/status", description = "Server status",position=0)
+@Api(value = "/status", description = "Server status", position = 0)
 public class StatusController {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(WorkerController.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(WorkerController.class);
 
-	private Worker worker;
+  private Worker worker;
 
-	private ContainerManager containerManager;
-	
-	@Inject
-	public StatusController(Worker worker, ContainerManager containerManager, TaskIndex taskIndex) {
-		super();
-		this.worker = worker;
-		this.containerManager = containerManager;
-	}
-		
-	@GET
-	@Path("/")
-	@ApiOperation(value="Get server status",response=String.class,responseContainer="Map",position=0)
-	public Map<String,String> getStatus() {
-		Map<String,String> response = new TreeMap<>();
-		response.put("Worker.numThreads",worker.getNumThreads()+"");
-		response.put("Worker.queueSize", worker.getQueue().size()+"");
-		response.put("Worker.smoothedWaitTime", worker.getSmoothedWaitTime()+"");
-		response.put("ContainerManager.smoothedCallTime",containerManager.getSmoothedCallTime()+"");
-		response.put("ContainerManager.apiStatus",containerManager.getApiStatus());
-		return response;
-	}
+  private ContainerManager containerManager;
 
-	
+  @Inject
+  public StatusController(Worker worker, ContainerManager containerManager, TaskIndex taskIndex) {
+    super();
+    this.worker = worker;
+    this.containerManager = containerManager;
+  }
+
+  @GET
+  @Path("/")
+  @ApiOperation(
+    value = "Get server status",
+    response = String.class,
+    responseContainer = "Map",
+    position = 0
+  )
+  public Map<String, String> getStatus() {
+    Map<String, String> response = new TreeMap<>();
+    response.put("Worker.numThreads", worker.getNumThreads() + "");
+    response.put("Worker.queueSize", worker.getQueue().size() + "");
+    response.put("Worker.smoothedWaitTime", worker.getSmoothedWaitTime() + "");
+    response.put("ContainerManager.smoothedCallTime", containerManager.getSmoothedCallTime() + "");
+    response.put("ContainerManager.apiStatus", containerManager.getApiStatus());
+    return response;
+  }
 }

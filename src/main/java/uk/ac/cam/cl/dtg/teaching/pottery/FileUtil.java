@@ -27,57 +27,57 @@ import java.nio.file.attribute.BasicFileAttributes;
 
 public class FileUtil {
 
-	
-	public static void mkdir(File dir) throws IOException {
-		if (!dir.exists()) {
-			if (!dir.mkdirs()) {
-				throw new IOException("Failed to create directory "+dir);
-			}
-		}
-	}
-	
-	public static void deleteRecursive(final File dir) throws IOException {
-		if (!dir.exists()) return;
-		Files.walkFileTree(dir.toPath(), new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult visitFile(Path file,
-					BasicFileAttributes attrs) throws IOException {
-				if (FileUtil.isParent(dir, file.toFile())) {
-					Files.delete(file);
-					return FileVisitResult.CONTINUE;
-				} else {
-					throw new IOException("File not within parent directory");
-				}
-			}
-	
-			@Override
-			public FileVisitResult postVisitDirectory(Path dir, IOException exc)
-					throws IOException {
-				if (exc != null) {
-					throw exc;
-				}
-				Files.delete(dir);
-				return FileVisitResult.CONTINUE;
-			}
-	
-		});
-	}
+  public static void mkdir(File dir) throws IOException {
+    if (!dir.exists()) {
+      if (!dir.mkdirs()) {
+        throw new IOException("Failed to create directory " + dir);
+      }
+    }
+  }
 
-	/**
-	 * Check whether one file is a descendant of the other.  
-	 * 
-	 * descendant is first converted to its canonical file.  We then walk upwards.  If we find the parent file then we return true.
-	 * @param parent
-	 * @param descendant
-	 * @return true if descendant is a descendant of parent
-	 * @throws IOException
-	 */
-	public static boolean isParent(File parent, File descendant) throws IOException {
-		descendant = descendant.getCanonicalFile();
-		do {
-			if (descendant.equals(parent))
-				return true;
-		} while ((descendant = descendant.getParentFile()) != null);
-		return false;
-	}
+  public static void deleteRecursive(final File dir) throws IOException {
+    if (!dir.exists()) return;
+    Files.walkFileTree(
+        dir.toPath(),
+        new SimpleFileVisitor<Path>() {
+          @Override
+          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+              throws IOException {
+            if (FileUtil.isParent(dir, file.toFile())) {
+              Files.delete(file);
+              return FileVisitResult.CONTINUE;
+            } else {
+              throw new IOException("File not within parent directory");
+            }
+          }
+
+          @Override
+          public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            if (exc != null) {
+              throw exc;
+            }
+            Files.delete(dir);
+            return FileVisitResult.CONTINUE;
+          }
+        });
+  }
+
+  /**
+   * Check whether one file is a descendant of the other.
+   *
+   * <p>descendant is first converted to its canonical file. We then walk upwards. If we find the
+   * parent file then we return true.
+   *
+   * @param parent
+   * @param descendant
+   * @return true if descendant is a descendant of parent
+   * @throws IOException
+   */
+  public static boolean isParent(File parent, File descendant) throws IOException {
+    descendant = descendant.getCanonicalFile();
+    do {
+      if (descendant.equals(parent)) return true;
+    } while ((descendant = descendant.getParentFile()) != null);
+    return false;
+  }
 }

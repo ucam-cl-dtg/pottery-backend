@@ -21,49 +21,49 @@ import java.io.File;
 
 public class TaskConfig {
 
-	private File taskPrefix;
+  private File taskPrefix;
 
-	public TaskConfig() {
-		this.taskPrefix = new File(Config.PREFIX,"tasks");
-	}
-	
-	public TaskConfig(File taskPrefix) {
-		this.taskPrefix = taskPrefix;
-	}
-	
-	public File getTaskDefinitionRoot() {
-		return new File(taskPrefix,"def");
-	}
+  public TaskConfig() {
+    this.taskPrefix = new File(Config.PREFIX, "tasks");
+  }
 
-	public File getTaskCopyRoot() {
-		return new File(taskPrefix,"copy");
-	}
+  public TaskConfig(File taskPrefix) {
+    this.taskPrefix = taskPrefix;
+  }
 
-	public File getTaskDefinitionDir(String taskId) {
-		return new File(getTaskDefinitionRoot(),taskId);
-	}
-	
-	public File getTaskCopyDir(String copyId) {
-		return new File(getTaskCopyRoot(),copyId);
-	}
+  public File getTaskDefinitionRoot() {
+    return new File(taskPrefix, "def");
+  }
 
-	public File getSolutionDir(String copyId) {
-		return new File(getTaskCopyDir(copyId),"solution");
-	}
+  public File getTaskCopyRoot() {
+    return new File(taskPrefix, "copy");
+  }
 
-	public File getCompileDir(String copyId) {
-		return new File(getTaskCopyDir(copyId),"compile");
-	}
+  public File getTaskDefinitionDir(String taskId) {
+    return new File(getTaskDefinitionRoot(), taskId);
+  }
 
-	public File getHarnessDir(String copyId) {
-		return new File(getTaskCopyDir(copyId),"harness");
-	}
+  public File getTaskCopyDir(String copyId) {
+    return new File(getTaskCopyRoot(), copyId);
+  }
 
-	public File getValidatorDir(String copyId) {
-		return new File(getTaskCopyDir(copyId),"validator");
-	}
-	
-	public File getSkeletonDir(String copyId) {
-		return new File(getTaskCopyDir(copyId),"skeleton");
-	}
+  public File getSolutionDir(String copyId) {
+    return new File(getTaskCopyDir(copyId), "solution");
+  }
+
+  public File getCompileDir(String copyId) {
+    return new File(getTaskCopyDir(copyId), "compile");
+  }
+
+  public File getHarnessDir(String copyId) {
+    return new File(getTaskCopyDir(copyId), "harness");
+  }
+
+  public File getValidatorDir(String copyId) {
+    return new File(getTaskCopyDir(copyId), "validator");
+  }
+
+  public File getSkeletonDir(String copyId) {
+    return new File(getTaskCopyDir(copyId), "skeleton");
+  }
 }

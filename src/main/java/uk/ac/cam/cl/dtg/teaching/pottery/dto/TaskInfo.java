@@ -17,226 +17,232 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wordnik.swagger.annotations.ApiModelProperty;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wordnik.swagger.annotations.ApiModelProperty;
-
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 
 public class TaskInfo {
 
-	/**
-	 * Algorithms & Data Structures: Tests the ability of the developer to compose algorithms and design appropriate data structures to solve the problem set out in the test.
-	 */
-	public static final String TYPE_ALGORITHM = "ALGORITHMS";
-	
-	/**
-	 * Design Approaches: Evaluates the logical flow of solution code and appropriate design features of the solution (e.g. ???)
-	 */
-	public static final String TYPE_DESIGN = "DESIGN";
-			
-	
-	/**	
-	 * Black Box Testing: Tests the developer's ability to test a solution without knowing or being able to review the underlying source code.
-	 */
-	public static final String TYPE_BLACKBOX = "BLACKBOX";
-	
-	/**
-	 * Unit Testing: Assesses the ability of the developer to write unit tests on pre-existing source code and or source code that they have themselves written.
-	 */
-	public static final String TYPE_UNITTEST = "UNITTEST";
-	
-	/**
-	 * I/O Management: Evaluates the developers ability to implement strategies that result in appropriate I/O activity in a test solution.
-	 */
-	public static final String TYPE_IO = "IO";
-	
-	/**
-	 * Cache & Memory Management: Evaluates the developers ability to implement strategies that result in appropriate cache and memory usage approaches in a test solution.
-	 */
-	public static final String TYPE_MEMORY = "MEMORY";
-	
-	/** 
-	 * Using Existing APIs & Libraries:	Test the ability of a developer to appropriately exploit existing libraries and APIs to achieve the required test solution.
-	 */
-	public static final String TYPE_LIBRARY = "LIBRARY";
-	
-	/**
-	 * 	Debugging: Assesses a developers ability in debugging existing code that has a series of known issues that must be fixed for it to function correctly.
-	 */
-	public static final String TYPE_DEBUGGING = "DEBUGGING";
-	
-	@ApiModelProperty("The unique identifier for this task")
-	private String taskId;
-	
-	@ApiModelProperty("The primary skill tested by this task")
-	private String type;
-	
-	@ApiModelProperty("User readable name for the test")
-	private String name;
-	
-	@ApiModelProperty("The set of types of result that will come back from testing this task")
-	private Set<Criterion> criteria;
-	
-	@ApiModelProperty("The name of the docker image to use when testing this image")
-	private String image;
-	
-	@ApiModelProperty("Test difficulty (values to be determined)")
-	private String difficulty;
-	
-	@ApiModelProperty("The recommended time in minutes to allocate to this task")
-	private int recommendedTimeMinutes;
-	
-	@ApiModelProperty("The programming language being tested (currently only java)")
-	private String language;
-	
-	@ApiModelProperty("The problem statement as an HTML fragment. Use /n to delimit new line characters if needed")
-	private String problemStatement;
+  /**
+   * Algorithms & Data Structures: Tests the ability of the developer to compose algorithms and
+   * design appropriate data structures to solve the problem set out in the test.
+   */
+  public static final String TYPE_ALGORITHM = "ALGORITHMS";
 
-	@ApiModelProperty("Container restrictions on the compilation step")
-	private ContainerRestrictions compilationRestrictions;
-	
-	@ApiModelProperty("Container restrictions on the test harness")
-	private ContainerRestrictions harnessRestrictions;
+  /**
+   * Design Approaches: Evaluates the logical flow of solution code and appropriate design features
+   * of the solution (e.g. ???)
+   */
+  public static final String TYPE_DESIGN = "DESIGN";
 
-	@ApiModelProperty("Container restrictions on the validator")
-	private ContainerRestrictions validatorRestrictions;
+  /**
+   * Black Box Testing: Tests the developer's ability to test a solution without knowing or being
+   * able to review the underlying source code.
+   */
+  public static final String TYPE_BLACKBOX = "BLACKBOX";
 
-	@ApiModelProperty("Container restrictions on the task compilation step (i.e. compiling the test itself")
-	private ContainerRestrictions taskCompilationRestrictions;
+  /**
+   * Unit Testing: Assesses the ability of the developer to write unit tests on pre-existing source
+   * code and or source code that they have themselves written.
+   */
+  public static final String TYPE_UNITTEST = "UNITTEST";
 
-	
-	@ApiModelProperty("List of filenames (relative to the root of the project) to open as a starting point of the task")
-	private List<String> startingPointFiles;
-	
-	public TaskInfo(String taskId) {
-		super();
-		this.taskId = taskId;
-		this.compilationRestrictions = ContainerRestrictions.candidateRestriction(null);
-		this.harnessRestrictions = ContainerRestrictions.candidateRestriction(null);
-		this.validatorRestrictions = ContainerRestrictions.candidateRestriction(null);
-		this.taskCompilationRestrictions = ContainerRestrictions.authorRestriction(null);
-	}
-	
-	@JsonCreator
-	public TaskInfo(@JsonProperty("type") String type, 
-				@JsonProperty("name") String name, 
-				@JsonProperty("criteria") Set<Criterion> criteria, 
-				@JsonProperty("image") String image, 
-				@JsonProperty("difficulty") String difficulty,
-				@JsonProperty("recommendedTimeMinutes") int recommendedTimeMinutes, 
-				@JsonProperty("language") String language, 
-				@JsonProperty("problemStatement") String problemStatement,
-				@JsonProperty("compilationRestrictions") ContainerRestrictions compilationRestrictions,
-				@JsonProperty("harnessRestrictions") ContainerRestrictions harnessRestrictions,
-				@JsonProperty("validatorRestrictions") ContainerRestrictions validatorRestrictions,
-				@JsonProperty("taskCompilationRestrictions") ContainerRestrictions taskCompilationRestrictions,
-				@JsonProperty("startingPointFiles") List<String> startingPointFiles) {
-		super();
-		this.type = type;
-		this.name = name;
-		this.criteria = criteria;
-		this.image = image;
-		this.difficulty = difficulty;
-		this.recommendedTimeMinutes = recommendedTimeMinutes;
-		this.language = language;
-		this.problemStatement = problemStatement;
-		this.compilationRestrictions = ContainerRestrictions.candidateRestriction(compilationRestrictions); 
-		this.harnessRestrictions = ContainerRestrictions.candidateRestriction(harnessRestrictions);
-		this.validatorRestrictions = ContainerRestrictions.candidateRestriction(validatorRestrictions);
-		this.taskCompilationRestrictions = ContainerRestrictions.authorRestriction(taskCompilationRestrictions);
-		this.startingPointFiles = startingPointFiles;
-	}
+  /**
+   * I/O Management: Evaluates the developers ability to implement strategies that result in
+   * appropriate I/O activity in a test solution.
+   */
+  public static final String TYPE_IO = "IO";
 
-	public ContainerRestrictions getCompilationRestrictions() {
-		return compilationRestrictions;
-	}
+  /**
+   * Cache & Memory Management: Evaluates the developers ability to implement strategies that result
+   * in appropriate cache and memory usage approaches in a test solution.
+   */
+  public static final String TYPE_MEMORY = "MEMORY";
 
-	public ContainerRestrictions getHarnessRestrictions() {
-		return harnessRestrictions;
-	}
+  /**
+   * Using Existing APIs & Libraries: Test the ability of a developer to appropriately exploit
+   * existing libraries and APIs to achieve the required test solution.
+   */
+  public static final String TYPE_LIBRARY = "LIBRARY";
 
-	public ContainerRestrictions getValidatorRestrictions() {
-		return validatorRestrictions;
-	}
+  /**
+   * Debugging: Assesses a developers ability in debugging existing code that has a series of known
+   * issues that must be fixed for it to function correctly.
+   */
+  public static final String TYPE_DEBUGGING = "DEBUGGING";
 
-	public ContainerRestrictions getTaskCompilationRestrictions() {
-		return taskCompilationRestrictions;
-	}
+  @ApiModelProperty("The unique identifier for this task")
+  private String taskId;
 
+  @ApiModelProperty("The primary skill tested by this task")
+  private String type;
 
-	public String getTaskId() {
-		return taskId;
-	}
+  @ApiModelProperty("User readable name for the test")
+  private String name;
 
+  @ApiModelProperty("The set of types of result that will come back from testing this task")
+  private Set<Criterion> criteria;
 
-	public String getType() {
-		return type;
-	}
+  @ApiModelProperty("The name of the docker image to use when testing this image")
+  private String image;
 
+  @ApiModelProperty("Test difficulty (values to be determined)")
+  private String difficulty;
 
-	public String getName() {
-		return name;
-	}
+  @ApiModelProperty("The recommended time in minutes to allocate to this task")
+  private int recommendedTimeMinutes;
 
+  @ApiModelProperty("The programming language being tested (currently only java)")
+  private String language;
 
-	public Set<Criterion> getCriteria() {
-		return criteria;
-	}
+  @ApiModelProperty(
+      "The problem statement as an HTML fragment. Use /n to delimit new line characters if needed")
+  private String problemStatement;
 
+  @ApiModelProperty("Container restrictions on the compilation step")
+  private ContainerRestrictions compilationRestrictions;
 
-	public String getImage() {
-		return image;
-	}
+  @ApiModelProperty("Container restrictions on the test harness")
+  private ContainerRestrictions harnessRestrictions;
 
+  @ApiModelProperty("Container restrictions on the validator")
+  private ContainerRestrictions validatorRestrictions;
 
-	public String getDifficulty() {
-		return difficulty;
-	}
+  @ApiModelProperty(
+      "Container restrictions on the task compilation step (i.e. compiling the test itself")
+  private ContainerRestrictions taskCompilationRestrictions;
 
+  @ApiModelProperty(
+      "List of filenames (relative to the root of the project) to open as a starting point of the task")
+  private List<String> startingPointFiles;
 
-	public int getRecommendedTimeMinutes() {
-		return recommendedTimeMinutes;
-	}
+  public TaskInfo(String taskId) {
+    super();
+    this.taskId = taskId;
+    this.compilationRestrictions = ContainerRestrictions.candidateRestriction(null);
+    this.harnessRestrictions = ContainerRestrictions.candidateRestriction(null);
+    this.validatorRestrictions = ContainerRestrictions.candidateRestriction(null);
+    this.taskCompilationRestrictions = ContainerRestrictions.authorRestriction(null);
+  }
 
+  @JsonCreator
+  public TaskInfo(
+      @JsonProperty("type") String type,
+      @JsonProperty("name") String name,
+      @JsonProperty("criteria") Set<Criterion> criteria,
+      @JsonProperty("image") String image,
+      @JsonProperty("difficulty") String difficulty,
+      @JsonProperty("recommendedTimeMinutes") int recommendedTimeMinutes,
+      @JsonProperty("language") String language,
+      @JsonProperty("problemStatement") String problemStatement,
+      @JsonProperty("compilationRestrictions") ContainerRestrictions compilationRestrictions,
+      @JsonProperty("harnessRestrictions") ContainerRestrictions harnessRestrictions,
+      @JsonProperty("validatorRestrictions") ContainerRestrictions validatorRestrictions,
+      @JsonProperty("taskCompilationRestrictions")
+          ContainerRestrictions taskCompilationRestrictions,
+      @JsonProperty("startingPointFiles") List<String> startingPointFiles) {
+    super();
+    this.type = type;
+    this.name = name;
+    this.criteria = criteria;
+    this.image = image;
+    this.difficulty = difficulty;
+    this.recommendedTimeMinutes = recommendedTimeMinutes;
+    this.language = language;
+    this.problemStatement = problemStatement;
+    this.compilationRestrictions =
+        ContainerRestrictions.candidateRestriction(compilationRestrictions);
+    this.harnessRestrictions = ContainerRestrictions.candidateRestriction(harnessRestrictions);
+    this.validatorRestrictions = ContainerRestrictions.candidateRestriction(validatorRestrictions);
+    this.taskCompilationRestrictions =
+        ContainerRestrictions.authorRestriction(taskCompilationRestrictions);
+    this.startingPointFiles = startingPointFiles;
+  }
 
-	public String getLanguage() {
-		return language;
-	}
+  public ContainerRestrictions getCompilationRestrictions() {
+    return compilationRestrictions;
+  }
 
+  public ContainerRestrictions getHarnessRestrictions() {
+    return harnessRestrictions;
+  }
 
-	public String getProblemStatement() {
-		return problemStatement;
-	}
+  public ContainerRestrictions getValidatorRestrictions() {
+    return validatorRestrictions;
+  }
 
-	public static TaskInfo load(String taskId, File taskDirectory, List<String> skeletonFiles) throws InvalidTaskSpecificationException {
-		ObjectMapper o = new ObjectMapper();
-		try {
-			TaskInfo t = o.readValue(new File(taskDirectory,"task.json"),TaskInfo.class);
-			t.taskId = taskId;
-			if (t.startingPointFiles == null) { t.startingPointFiles = Collections.unmodifiableList(new ArrayList<>(skeletonFiles)); }
-			return t;
-		} catch (IOException e) {
-			throw new InvalidTaskSpecificationException("Failed to load task information for task "+taskId,e);
-		}
-	}
+  public ContainerRestrictions getTaskCompilationRestrictions() {
+    return taskCompilationRestrictions;
+  }
 
-	public List<String> getStartingPointFiles() {
-		return startingPointFiles;
-	}
+  public String getTaskId() {
+    return taskId;
+  }
 
-	public void save(File taskDirectory) throws IOException {
-		ObjectMapper o = new ObjectMapper();
-		o.writeValue(new File(taskDirectory,"task.json"), this);
-	}
+  public String getType() {
+    return type;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public Set<Criterion> getCriteria() {
+    return criteria;
+  }
+
+  public String getImage() {
+    return image;
+  }
+
+  public String getDifficulty() {
+    return difficulty;
+  }
+
+  public int getRecommendedTimeMinutes() {
+    return recommendedTimeMinutes;
+  }
+
+  public String getLanguage() {
+    return language;
+  }
+
+  public String getProblemStatement() {
+    return problemStatement;
+  }
+
+  public static TaskInfo load(String taskId, File taskDirectory, List<String> skeletonFiles)
+      throws InvalidTaskSpecificationException {
+    ObjectMapper o = new ObjectMapper();
+    try {
+      TaskInfo t = o.readValue(new File(taskDirectory, "task.json"), TaskInfo.class);
+      t.taskId = taskId;
+      if (t.startingPointFiles == null) {
+        t.startingPointFiles = Collections.unmodifiableList(new ArrayList<>(skeletonFiles));
+      }
+      return t;
+    } catch (IOException e) {
+      throw new InvalidTaskSpecificationException(
+          "Failed to load task information for task " + taskId, e);
+    }
+  }
+
+  public List<String> getStartingPointFiles() {
+    return startingPointFiles;
+  }
+
+  public void save(File taskDirectory) throws IOException {
+    ObjectMapper o = new ObjectMapper();
+    o.writeValue(new File(taskDirectory, "task.json"), this);
+  }
 }

@@ -18,70 +18,71 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import java.io.IOException;
-
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketListener;
 
 class AttachListener implements WebSocketListener {
-	private StringBuffer output;
-	private String data;
-	
-	private boolean closed = false;
-	
-	public AttachListener(StringBuffer output, String data) {
-		this.output = output;
-		this.data = data;
-	}
+  private StringBuffer output;
+  private String data;
 
-	@Override
-	public synchronized void onWebSocketClose(int statusCode, String reason) {
-		closed = true;
-		this.notifyAll();
-	}
+  private boolean closed = false;
 
-	@Override
-	public void onWebSocketConnect(Session session) {
-		if (data != null) {
-			try {
-				StringBuffer toSend = new StringBuffer(data);
-				// Push a load of newlines down the pipe at the end to make sure that
-				// we don't get blocked on line buffering
-				for(int i=0;i<10;++i) toSend.append(System.lineSeparator());
-				session.getRemote().sendString(toSend.toString());
-			} catch (IOException e) {
-				throw new RuntimeException("Failed to send input data to container",e);
-			}
-		}
-	}
+  public AttachListener(StringBuffer output, String data) {
+    this.output = output;
+    this.data = data;
+  }
 
-	@Override
-	public synchronized void onWebSocketError(Throwable cause) {
-		closed = true;
-		this.notifyAll();
-		throw new RuntimeException("WebSocket error attaching to container",cause);
-	}
+  @Override
+  public synchronized void onWebSocketClose(int statusCode, String reason) {
+    closed = true;
+    this.notifyAll();
+  }
 
-	@Override
-	public void onWebSocketBinary(byte[] payload, int offset, int len) {
-		throw new RuntimeException("Unexpected binary data from container");
-	}
+  @Override
+  public void onWebSocketConnect(Session session) {
+    if (data != null) {
+      try {
+        StringBuffer toSend = new StringBuffer(data);
+        // Push a load of newlines down the pipe at the end to make sure that
+        // we don't get blocked on line buffering
+        for (int i = 0; i < 10; ++i) toSend.append(System.lineSeparator());
+        session.getRemote().sendString(toSend.toString());
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to send input data to container", e);
+      }
+    }
+  }
 
-	@Override
-	public void onWebSocketText(String message) {
-		output.append(message);
-	}
-	
-	public synchronized boolean waitForClose(long timeoutMs) throws InterruptedException {
-		long startTime = System.currentTimeMillis();
-		while(!this.closed) {
-			this.wait(timeoutMs);
-			if (System.currentTimeMillis() - startTime >= timeoutMs) { return false; }
-		}
-		return true;
-	}
+  @Override
+  public synchronized void onWebSocketError(Throwable cause) {
+    closed = true;
+    this.notifyAll();
+    throw new RuntimeException("WebSocket error attaching to container", cause);
+  }
 
-	public synchronized void notifyClose() {
-		closed = true;
-		this.notifyAll();
-	}
+  @Override
+  public void onWebSocketBinary(byte[] payload, int offset, int len) {
+    throw new RuntimeException("Unexpected binary data from container");
+  }
+
+  @Override
+  public void onWebSocketText(String message) {
+    output.append(message);
+  }
+
+  public synchronized boolean waitForClose(long timeoutMs) throws InterruptedException {
+    long startTime = System.currentTimeMillis();
+    while (!this.closed) {
+      this.wait(timeoutMs);
+      if (System.currentTimeMillis() - startTime >= timeoutMs) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public synchronized void notifyClose() {
+    closed = true;
+    this.notifyAll();
+  }
 }

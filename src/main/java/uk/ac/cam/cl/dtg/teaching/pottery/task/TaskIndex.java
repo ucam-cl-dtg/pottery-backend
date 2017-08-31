@@ -17,6 +17,8 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -24,13 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
@@ -41,87 +38,96 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 @Singleton
 public class TaskIndex {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(TaskIndex.class);
-			
-	private Map<String,Task> definedTasks;
-	
-	@Inject
-	public TaskIndex(TaskFactory taskFactory, Database database) throws TaskStorageException {
-		this.definedTasks = new ConcurrentHashMap<>();
-		
-		List<String> taskIds;
-		try(TransactionQueryRunner q = database.getQueryRunner()) {
-			taskIds = TaskDefInfo.getAllTaskIds(q);
-		} catch (SQLException e1) {
-			throw new TaskStorageException("Failed to load list of tasks from database",e1);
-		}
-		
-		for(String taskId : taskIds) {
-			try {
-				Task t = taskFactory.getInstance(taskId);
-				definedTasks.put(taskId, t);
-			}
-			catch (TaskNotFoundException|InvalidTaskSpecificationException|TaskStorageException e) {
-				LOG.warn("Ignoring task "+taskId,e);
-			}
-		}
-	}
-	
-	public Collection<TaskInfo> getTestingTasks() {
-		List<TaskInfo> r = new LinkedList<>();
-		for (Task t : definedTasks.values()) {
-			if (!t.isRetired()) {
-				try(TaskCopy c = t.acquireTestingCopy()) {
-					r.add(c.getInfo());
-				} catch (TaskNotFoundException e) {
-					// Ignore missing tasks
-				}
-			}
-		}
-		return r;
-	}
-	
-	public Collection<TaskInfo> getRegisteredTasks() {
-		List<TaskInfo> r = new LinkedList<>();
-		for (Task t : definedTasks.values()) {
-			if (!t.isRetired()) {
-				try(TaskCopy c = t.acquireRegisteredCopy()) {
-					r.add(c.getInfo());
-				} catch (TaskNotFoundException e) {
-					// Ignore unregistered tasks
-				}
-			}
-		}
-		return r;
-	}
-	
-	public TaskInfo getTestingTaskInfo(String taskId) throws TaskNotFoundException {
-		try (TaskCopy t = getTask(taskId).acquireTestingCopy()) {
-			return t.getInfo();
-		}
-	}
+  protected static final Logger LOG = LoggerFactory.getLogger(TaskIndex.class);
 
-	public TaskInfo getRegisteredTaskInfo(String taskId) throws TaskNotFoundException {
-		try (TaskCopy t = getTask(taskId).acquireRegisteredCopy()) {
-			return t.getInfo();
-		}
-	}
+  private Map<String, Task> definedTasks;
 
-	public Task getTask(String taskId) throws TaskNotFoundException {
-		Task t = definedTasks.get(taskId);
-		if (t == null) throw new TaskNotFoundException("Failed to find task "+taskId);
-		return t;
-	}
+  @Inject
+  public TaskIndex(TaskFactory taskFactory, Database database) throws TaskStorageException {
+    this.definedTasks = new ConcurrentHashMap<>();
 
-	public Collection<String> getAllTasks() {
-		return definedTasks.values().stream().filter(t -> !t.isRetired()).map(t->t.getTaskId()).collect(Collectors.toList());
-	}
-	
-	public Collection<String> getRetiredTasks() {
-		return definedTasks.values().stream().filter(t -> t.isRetired()).map(t->t.getTaskId()).collect(Collectors.toList());
-	}
+    List<String> taskIds;
+    try (TransactionQueryRunner q = database.getQueryRunner()) {
+      taskIds = TaskDefInfo.getAllTaskIds(q);
+    } catch (SQLException e1) {
+      throw new TaskStorageException("Failed to load list of tasks from database", e1);
+    }
 
-	public void add(Task newTask) {
-		definedTasks.put(newTask.getTaskId(), newTask);
-	}
+    for (String taskId : taskIds) {
+      try {
+        Task t = taskFactory.getInstance(taskId);
+        definedTasks.put(taskId, t);
+      } catch (TaskNotFoundException | InvalidTaskSpecificationException | TaskStorageException e) {
+        LOG.warn("Ignoring task " + taskId, e);
+      }
+    }
+  }
+
+  public Collection<TaskInfo> getTestingTasks() {
+    List<TaskInfo> r = new LinkedList<>();
+    for (Task t : definedTasks.values()) {
+      if (!t.isRetired()) {
+        try (TaskCopy c = t.acquireTestingCopy()) {
+          r.add(c.getInfo());
+        } catch (TaskNotFoundException e) {
+          // Ignore missing tasks
+        }
+      }
+    }
+    return r;
+  }
+
+  public Collection<TaskInfo> getRegisteredTasks() {
+    List<TaskInfo> r = new LinkedList<>();
+    for (Task t : definedTasks.values()) {
+      if (!t.isRetired()) {
+        try (TaskCopy c = t.acquireRegisteredCopy()) {
+          r.add(c.getInfo());
+        } catch (TaskNotFoundException e) {
+          // Ignore unregistered tasks
+        }
+      }
+    }
+    return r;
+  }
+
+  public TaskInfo getTestingTaskInfo(String taskId) throws TaskNotFoundException {
+    try (TaskCopy t = getTask(taskId).acquireTestingCopy()) {
+      return t.getInfo();
+    }
+  }
+
+  public TaskInfo getRegisteredTaskInfo(String taskId) throws TaskNotFoundException {
+    try (TaskCopy t = getTask(taskId).acquireRegisteredCopy()) {
+      return t.getInfo();
+    }
+  }
+
+  public Task getTask(String taskId) throws TaskNotFoundException {
+    Task t = definedTasks.get(taskId);
+    if (t == null) throw new TaskNotFoundException("Failed to find task " + taskId);
+    return t;
+  }
+
+  public Collection<String> getAllTasks() {
+    return definedTasks
+        .values()
+        .stream()
+        .filter(t -> !t.isRetired())
+        .map(t -> t.getTaskId())
+        .collect(Collectors.toList());
+  }
+
+  public Collection<String> getRetiredTasks() {
+    return definedTasks
+        .values()
+        .stream()
+        .filter(t -> t.isRetired())
+        .map(t -> t.getTaskId())
+        .collect(Collectors.toList());
+  }
+
+  public void add(Task newTask) {
+    definedTasks.put(newTask.getTaskId(), newTask);
+  }
 }

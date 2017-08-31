@@ -21,34 +21,33 @@ import java.io.File;
 
 public class RepoConfig {
 
-	private File prefix;
+  private File prefix;
 
-	public RepoConfig() {
-		this.prefix = new File(Config.PREFIX,"repos");
-	}
-	
-	public RepoConfig(File repoPrefix) {
-		this.prefix = repoPrefix;
-	}
-	
-	public File getRepoRoot() {
-		return new File(prefix,"repos");
-	}
-	
-	public File getRepoTestingRoot() {
-		return new File(prefix,"repo-testing");
-	}
-	
-	public String getWebtagPrefix() {
-		return "online-";
-	}
+  public RepoConfig() {
+    this.prefix = new File(Config.PREFIX, "repos");
+  }
 
-	public File getRepoDir(String repoId) {
-		return new File(getRepoRoot(),repoId);
-	}
+  public RepoConfig(File repoPrefix) {
+    this.prefix = repoPrefix;
+  }
 
-	public File getRepoTestingDir(String repoId) {
-		return new File(getRepoTestingRoot(),repoId);
-	}
+  public File getRepoRoot() {
+    return new File(prefix, "repos");
+  }
 
+  public File getRepoTestingRoot() {
+    return new File(prefix, "repo-testing");
+  }
+
+  public String getWebtagPrefix() {
+    return "online-";
+  }
+
+  public File getRepoDir(String repoId) {
+    return new File(getRepoRoot(), repoId);
+  }
+
+  public File getRepoTestingDir(String repoId) {
+    return new File(getRepoTestingRoot(), repoId);
+  }
 }

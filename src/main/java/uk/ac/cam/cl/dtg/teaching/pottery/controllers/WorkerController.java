@@ -17,65 +17,69 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
+import com.google.inject.Inject;
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
 import java.util.List;
-
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.inject.Inject;
-import com.wordnik.swagger.annotations.Api;
-import com.wordnik.swagger.annotations.ApiOperation;
-
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.JobStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 @Produces("application/json")
 @Path("/worker")
-@Api(value = "/worker", description = "Manages the work queue.",position=0)
+@Api(value = "/worker", description = "Manages the work queue.", position = 0)
 public class WorkerController {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(WorkerController.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(WorkerController.class);
 
-	private Worker worker;
+  private Worker worker;
 
-	private ContainerManager containerManager;
-	
-	@Inject
-	public WorkerController(Worker worker,ContainerManager containerManager) {
-		super();
-		this.worker = worker;
-		this.containerManager = containerManager;
-	}
-		
-	@GET
-	@Path("/")
-	@ApiOperation(value="Lists queue contents",response=JobStatus.class,responseContainer="List",position=0)
-	public List<JobStatus> listQueue() {
-		return worker.getQueue();
-	}
+  private ContainerManager containerManager;
 
-	@POST
-	@Path("/resize")
-	@ApiOperation(value="Change number of worker threads",response=Response.class)
-	public Response resize(@FormParam("numThreads") int numThreads) {
-		worker.rebuildThreadPool(numThreads);
-		return Response.ok().entity("{ \"message\":\"Thread pool resized\" }").build();
-	}
-	
-	@POST
-	@Path("/timeoutMultiplier")
-	@ApiOperation(value="Set a multiplier on the default timeout of each task stage. If the server is running with a lot of workers and so is highly loaded then you might need to allow more time for all tasks to run",response=Response.class)
-	public Response setTimeoutMultiplier(@FormParam("multiplier") int multiplier) {
-		containerManager.setTimeoutMultiplier(multiplier);
-		return Response.ok().entity("{ \"message\":\"Thread pool resized\" }").build();
-	}
-	
+  @Inject
+  public WorkerController(Worker worker, ContainerManager containerManager) {
+    super();
+    this.worker = worker;
+    this.containerManager = containerManager;
+  }
+
+  @GET
+  @Path("/")
+  @ApiOperation(
+    value = "Lists queue contents",
+    response = JobStatus.class,
+    responseContainer = "List",
+    position = 0
+  )
+  public List<JobStatus> listQueue() {
+    return worker.getQueue();
+  }
+
+  @POST
+  @Path("/resize")
+  @ApiOperation(value = "Change number of worker threads", response = Response.class)
+  public Response resize(@FormParam("numThreads") int numThreads) {
+    worker.rebuildThreadPool(numThreads);
+    return Response.ok().entity("{ \"message\":\"Thread pool resized\" }").build();
+  }
+
+  @POST
+  @Path("/timeoutMultiplier")
+  @ApiOperation(
+    value =
+        "Set a multiplier on the default timeout of each task stage. If the server is running with a lot of workers and so is highly loaded then you might need to allow more time for all tasks to run",
+    response = Response.class
+  )
+  public Response setTimeoutMultiplier(@FormParam("multiplier") int multiplier) {
+    containerManager.setTimeoutMultiplier(multiplier);
+    return Response.ok().entity("{ \"message\":\"Thread pool resized\" }").build();
+  }
 }

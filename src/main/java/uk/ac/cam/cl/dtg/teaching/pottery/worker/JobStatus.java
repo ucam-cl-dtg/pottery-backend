@@ -21,44 +21,43 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class JobStatus implements Comparable<JobStatus> {
 
-	public static final String STATUS_WAITING = "WAITING";
-	public static final String STATUS_RUNNING = "RUNNING";
-	
-	private String description;
-	private volatile String status;
-	private long jobID;
-	
-	private static AtomicLong counter = new AtomicLong(0);
-	
-	public JobStatus(String description) {
-		this.description = description;
-		this.status = STATUS_WAITING;
-		this.jobID = counter.getAndIncrement();
-	}
+  public static final String STATUS_WAITING = "WAITING";
+  public static final String STATUS_RUNNING = "RUNNING";
 
-	public String getDescription() {
-		return description;
-	}
+  private String description;
+  private volatile String status;
+  private long jobID;
 
-	public String getStatus() {
-		return status;
-	}
+  private static AtomicLong counter = new AtomicLong(0);
 
-	public long getJobID() {
-		return jobID;
-	}
+  public JobStatus(String description) {
+    this.description = description;
+    this.status = STATUS_WAITING;
+    this.jobID = counter.getAndIncrement();
+  }
 
-	public static AtomicLong getCounter() {
-		return counter;
-	}
+  public String getDescription() {
+    return description;
+  }
 
-	@Override
-	public int compareTo(JobStatus o) {
-		return Long.compare(jobID, o.jobID);
-	}
+  public String getStatus() {
+    return status;
+  }
 
-	public void setStatus(String status) {
-		this.status = status; 
-	}
-	
+  public long getJobID() {
+    return jobID;
+  }
+
+  public static AtomicLong getCounter() {
+    return counter;
+  }
+
+  @Override
+  public int compareTo(JobStatus o) {
+    return Long.compare(jobID, o.jobID);
+  }
+
+  public void setStatus(String status) {
+    this.status = status;
+  }
 }

@@ -21,119 +21,137 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
 import org.apache.commons.dbutils.handlers.BeanHandler;
 
 public class TaskDefInfo {
 
-	private String taskId;
-	
-	private String registeredTag;
-	
-	private String testingCopyId;
-	
-	private String registeredCopyId;
-	
-	private boolean retired;
+  private String taskId;
 
-	public TaskDefInfo() {}
-	
-	public TaskDefInfo(String taskId, String registeredTag, String testingCopyId, String registeredCopyId,
-			boolean retired) {
-		super();
-		this.taskId = taskId;
-		this.registeredTag = registeredTag;
-		this.testingCopyId = testingCopyId;
-		this.registeredCopyId = registeredCopyId;
-		this.retired = retired;
-	}
+  private String registeredTag;
 
+  private String testingCopyId;
 
-	public String getTestingCopyId() {
-		return testingCopyId;
-	}
+  private String registeredCopyId;
 
-	public void setTestingCopyId(String testingCopyId) {
-		this.testingCopyId = testingCopyId;
-	}
+  private boolean retired;
 
-	public String getRegisteredCopyId() {
-		return registeredCopyId;
-	}
+  public TaskDefInfo() {}
 
-	public void setRegisteredCopyId(String registeredCopyId) {
-		this.registeredCopyId = registeredCopyId;
-	}
+  public TaskDefInfo(
+      String taskId,
+      String registeredTag,
+      String testingCopyId,
+      String registeredCopyId,
+      boolean retired) {
+    super();
+    this.taskId = taskId;
+    this.registeredTag = registeredTag;
+    this.testingCopyId = testingCopyId;
+    this.registeredCopyId = registeredCopyId;
+    this.retired = retired;
+  }
 
-	public boolean isRetired() {
-		return retired;
-	}
+  public String getTestingCopyId() {
+    return testingCopyId;
+  }
 
+  public void setTestingCopyId(String testingCopyId) {
+    this.testingCopyId = testingCopyId;
+  }
 
-	public void setRetired(boolean retired) {
-		this.retired = retired;
-	}
+  public String getRegisteredCopyId() {
+    return registeredCopyId;
+  }
 
+  public void setRegisteredCopyId(String registeredCopyId) {
+    this.registeredCopyId = registeredCopyId;
+  }
 
-	public String getTaskId() {
-		return taskId;
-	}
+  public boolean isRetired() {
+    return retired;
+  }
 
-	public void setTaskId(String taskId) {
-		this.taskId = taskId;
-	}
+  public void setRetired(boolean retired) {
+    this.retired = retired;
+  }
 
-	public String getRegisteredTag() {
-		return registeredTag;
-	}
+  public String getTaskId() {
+    return taskId;
+  }
 
-	public void setRegisteredTag(String registeredTag) {
-		this.registeredTag = registeredTag;
-	}
+  public void setTaskId(String taskId) {
+    this.taskId = taskId;
+  }
 
-	public static TaskDefInfo getByTaskId(String taskId, QueryRunner q) throws SQLException {
-		return q.query("SELECT * from tasks where taskid=?",new BeanHandler<>(TaskDefInfo.class),taskId);
-	}
-	
-	public void insert(QueryRunner q) throws SQLException {
-		q.update("INSERT INTO tasks(taskid,registeredtag,retired) values (?,?,?)",taskId,registeredTag,retired);
-	}
+  public String getRegisteredTag() {
+    return registeredTag;
+  }
 
-	public static List<String> getAllTaskIds(QueryRunner q) throws SQLException {
-		return q.query("Select taskId from tasks", new ResultSetHandler<List<String>>() {
-			@Override
-			public List<String> handle(ResultSet rs) throws SQLException {
-				List<String> result = new ArrayList<String>();
-				while(rs.next()) {
-					result.add(rs.getString(1));
-				}
-				return result;
-			}
-		});
-	}
-	
-	public static void updateRegisteredCopy(String taskId, String tag, String copyId, QueryRunner q) throws SQLException {
-		q.update("UPDATE tasks set registeredtag=?,registeredCopyId=? where taskid = ?",tag,copyId,taskId);
-	}
-	
+  public void setRegisteredTag(String registeredTag) {
+    this.registeredTag = registeredTag;
+  }
 
-	public static void updateTestingCopy(String taskId, String copyId, QueryRunner q) throws SQLException {
-		q.update("UPDATE tasks set testingCopyId=? where taskid = ?",copyId,taskId);
-	}
+  public static TaskDefInfo getByTaskId(String taskId, QueryRunner q) throws SQLException {
+    return q.query(
+        "SELECT * from tasks where taskid=?", new BeanHandler<>(TaskDefInfo.class), taskId);
+  }
 
-	public static void updateRetired(String taskId, boolean retired, QueryRunner q) throws SQLException {
-		q.update("UPDATE tasks set retired=? where taskid = ?",retired,taskId);
-	}
+  public void insert(QueryRunner q) throws SQLException {
+    q.update(
+        "INSERT INTO tasks(taskid,registeredtag,retired) values (?,?,?)",
+        taskId,
+        registeredTag,
+        retired);
+  }
 
-	
-	@Override
-	public String toString() {
-		return "TaskDefInfo [taskId=" + taskId + ", registeredTag=" + registeredTag + ", testingCopyId=" + testingCopyId
-				+ ", registeredCopyId=" + registeredCopyId + ", retired=" + retired + "]";
-	}
-	
-	
+  public static List<String> getAllTaskIds(QueryRunner q) throws SQLException {
+    return q.query(
+        "Select taskId from tasks",
+        new ResultSetHandler<List<String>>() {
+          @Override
+          public List<String> handle(ResultSet rs) throws SQLException {
+            List<String> result = new ArrayList<String>();
+            while (rs.next()) {
+              result.add(rs.getString(1));
+            }
+            return result;
+          }
+        });
+  }
 
+  public static void updateRegisteredCopy(String taskId, String tag, String copyId, QueryRunner q)
+      throws SQLException {
+    q.update(
+        "UPDATE tasks set registeredtag=?,registeredCopyId=? where taskid = ?",
+        tag,
+        copyId,
+        taskId);
+  }
+
+  public static void updateTestingCopy(String taskId, String copyId, QueryRunner q)
+      throws SQLException {
+    q.update("UPDATE tasks set testingCopyId=? where taskid = ?", copyId, taskId);
+  }
+
+  public static void updateRetired(String taskId, boolean retired, QueryRunner q)
+      throws SQLException {
+    q.update("UPDATE tasks set retired=? where taskid = ?", retired, taskId);
+  }
+
+  @Override
+  public String toString() {
+    return "TaskDefInfo [taskId="
+        + taskId
+        + ", registeredTag="
+        + registeredTag
+        + ", testingCopyId="
+        + testingCopyId
+        + ", registeredCopyId="
+        + registeredCopyId
+        + ", retired="
+        + retired
+        + "]";
+  }
 }

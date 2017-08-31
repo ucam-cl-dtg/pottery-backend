@@ -18,47 +18,48 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 public class ContainerExecResponse<T> {
-	
-	private boolean success;
-	private T response;
-	private String rawResponse;
-	private long executionTimeMs;
-	
-	public ContainerExecResponse() {}
-	
-	public ContainerExecResponse(boolean success, T response, String rawResponse, long executionTimeMs) {
-		super();
-		this.success = success;
-		this.response = response;
-		this.rawResponse = rawResponse;
-		this.executionTimeMs = executionTimeMs;
-	}
-	
-	
-	public long getExecutionTimeMs() {
-		return executionTimeMs;
-	}
 
-	public void setExecutionTimeMs(long executionTimeMs) {
-		this.executionTimeMs = executionTimeMs;
-	}
+  private boolean success;
+  private T response;
+  private String rawResponse;
+  private long executionTimeMs;
 
-	public boolean isSuccess() {
-		return success;
-	}
-	public void setSuccess(boolean success) {
-		this.success = success;
-	}
-	
-	public T getResponse() {
-		return response;
-	}
-	public void setResponse(T response) {
-		this.response = response;
-	}
+  public ContainerExecResponse() {}
 
-	public String getRawResponse() {
-		return rawResponse;
-	}
-	
+  public ContainerExecResponse(
+      boolean success, T response, String rawResponse, long executionTimeMs) {
+    super();
+    this.success = success;
+    this.response = response;
+    this.rawResponse = rawResponse;
+    this.executionTimeMs = executionTimeMs;
+  }
+
+  public long getExecutionTimeMs() {
+    return executionTimeMs;
+  }
+
+  public void setExecutionTimeMs(long executionTimeMs) {
+    this.executionTimeMs = executionTimeMs;
+  }
+
+  public boolean isSuccess() {
+    return success;
+  }
+
+  public void setSuccess(boolean success) {
+    this.success = success;
+  }
+
+  public T getResponse() {
+    return response;
+  }
+
+  public void setResponse(T response) {
+    this.response = response;
+  }
+
+  public String getRawResponse() {
+    return rawResponse;
+  }
 }
