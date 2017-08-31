@@ -212,13 +212,15 @@
 				<artifactId>maven-war-plugin</artifactId>
 				<version>2.4</version>
 			</plugin>
-
 			<plugin>
 				<groupId>com.mycila</groupId>
 				<artifactId>license-maven-plugin</artifactId>
-				<version>3.0.rc1</version>
+				<version>3.0</version>
 				<configuration>
 					<header>com/mycila/maven/plugin/license/templates/AGPL-3.txt</header>
+					<mapping>
+						<java>SLASHSTAR_STYLE</java>
+					</mapping>
 					<properties>
 						<owner>Andrew Rice</owner>
 						<email>acr31@cam.ac.uk</email>
@@ -234,13 +236,13 @@
 				</configuration>
 				<executions>
 					<execution>
-						<phase>test</phase>
+						<phase>validate</phase>
 						<goals>
 							<goal>check</goal>
 						</goals>
 					</execution>
 				</executions>
-			</plugin> 
+			</plugin>
 		</plugins>
 
 		<extensions>
