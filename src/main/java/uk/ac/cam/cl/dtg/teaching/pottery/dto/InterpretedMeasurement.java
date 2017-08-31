@@ -1,4 +1,4 @@
-/**
+/*
  * pottery-backend - Backend API for testing programming exercises
  * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
  *
