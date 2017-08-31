@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
 import com.google.common.cache.CacheBuilder;
@@ -29,7 +30,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
-import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
+import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
@@ -37,8 +38,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 @Singleton
 public class RepoFactory {
 
-  /** This object is used to generate new uuids for repos */
-  private UUIDGenerator uuidGenerator = new UUIDGenerator();
+  /** This object is used to generate new uuids for repos. */
+  private UuidGenerator uuidGenerator = new UuidGenerator();
 
   private Database database;
 
@@ -65,7 +66,9 @@ public class RepoFactory {
     FileUtil.mkdir(config.getRepoRoot());
     FileUtil.mkdir(config.getRepoTestingRoot());
     for (File f : config.getRepoRoot().listFiles()) {
-      if (f.getName().startsWith(".")) continue;
+      if (f.getName().startsWith(".")) {
+        continue;
+      }
       String uuid = f.getName();
       uuidGenerator.reserve(uuid);
     }

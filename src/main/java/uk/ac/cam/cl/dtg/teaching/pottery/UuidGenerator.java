@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
 import java.util.Collection;
@@ -22,11 +23,11 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-public class UUIDGenerator {
+public class UuidGenerator {
 
   private Set<String> allocated;
 
-  public UUIDGenerator() {
+  public UuidGenerator() {
     allocated = new HashSet<>();
   }
 

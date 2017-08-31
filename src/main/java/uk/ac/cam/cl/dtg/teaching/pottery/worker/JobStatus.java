@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,14 +27,14 @@ public class JobStatus implements Comparable<JobStatus> {
 
   private String description;
   private volatile String status;
-  private long jobID;
+  private long jobId;
 
   private static AtomicLong counter = new AtomicLong(0);
 
   public JobStatus(String description) {
     this.description = description;
     this.status = STATUS_WAITING;
-    this.jobID = counter.getAndIncrement();
+    this.jobId = counter.getAndIncrement();
   }
 
   public String getDescription() {
@@ -44,8 +45,8 @@ public class JobStatus implements Comparable<JobStatus> {
     return status;
   }
 
-  public long getJobID() {
-    return jobID;
+  public long getJobId() {
+    return jobId;
   }
 
   public static AtomicLong getCounter() {
@@ -54,7 +55,7 @@ public class JobStatus implements Comparable<JobStatus> {
 
   @Override
   public int compareTo(JobStatus o) {
-    return Long.compare(jobID, o.jobID);
+    return Long.compare(jobId, o.jobId);
   }
 
   public void setStatus(String status) {

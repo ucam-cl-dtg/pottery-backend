@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import java.io.IOException;
@@ -45,7 +46,9 @@ class AttachListener implements WebSocketListener {
         StringBuffer toSend = new StringBuffer(data);
         // Push a load of newlines down the pipe at the end to make sure that
         // we don't get blocked on line buffering
-        for (int i = 0; i < 10; ++i) toSend.append(System.lineSeparator());
+        for (int i = 0; i < 10; ++i) {
+          toSend.append(System.lineSeparator());
+        }
         session.getRemote().sendString(toSend.toString());
       } catch (IOException e) {
         throw new RuntimeException("Failed to send input data to container", e);

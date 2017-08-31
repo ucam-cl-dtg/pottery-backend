@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
 import java.io.File;
@@ -35,12 +36,12 @@ public class RegistrationTag {
 
   private File repository;
   private boolean active;
-  private String registeredTaskUUID;
+  private String registeredTaskUuid;
 
-  public RegistrationTag(boolean active, String registeredTaskUUID, File repo) {
+  public RegistrationTag(boolean active, String registeredTaskUuid, File repo) {
     super();
     this.active = active;
-    this.registeredTaskUUID = registeredTaskUUID;
+    this.registeredTaskUuid = registeredTaskUuid;
     this.repository = repo;
   }
 
@@ -52,12 +53,12 @@ public class RegistrationTag {
     return active;
   }
 
-  public String getRegisteredTaskUUID() {
-    return registeredTaskUUID;
+  public String getRegisteredTaskUuid() {
+    return registeredTaskUuid;
   }
 
   public String toTagName() {
-    return (active ? PREFIX_ACTIVE : PREFIX_DISABLED) + registeredTaskUUID;
+    return (active ? PREFIX_ACTIVE : PREFIX_DISABLED) + registeredTaskUuid;
   }
 
   public static RegistrationTag fromTagName(String tagName, File repo)
@@ -81,11 +82,11 @@ public class RegistrationTag {
   }
 
   /**
-   * Lookup the SHA1 that corresponds to this tag
+   * Lookup the SHA1 that corresponds to this tag.
    *
-   * @throws IOException
+   * @throws IOException if an error occurs reading the repository
    */
-  public String lookupSHA1() throws IOException {
+  public String lookupSha1() throws IOException {
     try (Git g = Git.open(repository)) {
       ObjectId o = g.getRepository().resolve(toTagName());
       return o.getName();

@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
 import com.google.inject.Binder;
@@ -102,28 +103,28 @@ public class ApplicationModule implements Module {
     // turn dependes on something with a constructor that needs a working database
     /*
     for (Map.Entry<Key<?>, Binding<?>> e : injector.getAllBindings().entrySet()) {
-    	Class<?> rawType = e.getKey().getTypeLiteral().getRawType();
-    	Binding<?> binding = e.getValue();
-    	if (Stoppable.class.isAssignableFrom(rawType)) {
-    		binding.acceptScopingVisitor(new DefaultBindingScopingVisitor<Void>() {
+      Class<?> rawType = e.getKey().getTypeLiteral().getRawType();
+      Binding<?> binding = e.getValue();
+      if (Stoppable.class.isAssignableFrom(rawType)) {
+        binding.acceptScopingVisitor(
+            new DefaultBindingScopingVisitor<Void>() {
 
-    			@Override
-    			public Void visitScope(Scope scope) {
-    				if (scope == Scopes.SINGLETON) {
-    					// TODO: this instantiates the singleton if it hasn't been already ;-(
-    					((Stoppable) (binding.getProvider().get())).stop();
-    				}
-    				return null;
-    			}
+              @Override
+              public Void visitScope(Scope scope) {
+                if (scope == Scopes.SINGLETON) {
+                  // TODO: this instantiates the singleton if it hasn't been already ;-(
+                  ((Stoppable) (binding.getProvider().get())).stop();
+                }
+                return null;
+              }
 
-    			@Override
-    			public Void visitEagerSingleton() {
-    				((Stoppable) (binding.getProvider().get())).stop();
-    				return null;
-    			}
-    		});
-    	}
-
+              @Override
+              public Void visitEagerSingleton() {
+                ((Stoppable) (binding.getProvider().get())).stop();
+                return null;
+              }
+            });
+      }
     }
     */
   }

@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
 import java.io.File;
@@ -36,7 +37,9 @@ public class FileUtil {
   }
 
   public static void deleteRecursive(final File dir) throws IOException {
-    if (!dir.exists()) return;
+    if (!dir.exists()) {
+      return;
+    }
     Files.walkFileTree(
         dir.toPath(),
         new SimpleFileVisitor<Path>() {
@@ -68,15 +71,14 @@ public class FileUtil {
    * <p>descendant is first converted to its canonical file. We then walk upwards. If we find the
    * parent file then we return true.
    *
-   * @param parent
-   * @param descendant
    * @return true if descendant is a descendant of parent
-   * @throws IOException
    */
   public static boolean isParent(File parent, File descendant) throws IOException {
     descendant = descendant.getCanonicalFile();
     do {
-      if (descendant.equals(parent)) return true;
+      if (descendant.equals(parent)) {
+        return true;
+      }
     } while ((descendant = descendant.getParentFile()) != null);
     return false;
   }

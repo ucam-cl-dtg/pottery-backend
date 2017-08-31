@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.google.inject.Inject;
@@ -75,7 +76,9 @@ public class WorkerController {
   @Path("/timeoutMultiplier")
   @ApiOperation(
     value =
-        "Set a multiplier on the default timeout of each task stage. If the server is running with a lot of workers and so is highly loaded then you might need to allow more time for all tasks to run",
+        "Set a multiplier on the default timeout of each task stage. If the server is running "
+            + "with a lot of workers and so is highly loaded then you might need to allow more "
+            + "time for all tasks to run",
     response = Response.class
   )
   public Response setTimeoutMultiplier(@FormParam("multiplier") int multiplier) {

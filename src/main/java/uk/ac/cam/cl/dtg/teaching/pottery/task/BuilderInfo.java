@@ -15,13 +15,14 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 /**
- * DTO for tracking information about the progress of creating a TaskCopy
+ * DTO for tracking information about the progress of creating a TaskCopy.
  *
  * @author acr31
  */
@@ -36,7 +37,7 @@ public class BuilderInfo {
   public static final String STATUS_SUCCESS = "SUCCESS";
   public static final String STATUS_FAILURE = "FAILURE";
 
-  /** The SHA1 from the parent repo that we are copying */
+  /** The SHA1 from the parent repo that we are copying. */
   private final String sha1;
 
   /** The status of the copy. This is updated and read from multiple threads so its volatile. */
@@ -117,14 +118,30 @@ public class BuilderInfo {
   }
 
   public static int statusToInt(String status) {
-    if (STATUS_NOT_STARTED.equals(status)) return 0;
-    if (STATUS_SCHEDULED.equals(status)) return 1;
-    if (STATUS_COPYING_FILES.equals(status)) return 2;
-    if (STATUS_COMPILING_TEST.equals(status)) return 3;
-    if (STATUS_COMPILING_SOLUTION.equals(status)) return 4;
-    if (STATUS_TESTING_SOLUTION.equals(status)) return 5;
-    if (STATUS_SUCCESS.equals(status)) return 6;
-    if (STATUS_FAILURE.equals(status)) return 6;
+    if (STATUS_NOT_STARTED.equals(status)) {
+      return 0;
+    }
+    if (STATUS_SCHEDULED.equals(status)) {
+      return 1;
+    }
+    if (STATUS_COPYING_FILES.equals(status)) {
+      return 2;
+    }
+    if (STATUS_COMPILING_TEST.equals(status)) {
+      return 3;
+    }
+    if (STATUS_COMPILING_SOLUTION.equals(status)) {
+      return 4;
+    }
+    if (STATUS_TESTING_SOLUTION.equals(status)) {
+      return 5;
+    }
+    if (STATUS_SUCCESS.equals(status)) {
+      return 6;
+    }
+    if (STATUS_FAILURE.equals(status)) {
+      return 6;
+    }
     return -1;
   }
 }

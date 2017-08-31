@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -59,25 +60,19 @@ public class ContainerRestrictions {
     return ramLimitMegabytes;
   }
 
-  /**
-   * Restrictions to impose on a candidate
-   *
-   * @param v
-   * @return
-   */
+  /** Restrictions to impose on a candidate. */
   public static ContainerRestrictions candidateRestriction(ContainerRestrictions v) {
-    if (v != null) return v;
+    if (v != null) {
+      return v;
+    }
     return new ContainerRestrictions(60, 1, 200, true);
   }
 
-  /**
-   * Restrictions for an author of a test i.e. to compile the task itself
-   *
-   * @param v
-   * @return
-   */
+  /** Restrictions for an author of a test: to compile the task itself. */
   public static ContainerRestrictions authorRestriction(ContainerRestrictions v) {
-    if (v != null) return v;
+    if (v != null) {
+      return v;
+    }
     return new ContainerRestrictions(500, 50, 500, false);
   }
 }

@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
 /**
@@ -35,7 +36,9 @@ public class TwoPhaseLatch {
    * @return true if permitted or false if not.
    */
   public synchronized boolean acquire() {
-    if (!running) return false;
+    if (!running) {
+      return false;
+    }
     counter++;
     return true;
   }
@@ -46,11 +49,7 @@ public class TwoPhaseLatch {
     notifyAll();
   }
 
-  /**
-   * Prevent new threads acquiring the resource and wait for current ones to release
-   *
-   * @throws InterruptedException
-   */
+  /** Prevent new threads acquiring the resource and wait for current ones to release. */
   public synchronized void await() throws InterruptedException {
     running = false;
     while (counter > 0) {

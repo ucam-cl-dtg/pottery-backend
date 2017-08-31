@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 
 import com.google.inject.Inject;
@@ -71,7 +72,7 @@ public class Worker implements Stoppable {
   }
 
   public synchronized void rebuildThreadPool(int numThreads) {
-    List<Runnable> pending = this.threadPool.shutdownNow();
+    final List<Runnable> pending = this.threadPool.shutdownNow();
     try {
       this.threadPool.awaitTermination(1, TimeUnit.MINUTES);
     } catch (InterruptedException e) {
@@ -95,7 +96,7 @@ public class Worker implements Stoppable {
   }
 
   /**
-   * Schedule a sequence of jobs
+   * Schedule a sequence of jobs.
    *
    * @param jobs the jobs to be run in sequence (if a job fails then we stop there)
    */
@@ -113,10 +114,10 @@ public class Worker implements Stoppable {
     private long enqueueTime;
 
     /**
-     * Create an iteration ready to execute the nth item of the jobs list
+     * Create an iteration ready to execute the nth item of the jobs list.
      *
-     * @param jobs
-     * @param index
+     * @param jobs an array of jobs to execute
+     * @param index the index of the job to execute from the array
      * @param withPause set to true if you want a 2 second pause before running the job (e.g. for
      *     retries)
      */

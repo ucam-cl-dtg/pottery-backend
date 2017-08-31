@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import java.io.File;
@@ -45,21 +46,21 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorRes
  */
 public class TaskCopyBuilder {
 
-  protected final Logger LOG = LoggerFactory.getLogger(TaskCopyBuilder.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(TaskCopyBuilder.class);
 
-  /** DTO with information about the current state of this copy */
+  /** DTO with information about the current state of this copy. */
   private final BuilderInfo builderInfo;
 
   /**
    * The TaskCopy object that this builder is building. Starts off as null and then gets set
-   * asynchronously
+   * asynchronously.
    */
   private volatile TaskCopy taskCopy;
 
-  /** Worker object for copying files into this TaskCopy */
+  /** Worker object for copying files into this TaskCopy. */
   private final Job copyFiles;
 
-  /** Worker object for compiling the tests in this TaskCopy */
+  /** Worker object for compiling the tests in this TaskCopy. */
   private final Job compileTests;
 
   /**
@@ -140,7 +141,7 @@ public class TaskCopyBuilder {
     return result;
   }
 
-  /** Create a placeholder TaskCopyBuilder to represent that no TaskCopy has been built */
+  /** Create a placeholder TaskCopyBuilder to represent that no TaskCopy has been built. */
   static TaskCopyBuilder createSuccessPlaceholder(
       String sha1, String taskId, TaskConfig taskConfig) {
     TaskCopyBuilder result = new TaskCopyBuilder(sha1, taskId, null, taskConfig);
@@ -150,7 +151,7 @@ public class TaskCopyBuilder {
 
   /**
    * Create a placeholder TaskCopyBuilder to represent that something went wrong in intialising the
-   * TaskCopy process
+   * TaskCopy process.
    */
   static TaskCopyBuilder createFailurePlaceholder(
       String taskId, TaskConfig taskConfig, Exception e) {
@@ -255,7 +256,8 @@ public class TaskCopyBuilder {
     if (!r2.isSuccess()) {
       builderInfo.setException(
           new InvalidTaskSpecificationException(
-              "Failed to compile solution when testing task during registration. Compiler response was: "
+              "Failed to compile solution when testing task during registration. Compiler "
+                  + "response was: "
                   + r2.getRawResponse()));
       return false;
     }
@@ -286,7 +288,8 @@ public class TaskCopyBuilder {
     if (!r4.getResponse().isCompleted()) {
       builderInfo.setException(
           new InvalidTaskSpecificationException(
-              "Failed to validate harness results when testing task during registration. Validator response was: "
+              "Failed to validate harness results when testing task during registration. "
+                  + "Validator response was: "
                   + r4.getRawResponse()));
       return false;
     }

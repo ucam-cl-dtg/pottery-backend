@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -123,7 +124,8 @@ public class TaskInfo {
   private ContainerRestrictions taskCompilationRestrictions;
 
   @ApiModelProperty(
-      "List of filenames (relative to the root of the project) to open as a starting point of the task")
+      "List of filenames (relative to the root of the project) to open as a starting point of the "
+          + "task")
   private List<String> startingPointFiles;
 
   public TaskInfo(String taskId) {

@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
@@ -31,12 +32,12 @@ public interface Job {
   /**
    * Run the required task.
    *
-   * @param taskIndex
-   * @param repoFactory
-   * @param containerManager
-   * @param database
+   * @param taskIndex the index of the task to execute
+   * @param repoFactory repository factory class instance
+   * @param containerManager manager for container engine
+   * @param database class for database instance
    * @return a status code indicating what should be done
-   * @throws Exception
+   * @throws Exception if something goes wrong
    */
   public int execute(
       TaskIndex taskIndex,
@@ -45,9 +46,9 @@ public interface Job {
       Database database);
 
   /**
-   * Textual description of the job
+   * Textual description of the job.
    *
-   * @return
+   * @return the job description
    */
   public String getDescription();
 }

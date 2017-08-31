@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
 import java.util.concurrent.locks.Lock;
@@ -67,7 +68,9 @@ public class FourLevelLock {
 
     @Override
     public void close() {
-      if (l2 != null) l2.unlock();
+      if (l2 != null) {
+        l2.unlock();
+      }
       l1.unlock();
     }
   }

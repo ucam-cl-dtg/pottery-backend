@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.dto;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -223,11 +224,6 @@ public class Submission {
     /**
      * Update the builder with harness response. Note that this only takes a shallow copy of its
      * arguments
-     *
-     * @param h
-     * @param success
-     * @param executionTimeMs
-     * @return
      */
     public Builder setHarnessResponse(HarnessResponse h, long executionTimeMs) {
       this.status = h.isCompleted() ? STATUS_HARNESS_COMPLETE : STATUS_HARNESS_FAILED;

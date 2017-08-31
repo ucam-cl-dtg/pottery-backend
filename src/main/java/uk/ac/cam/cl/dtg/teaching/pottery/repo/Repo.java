@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
 import java.io.File;
@@ -100,7 +101,7 @@ public class Repo {
 
   /**
    * Set to true if this repo is for the testing version of a task rather than the registered
-   * version
+   * version.
    */
   private final boolean usingTestingVersion;
 
@@ -113,7 +114,7 @@ public class Repo {
    */
   private final Object lockFields = new Object();
 
-  /** Protects access to the git repo and working directory */
+  /** Protects access to the git repo and working directory. */
   private final FourLevelLock lock = new FourLevelLock();
 
   private Repo(
@@ -128,18 +129,12 @@ public class Repo {
     this.activeSubmissions = new ConcurrentHashMap<>();
   }
 
-  /**
-   * Recursively copy all files from the given sourceLocation and add them to the repository
-   *
-   * @param sourceLocation the location to copy from
-   * @throws RepoStorageException
-   * @throws RepoExpiredException
-   */
+  /** Recursively copy all files from the given sourceLocation and add them to the repository. */
   public void copyFiles(TaskCopy task) throws RepoStorageException, RepoExpiredException {
-    if (isExpired())
+    if (isExpired()) {
       throw new RepoExpiredException(
           "This repository expired at " + expiryDate + " and is no longer editable");
-
+    }
     try (AutoCloseableLock l = lock.takeFileWritingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         try {
@@ -172,13 +167,6 @@ public class Repo {
    * Return the submission object for the given tag. Each tagged version in the repository can only
    * be submitted at most once. Poll this method to get updates on the submission testing process
    * for the tag under test or submitted for testing.
-   *
-   * @param tag
-   * @param database
-   * @return
-   * @throws SubmissionStorageException
-   * @throws SubmissionNotFoundException
-   * @throws SQLException
    */
   public Submission getSubmission(String tag, Database database)
       throws SubmissionStorageException, SubmissionNotFoundException {
@@ -200,44 +188,28 @@ public class Repo {
     }
   }
 
-  /** Internal method to update the submission */
+  /** Internal method to update the submission. */
   private void updateSubmission(Submission s) {
     activeSubmissions.put(s.getTag(), s);
   }
 
-  /**
-   * Convenience method for updating a submission from a builder
-   *
-   * @param builder
-   */
+  /** Convenience method for updating a submission from a builder. */
   private void updateSubmission(Submission.Builder builder) {
     updateSubmission(builder != null ? builder.build() : null);
   }
 
-  /**
-   * Schedule a particular version of the repo for testing later
-   *
-   * @param tag
-   * @param w
-   * @param db
-   * @return
-   * @throws RepoExpiredException
-   * @throws SubmissionStorageException
-   * @throws RepoTagNotFoundException
-   * @throws RepoStorageException
-   * @throws SubmissionNotFoundException
-   */
+  /** Schedule a particular version of the repo for testing later. */
   public Submission scheduleSubmission(String tag, Worker w, Database db)
       throws RepoExpiredException, SubmissionStorageException, RepoTagNotFoundException,
           RepoStorageException {
-    if (isExpired())
+    if (isExpired()) {
       throw new RepoExpiredException(
           "This repository expired at " + expiryDate + " and is no longer editable");
-
+    }
     synchronized (lockFields) {
       try {
         Submission s = getSubmission(tag, db);
-        //	Means we've already scheduled (and possibly already run) the test for this tag
+        // Means we've already scheduled (and possibly already run) the test for this tag
         return s;
       } catch (SubmissionNotFoundException e) {
         // Lets make one
@@ -300,7 +272,8 @@ public class Repo {
                     updateSubmission(
                         builder
                             .addErrorMessage(
-                                "Compilation failed, unable to contact the container API. Retrying...")
+                                "Compilation failed, unable to contact the container API. "
+                                    + "Retrying...")
                             .setRetry());
                     return Job.STATUS_RETRY;
                   }
@@ -355,7 +328,8 @@ public class Repo {
                     updateSubmission(
                         builder
                             .addErrorMessage(
-                                "Validation failed, unable to contact the container API. Retrying...")
+                                "Validation failed, unable to contact the container API. "
+                                    + "Retrying...")
                             .setRetry());
                     return Job.STATUS_RETRY;
                   }
@@ -431,7 +405,7 @@ public class Repo {
   }
 
   /**
-   * Update the checkout of this repo that we use for testing to point to a new tag
+   * Update the checkout of this repo that we use for testing to point to a new tag.
    *
    * @param tag the tag to update the test to point to
    * @throws RepoStorageException if something goes wrong
@@ -455,16 +429,17 @@ public class Repo {
               .setDirectory(repoTestingDirectory)
               .setBranch(tag)
               .call()) {
+        // empty
       } catch (GitAPIException e) {
         throw new RepoStorageException("Failed to clone repository", e);
       }
     } catch (InterruptedException e) {
-      throw new RepoStorageException("Inerrupted whilst waiting for file writing lock", e);
+      throw new RepoStorageException("Interrupted whilst waiting for file writing lock", e);
     }
   }
 
   /**
-   * Check if tag is defined in this repository
+   * Check if tag is defined in this repository.
    *
    * @param tag to check for
    * @return true if tag exists
@@ -483,12 +458,10 @@ public class Repo {
   }
 
   /**
-   * List the files in this repo tagged with a particular tag
+   * List the files in this repo tagged with a particular tag.
    *
    * @param tag the tag of interest
    * @return a list of file names relative to the root of the repository
-   * @throws RepoStorageException
-   * @throws RepoTagNotFoundException
    */
   public List<String> listFiles(String tag) throws RepoStorageException, RepoTagNotFoundException {
     try (AutoCloseableLock l = lock.takeFileReadingLock()) {
@@ -522,16 +495,15 @@ public class Repo {
   }
 
   /**
-   * Create a new tag in this repository
+   * Create a new tag in this repository.
    *
    * @return the name of the tag
-   * @throws RepoStorageException
-   * @throws RepoExpiredException
    */
   public String createNewTag() throws RepoStorageException, RepoExpiredException {
-    if (isExpired())
+    if (isExpired()) {
       throw new RepoExpiredException(
           "This repository expired at " + expiryDate + " and is no longer editable");
+    }
     try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
       try (Git git = Git.open(repoDirectory)) {
         List<Ref> tagList;
@@ -552,7 +524,9 @@ public class Repo {
             } catch (NumberFormatException e) {
               throw new RepoStorageException("Failed to parse tag name " + tagName, e);
             }
-            if (value > max) max = value;
+            if (value > max) {
+              max = value;
+            }
           }
         }
 
@@ -573,7 +547,7 @@ public class Repo {
   }
 
   /**
-   * List all tags in this repository (only tags which have the webtag prefix are returned
+   * List all tags in this repository (only tags which have the webtag prefix are returned.
    *
    * @return a list of tag names
    * @throws RepoStorageException if something goes wrong
@@ -601,15 +575,13 @@ public class Repo {
    * a git revert and not a reset.
    *
    * @param tag the tag to reset to
-   * @throws RepoStorageException if something goes wrong
-   * @throws RepoExpiredException
-   * @throws RepoTagNotFoundException
    */
   public void reset(String tag)
       throws RepoStorageException, RepoExpiredException, RepoTagNotFoundException {
-    if (isExpired())
+    if (isExpired()) {
       throw new RepoExpiredException(
           "This repository expired at " + expiryDate + " and is no longer editable");
+    }
     try (AutoCloseableLock l = lock.takeFileWritingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository r = git.getRepository();
@@ -635,18 +607,16 @@ public class Repo {
   }
 
   /**
-   * Delete the file specified
+   * Delete the file specified.
    *
    * @param fileName relative to the root of the repository
-   * @throws RepoStorageException if we fail to delete the file
-   * @throws RepoExpiredException
-   * @throws RepoFileNotFoundException
    */
   public void deleteFile(String fileName)
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException {
-    if (isExpired())
+    if (isExpired()) {
       throw new RepoExpiredException(
           "This repository expired at " + expiryDate + " and is no longer editable");
+    }
     try (AutoCloseableLock l = lock.takeFileWritingLock()) {
       File f = new File(repoDirectory, fileName);
       try {
@@ -688,19 +658,17 @@ public class Repo {
   }
 
   /**
-   * Replace the contents of a file
+   * Replace the contents of a file.
    *
    * @param fileName the filename with path relative to the root of the repository
    * @param data to replace the contents of the file with
-   * @throws RepoStorageException
-   * @throws RepoExpiredException
-   * @throws RepoFileNotFoundException
    */
   public void updateFile(String fileName, byte[] data)
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException {
-    if (isExpired())
+    if (isExpired()) {
       throw new RepoExpiredException(
           "This repository expired at " + expiryDate + " and is no longer editable");
+    }
     try (AutoCloseableLock l = lock.takeFileWritingLock()) {
       File f = new File(repoDirectory, fileName);
       try {
@@ -750,14 +718,11 @@ public class Repo {
   }
 
   /**
-   * Read the contents of a particular file at a particular version
+   * Read the contents of a particular file at a particular version.
    *
    * @param tag the tag of the version to use or HEAD
    * @param fileName the filename relative to the root of the repository
    * @return a StreamingOutput instance containing the data
-   * @throws RepoStorageException if something goes wrong
-   * @throws RepoFileNotFoundException
-   * @throws RepoTagNotFoundException
    */
   public StreamingOutput readFile(String tag, String fileName)
       throws RepoStorageException, RepoFileNotFoundException, RepoTagNotFoundException {
@@ -825,7 +790,7 @@ public class Repo {
 
   /**
    * Create a repo object for an existing repository. Use RepoFactory rather than calling this
-   * method directly
+   * method directly.
    *
    * @param repoId the ID of the repo to open
    * @param config server configuration
@@ -859,7 +824,7 @@ public class Repo {
 
   /**
    * Create a new repository and return an appropriate repo object. Use RepoFactory rather than
-   * calling this method directly
+   * calling this method directly.
    *
    * @param repoId the ID of the repo to open
    * @param taskId is the ID of the task to begin

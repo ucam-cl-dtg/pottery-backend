@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import java.io.File;
@@ -58,7 +59,7 @@ public class TaskCopy implements AutoCloseable {
    * @param sha1 the SHA1 of the copy we made from the parent repo
    * @param config information for tasks
    * @throws InvalidTaskSpecificationException if we can't load the task specification
-   * @throws TaskStorageException
+   * @throws TaskStorageException if the task cannot be accessed
    */
   TaskCopy(String taskId, String copyId, String sha1, TaskConfig config)
       throws InvalidTaskSpecificationException, TaskStorageException {
@@ -117,11 +118,7 @@ public class TaskCopy implements AutoCloseable {
 
   /**
    * Copy the skeleton files from this task copy to the target directory given (this will be in a
-   * candidates repo)
-   *
-   * @param destination
-   * @return
-   * @throws IOException
+   * candidates repo).
    */
   public List<String> copySkeleton(File destination) throws IOException {
     File sourceLocation = config.getSkeletonDir(copyId);
@@ -181,10 +178,7 @@ public class TaskCopy implements AutoCloseable {
   }
 
   /**
-   * Delete this copy from the disk
-   *
-   * @throws IOException
-   * @throws InterruptedException
+   * Delete this copy from the disk.
    */
   void destroy() throws IOException, InterruptedException {
     latch.await();

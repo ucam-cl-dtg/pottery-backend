@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import org.slf4j.Logger;
@@ -57,10 +58,8 @@ public class DiskUsageKiller implements Runnable {
         }
       }
     } catch (RuntimeException e) {
-      if (!e.getMessage()
-          .startsWith(
-              "No such container: ")) { // avoid the race condition where the container exits just
-                                        // before we kill it
+      if (!e.getMessage().startsWith("No such container: ")) {
+        // avoid the race condition where the container exits just before we kill it
         LOG.error("Caught exception when trying to kill container for disk usage", e);
       }
     } catch (APIUnavailableException e) {

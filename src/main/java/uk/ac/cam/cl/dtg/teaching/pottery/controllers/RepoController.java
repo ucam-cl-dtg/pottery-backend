@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.google.inject.Inject;
@@ -84,9 +85,15 @@ public class RepoController {
       @FormParam("validityMinutes") Integer validityMinutes)
       throws TaskNotFoundException, RepoExpiredException, RepoStorageException,
           RetiredTaskException, RepoNotFoundException {
-    if (taskId == null) throw new TaskNotFoundException("No taskId specified");
-    if (usingTestingVersion == null) usingTestingVersion = false;
-    if (validityMinutes == null) validityMinutes = 60;
+    if (taskId == null) {
+      throw new TaskNotFoundException("No taskId specified");
+    }
+    if (usingTestingVersion == null) {
+      usingTestingVersion = false;
+    }
+    if (validityMinutes == null) {
+      validityMinutes = 60;
+    }
     Calendar cal = Calendar.getInstance();
     cal.add(Calendar.MINUTE, validityMinutes);
     Date expiryDate = cal.getTime();
@@ -150,7 +157,8 @@ public class RepoController {
   @ApiOperation(
     value = "Update (or create) a file in the repository",
     notes =
-        "Any required directories will be created automatically. The new contents of the file should be submitted as a multipart form request",
+        "Any required directories will be created automatically. The new contents of the file "
+            + "should be submitted as a multipart form request",
     position = 3
   )
   public Response updateFile(

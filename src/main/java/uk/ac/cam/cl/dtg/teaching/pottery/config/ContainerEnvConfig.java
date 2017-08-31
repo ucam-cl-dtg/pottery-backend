@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.config;
 
 import java.io.File;
@@ -40,11 +41,11 @@ public class ContainerEnvConfig {
 
   public ContainerEnvConfig() {
     this.userName = System.getProperty("user.name");
-    this.uid = getUID(userName);
+    this.uid = getUidForUserName(userName);
     this.libDir = new File(Config.PREFIX, "lib");
   }
 
-  private static int getUID(String userName) {
+  private static int getUidForUserName(String userName) {
     try {
       Process child = Runtime.getRuntime().exec("/usr/bin/id -u " + userName);
       try {

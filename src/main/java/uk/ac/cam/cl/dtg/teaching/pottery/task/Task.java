@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import java.io.File;
@@ -30,7 +31,7 @@ import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
-import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
+import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
@@ -72,13 +73,13 @@ public class Task {
 
   private AtomicBoolean retired;
 
-  /** The taskdef is a bare git repo which is the upsteam source for the task */
+  /** The taskdef is a bare git repo which is the upstream source for the task. */
   private final File taskDefDir;
 
   private final TaskConfig config;
 
-  /** Used to generate unique taskIds and unique copyIds */
-  private final UUIDGenerator uuidGenerator;
+  /** Used to generate unique taskIds and unique copyIds. */
+  private final UuidGenerator uuidGenerator;
 
   /**
    * Private constructor. TaskFactory creates instances of this class calling static constructor
@@ -92,7 +93,7 @@ public class Task {
       TaskCopy registeredCopy,
       boolean retired,
       TaskConfig config,
-      UUIDGenerator uuidGenerator) {
+      UuidGenerator uuidGenerator) {
     super();
     this.taskId = taskId;
     this.testingBuilder = testingBuilder;
@@ -114,7 +115,9 @@ public class Task {
   }
 
   public void setRetired(Database database) throws RetiredTaskException, TaskStorageException {
-    if (retired.getAndSet(true)) throw new RetiredTaskException("Cannot retire task " + taskId);
+    if (retired.getAndSet(true)) {
+      throw new RetiredTaskException("Cannot retire task " + taskId);
+    }
     try (TransactionQueryRunner q = database.getQueryRunner()) {
       TaskDefInfo.updateRetired(taskId, true, q);
       q.commit();
@@ -139,10 +142,12 @@ public class Task {
    */
   private volatile TaskCopy registeredCopy;
 
-  /** Mutex for managing access to the registration fields (registeredbuilder and registeredcopy) */
+  /**
+   * Mutex for managing access to the registration fields (registeredbuilder and registeredcopy).
+   */
   private final Object registeredMutex = new Object();
 
-  /** Get a reference to the RegisteredCopy object. You must call release/close when finished */
+  /** Get a reference to the RegisteredCopy object. You must call release/close when finished. */
   public TaskCopy acquireRegisteredCopy() throws TaskNotFoundException {
     TaskCopy tc = registeredCopy;
     if (tc != null && tc.acquire()) {
@@ -172,7 +177,7 @@ public class Task {
 
       try {
         if ("HEAD".equals(sha1)) {
-          sha1 = getHeadSHA();
+          sha1 = getHeadSha();
         }
         registeredBuilder =
             TaskCopyBuilder.createNew(sha1, taskId, uuidGenerator.generate(), config);
@@ -250,7 +255,7 @@ public class Task {
    */
   private volatile TaskCopy testingCopy;
 
-  /** This mutex is used to protect access to testingBuilder and testingCopy */
+  /** This mutex is used to protect access to testingBuilder and testingCopy. */
   private final Object testingMutex = new Object();
 
   public TaskCopy acquireTestingCopy() throws TaskNotFoundException {
@@ -282,7 +287,7 @@ public class Task {
       LOG.info("Scheduling testing build for " + taskDefDir);
 
       try {
-        String headSha = getHeadSHA();
+        String headSha = getHeadSha();
         testingBuilder =
             TaskCopyBuilder.createNew(headSha, taskId, uuidGenerator.generate(), config);
 
@@ -341,12 +346,12 @@ public class Task {
   // *** END METHODS FOR MANAGING TEST COPY ***
 
   /**
-   * Lookup the SHA1 for the HEAD of the repo
+   * Lookup the SHA1 for the HEAD of the repo.
    *
    * @return a string containing the SHA1
    * @throws TaskStorageException if an error occurs trying to read the repo
    */
-  public String getHeadSHA() throws TaskStorageException {
+  public String getHeadSha() throws TaskStorageException {
     try (Git g = Git.open(taskDefDir)) {
       Ref r = g.getRepository().findRef(Constants.HEAD);
       return r.getObjectId().getName();
@@ -358,17 +363,9 @@ public class Task {
   /**
    * Open an existing task and return the Task object. Don't call this method directly. Instead use
    * TaskFactory.
-   *
-   * @param taskId
-   * @param config
-   * @return
-   * @throws TaskStorageException
-   * @throws InvalidTaskSpecificationException
-   * @throws TaskNotFoundException
-   * @throws TaskCopyNotFoundException
    */
   static Task openTask(
-      String taskId, UUIDGenerator uuidGenerator, Database database, TaskConfig config)
+      String taskId, UuidGenerator uuidGenerator, Database database, TaskConfig config)
       throws InvalidTaskSpecificationException, TaskStorageException, TaskNotFoundException,
           TaskCopyNotFoundException {
 
@@ -415,15 +412,9 @@ public class Task {
   /**
    * Create a new task from the standard template. Don't call this method directly. Instead use
    * TaskFactory.
-   *
-   * @param config
-   * @return
-   * @throws TaskStorageException
-   * @throws InvalidTaskSpecificationException
-   * @throws IOException
    */
   static Task createTask(
-      String taskId, UUIDGenerator uuidGenerator, TaskConfig config, Database database)
+      String taskId, UuidGenerator uuidGenerator, TaskConfig config, Database database)
       throws TaskStorageException {
 
     // create the task directory and clone the template
@@ -464,9 +455,6 @@ public class Task {
 
   /**
    * Schedule the deletion of this taskcopy.
-   *
-   * @param c
-   * @param w
    */
   private void destroyTaskCopy(TaskCopy c, Worker w) {
     if (c != null) {

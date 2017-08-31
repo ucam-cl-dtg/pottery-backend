@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -125,7 +126,8 @@ public class ContainerManager implements Stoppable {
       SystemInfo info = docker.systemInfo();
       if (info.getSwapLimit() == null || !info.getSwapLimit().booleanValue()) {
         LOG.warn(
-            "WARNING: swap limits are disabled for this kernel. Add \"cgroup_enable=memory swapaccount=1\" to your kernel command line");
+            "WARNING: swap limits are disabled for this kernel. Add \"cgroup_enable=memory "
+                + "swapaccount=1\" to your kernel command line");
       }
 
       for (Container i : docker.listContainers(true, null, null, null, null)) {
@@ -289,6 +291,7 @@ public class ContainerManager implements Stoppable {
             try {
               closed = l.waitForClose(60 * 1000);
             } catch (InterruptedException e) {
+              // ignore
             }
             if (!closed) {
               ContainerInfo i = docker.inspectContainer(containerId, false);
@@ -318,6 +321,7 @@ public class ContainerManager implements Stoppable {
                     "Timed out after " + restrictions.getTimeoutSec() + " seconds");
               }
             } catch (InterruptedException | ExecutionException | CancellationException e) {
+              // ignore
             }
           }
           if (diskUsageKiller.isKilled()) {
@@ -330,10 +334,8 @@ public class ContainerManager implements Stoppable {
 
           try {
             session.get().close();
-            //					} catch (IOException e) {
-            //						LOG.error("Failed to disconnect from websocket session with container
-            // "+containerId,e);
           } catch (InterruptedException e) {
+            // ignore
           } catch (ExecutionException e) {
             LOG.error(
                 "An exception occurred collecting the websocket session from the future",

@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import com.google.inject.Inject;
@@ -105,7 +106,9 @@ public class TaskIndex {
 
   public Task getTask(String taskId) throws TaskNotFoundException {
     Task t = definedTasks.get(taskId);
-    if (t == null) throw new TaskNotFoundException("Failed to find task " + taskId);
+    if (t == null) {
+      throw new TaskNotFoundException("Failed to find task " + taskId);
+    }
     return t;
   }
 

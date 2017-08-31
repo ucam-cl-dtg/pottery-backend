@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import com.google.common.cache.CacheBuilder;
@@ -29,7 +30,7 @@ import java.util.stream.Stream;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
-import uk.ac.cam.cl.dtg.teaching.pottery.UUIDGenerator;
+import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
@@ -38,8 +39,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 @Singleton
 public class TaskFactory {
 
-  /** This object is used to generate new uuids for tasks */
-  private UUIDGenerator uuidGenerator = new UUIDGenerator();
+  /** This object is used to generate new uuids for tasks. */
+  private UuidGenerator uuidGenerator = new UuidGenerator();
 
   // Ensure that only only one Task object exists for any taskId so that
   // we guarantee mutual exclusion on the filesystem operations.
