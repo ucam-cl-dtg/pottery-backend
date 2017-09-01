@@ -135,19 +135,8 @@ public class Criterion {
     // the bytecode to include extra instructions to record execution.
   }
 
-  class Units {
-    public static final String UNIT_COMPLEXITYCLASS = "COMPLEXITYCLASS";
-    public static final String UNIT_MILLISECOND = "MS";
-    public static final String UNIT_BYTES = "BYTES";
-    public static final String UNIT_PERCENT = "PERCENT";
-    public static final String UNIT_BOOLEAN = "BOOLEAN";
-    public static final String UNITLESS = "UNITLESS";
-  }
-
   private String type;
-
   private String unit;
-
   private String description;
 
   public Criterion() {
@@ -194,5 +183,14 @@ public class Criterion {
 
   public void setUnit(String unit) {
     this.unit = unit;
+  }
+
+  class Units {
+    public static final String UNIT_COMPLEXITYCLASS = "COMPLEXITYCLASS";
+    public static final String UNIT_MILLISECOND = "MS";
+    public static final String UNIT_BYTES = "BYTES";
+    public static final String UNIT_PERCENT = "PERCENT";
+    public static final String UNIT_BOOLEAN = "BOOLEAN";
+    public static final String UNITLESS = "UNITLESS";
   }
 }

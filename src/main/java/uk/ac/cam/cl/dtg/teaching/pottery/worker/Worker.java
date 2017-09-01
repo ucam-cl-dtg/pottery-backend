@@ -29,9 +29,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
@@ -39,21 +39,14 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 public class Worker implements Stoppable {
 
   protected static final Logger LOG = LoggerFactory.getLogger(Worker.class);
-
+  private final SortedSet<JobStatus> queue = new TreeSet<JobStatus>();
   private ExecutorService threadPool;
-
   private TaskIndex taskIndex;
-
   private RepoFactory repoFactory;
-
   private ContainerManager containerManager;
-
   private Database database;
-
   private int numThreads;
-
   private long smoothedWaitTime = 0;
-
   private Object smoothedWaitTimeMutex = new Object();
 
   @Inject
@@ -104,7 +97,17 @@ public class Worker implements Stoppable {
     threadPool.execute(new JobIteration(jobs, 0, false, System.currentTimeMillis()));
   }
 
-  private final SortedSet<JobStatus> queue = new TreeSet<JobStatus>();
+  public long getSmoothedWaitTime() {
+    synchronized (smoothedWaitTimeMutex) {
+      return smoothedWaitTime;
+    }
+  }
+
+  @Override
+  public void stop() {
+    LOG.info("Shutting down thread pool");
+    threadPool.shutdownNow();
+  }
 
   private class JobIteration implements Runnable {
     private Job[] jobs;
@@ -170,17 +173,5 @@ public class Worker implements Stoppable {
         }
       }
     }
-  }
-
-  public long getSmoothedWaitTime() {
-    synchronized (smoothedWaitTimeMutex) {
-      return smoothedWaitTime;
-    }
-  }
-
-  @Override
-  public void stop() {
-    LOG.info("Shutting down thread pool");
-    threadPool.shutdownNow();
   }
 }

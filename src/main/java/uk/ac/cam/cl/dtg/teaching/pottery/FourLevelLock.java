@@ -47,6 +47,25 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class FourLevelLock {
 
+  private final ReentrantReadWriteLock topLevelLock = new ReentrantReadWriteLock();
+  private final ReentrantReadWriteLock secondLevelLock = new ReentrantReadWriteLock();
+
+  public AutoCloseableLock takeFullExclusionLock() throws InterruptedException {
+    return new AutoCloseableLock(topLevelLock.writeLock(), secondLevelLock.writeLock());
+  }
+
+  public AutoCloseableLock takeGitDbOpLock() throws InterruptedException {
+    return new AutoCloseableLock(topLevelLock.readLock(), null);
+  }
+
+  public AutoCloseableLock takeFileReadingLock() throws InterruptedException {
+    return new AutoCloseableLock(topLevelLock.readLock(), secondLevelLock.readLock());
+  }
+
+  public AutoCloseableLock takeFileWritingLock() throws InterruptedException {
+    return new AutoCloseableLock(topLevelLock.readLock(), secondLevelLock.writeLock());
+  }
+
   public class AutoCloseableLock implements AutoCloseable {
 
     private Lock l1;
@@ -73,25 +92,5 @@ public class FourLevelLock {
       }
       l1.unlock();
     }
-  }
-
-  private final ReentrantReadWriteLock topLevelLock = new ReentrantReadWriteLock();
-
-  private final ReentrantReadWriteLock secondLevelLock = new ReentrantReadWriteLock();
-
-  public AutoCloseableLock takeFullExclusionLock() throws InterruptedException {
-    return new AutoCloseableLock(topLevelLock.writeLock(), secondLevelLock.writeLock());
-  }
-
-  public AutoCloseableLock takeGitDbOpLock() throws InterruptedException {
-    return new AutoCloseableLock(topLevelLock.readLock(), null);
-  }
-
-  public AutoCloseableLock takeFileReadingLock() throws InterruptedException {
-    return new AutoCloseableLock(topLevelLock.readLock(), secondLevelLock.readLock());
-  }
-
-  public AutoCloseableLock takeFileWritingLock() throws InterruptedException {
-    return new AutoCloseableLock(topLevelLock.readLock(), secondLevelLock.writeLock());
   }
 }

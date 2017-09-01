@@ -55,31 +55,21 @@ public class Submission {
   public static final String STATUS_VALIDATOR_COMPLETE = "VALIDATOR_COMPLETE";
 
   public static final String STATUS_COMPLETE = "COMPLETE";
-
-  private final String repoId;
-  private final String tag;
-
-  private String compilationOutput;
-
-  private long compilationTimeMs;
-  private long harnessTimeMs;
-  private long validatorTimeMs;
-
-  private long waitTimeMs;
-  private Date dateScheduled;
-
-  private List<TestStep> testSteps;
-
-  private String errorMessage;
-
-  private String status;
-
-  private boolean needsRetry;
-
   public static final String INTERPRETATION_BAD = Interpretation.INTERPRETED_FAILED;
   public static final String INTERPRETATION_ACCEPTABLE = Interpretation.INTERPRETED_ACCEPTABLE;
   public static final String INTERPRETATION_EXCELLENT = Interpretation.INTERPRETED_PASSED;
-
+  private final String repoId;
+  private final String tag;
+  private String compilationOutput;
+  private long compilationTimeMs;
+  private long harnessTimeMs;
+  private long validatorTimeMs;
+  private long waitTimeMs;
+  private Date dateScheduled;
+  private List<TestStep> testSteps;
+  private String errorMessage;
+  private String status;
+  private boolean needsRetry;
   private String interpretation;
 
   public Submission(
@@ -110,6 +100,56 @@ public class Submission {
     this.dateScheduled = dateScheduled;
     this.interpretation = interpretation;
     this.needsRetry = needsRetry;
+  }
+
+  public static Builder builder(String repoId, String tag) {
+    return new Builder(repoId, tag);
+  }
+
+  private static Submission resultSetToSubmission(ResultSet rs) throws SQLException {
+    try {
+      ObjectMapper o = new ObjectMapper();
+      String testPartsString = rs.getString("testSteps");
+      List<TestStep> testSteps = null;
+      if (!rs.wasNull()) {
+        testSteps = o.readValue(testPartsString, new TypeReference<List<TestStep>>() {});
+      }
+
+      return new Submission(
+          rs.getString("repoId"),
+          rs.getString("tag"),
+          rs.getString("compilationOutput"),
+          rs.getLong("compilationTimeMs"),
+          rs.getLong("harnessTimeMs"),
+          rs.getLong("validatorTimeMs"),
+          rs.getLong("waitTimeMs"),
+          testSteps,
+          rs.getString("errorMessage"),
+          rs.getString("status"),
+          rs.getTimestamp("dateScheduled"),
+          rs.getString("interpretation"),
+          false);
+    } catch (IOException e) {
+      throw new SQLException("Failed to deserialise json object " + e.getMessage(), e);
+    }
+  }
+
+  public static Submission getByRepoIdAndTag(String repoId, String tag, QueryRunner q)
+      throws SQLException {
+    return q.query(
+        "select * from submissions where repoid =? and tag = ?",
+        new ResultSetHandler<Submission>() {
+          @Override
+          public Submission handle(ResultSet rs) throws SQLException {
+            if (rs.next()) {
+              return resultSetToSubmission(rs);
+            } else {
+              return null;
+            }
+          }
+        },
+        repoId,
+        tag);
   }
 
   public boolean isNeedsRetry() {
@@ -164,8 +204,76 @@ public class Submission {
     return status;
   }
 
-  public static Builder builder(String repoId, String tag) {
-    return new Builder(repoId, tag);
+  public void insert(TransactionQueryRunner q) throws SQLException {
+    ObjectMapper mapper = new ObjectMapper();
+
+    try {
+      q.update(
+          "INSERT into submissions ("
+              + "repoid,"
+              + "tag,"
+              + "status,"
+              + "compilationoutput,"
+              + "compilationTimeMs,"
+              + "harnessTimeMs,"
+              + "validatorTimeMs,"
+              + "waitTimeMs,"
+              + "errorMessage,"
+              + "testSteps,"
+              + "dateScheduled,"
+              + "interpretation"
+              + ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+          repoId,
+          tag,
+          status,
+          compilationOutput,
+          compilationTimeMs,
+          harnessTimeMs,
+          validatorTimeMs,
+          waitTimeMs,
+          errorMessage,
+          testSteps == null ? null : mapper.writeValueAsString(testSteps),
+          new Timestamp(dateScheduled.getTime()),
+          interpretation);
+    } catch (JsonProcessingException e) {
+      throw new SQLException("Failed to serialise object", e);
+    }
+    q.commit();
+  }
+
+  public void update(TransactionQueryRunner q) throws SQLException {
+    ObjectMapper mapper = new ObjectMapper();
+    try {
+      q.update(
+          "update submissions set "
+              + "status=?,"
+              + "compilationoutput=?,"
+              + "compilationTimeMs=?,"
+              + "harnessTimeMs=?,"
+              + "validatorTimeMs=?"
+              + "waitTimeMs=?,"
+              + "errorMessage=?,"
+              + "testSteps=?,"
+              + "dateScheduled=?,"
+              + "interpretation=?"
+              + " where "
+              + "repoId=? and tag=?",
+          status,
+          compilationOutput,
+          compilationTimeMs,
+          harnessTimeMs,
+          validatorTimeMs,
+          waitTimeMs,
+          errorMessage,
+          testSteps == null ? null : mapper.writeValueAsString(testSteps),
+          new Timestamp(dateScheduled.getTime()),
+          interpretation,
+          repoId,
+          tag);
+    } catch (JsonProcessingException e) {
+      throw new SQLException("Failed to serialise object", e);
+    }
+    q.commit();
   }
 
   public static class Builder {
@@ -311,123 +419,5 @@ public class Submission {
 
       status = STATUS_COMPLETE;
     }
-  }
-
-  public void insert(TransactionQueryRunner q) throws SQLException {
-    ObjectMapper mapper = new ObjectMapper();
-
-    try {
-      q.update(
-          "INSERT into submissions ("
-              + "repoid,"
-              + "tag,"
-              + "status,"
-              + "compilationoutput,"
-              + "compilationTimeMs,"
-              + "harnessTimeMs,"
-              + "validatorTimeMs,"
-              + "waitTimeMs,"
-              + "errorMessage,"
-              + "testSteps,"
-              + "dateScheduled,"
-              + "interpretation"
-              + ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-          repoId,
-          tag,
-          status,
-          compilationOutput,
-          compilationTimeMs,
-          harnessTimeMs,
-          validatorTimeMs,
-          waitTimeMs,
-          errorMessage,
-          testSteps == null ? null : mapper.writeValueAsString(testSteps),
-          new Timestamp(dateScheduled.getTime()),
-          interpretation);
-    } catch (JsonProcessingException e) {
-      throw new SQLException("Failed to serialise object", e);
-    }
-    q.commit();
-  }
-
-  public void update(TransactionQueryRunner q) throws SQLException {
-    ObjectMapper mapper = new ObjectMapper();
-    try {
-      q.update(
-          "update submissions set "
-              + "status=?,"
-              + "compilationoutput=?,"
-              + "compilationTimeMs=?,"
-              + "harnessTimeMs=?,"
-              + "validatorTimeMs=?"
-              + "waitTimeMs=?,"
-              + "errorMessage=?,"
-              + "testSteps=?,"
-              + "dateScheduled=?,"
-              + "interpretation=?"
-              + " where "
-              + "repoId=? and tag=?",
-          status,
-          compilationOutput,
-          compilationTimeMs,
-          harnessTimeMs,
-          validatorTimeMs,
-          waitTimeMs,
-          errorMessage,
-          testSteps == null ? null : mapper.writeValueAsString(testSteps),
-          new Timestamp(dateScheduled.getTime()),
-          interpretation,
-          repoId,
-          tag);
-    } catch (JsonProcessingException e) {
-      throw new SQLException("Failed to serialise object", e);
-    }
-    q.commit();
-  }
-
-  private static Submission resultSetToSubmission(ResultSet rs) throws SQLException {
-    try {
-      ObjectMapper o = new ObjectMapper();
-      String testPartsString = rs.getString("testSteps");
-      List<TestStep> testSteps = null;
-      if (!rs.wasNull()) {
-        testSteps = o.readValue(testPartsString, new TypeReference<List<TestStep>>() {});
-      }
-
-      return new Submission(
-          rs.getString("repoId"),
-          rs.getString("tag"),
-          rs.getString("compilationOutput"),
-          rs.getLong("compilationTimeMs"),
-          rs.getLong("harnessTimeMs"),
-          rs.getLong("validatorTimeMs"),
-          rs.getLong("waitTimeMs"),
-          testSteps,
-          rs.getString("errorMessage"),
-          rs.getString("status"),
-          rs.getTimestamp("dateScheduled"),
-          rs.getString("interpretation"),
-          false);
-    } catch (IOException e) {
-      throw new SQLException("Failed to deserialise json object " + e.getMessage(), e);
-    }
-  }
-
-  public static Submission getByRepoIdAndTag(String repoId, String tag, QueryRunner q)
-      throws SQLException {
-    return q.query(
-        "select * from submissions where repoid =? and tag = ?",
-        new ResultSetHandler<Submission>() {
-          @Override
-          public Submission handle(ResultSet rs) throws SQLException {
-            if (rs.next()) {
-              return resultSetToSubmission(rs);
-            } else {
-              return null;
-            }
-          }
-        },
-        repoId,
-        tag);
   }
 }

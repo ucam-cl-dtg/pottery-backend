@@ -41,6 +41,11 @@ public class RepoInfo {
     this.expiryDate = expiryDate;
   }
 
+  public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
+    return q.query(
+        "SELECT * from repos where repoid=?", new BeanHandler<RepoInfo>(RepoInfo.class), repoId);
+  }
+
   public Date getExpiryDate() {
     return expiryDate;
   }
@@ -49,20 +54,20 @@ public class RepoInfo {
     this.expiryDate = expiryDate;
   }
 
-  public void setRepoId(String repoId) {
-    this.repoId = repoId;
-  }
-
-  public void setTaskId(String taskId) {
-    this.taskId = taskId;
-  }
-
   public String getRepoId() {
     return repoId;
   }
 
+  public void setRepoId(String repoId) {
+    this.repoId = repoId;
+  }
+
   public String getTaskId() {
     return taskId;
+  }
+
+  public void setTaskId(String taskId) {
+    this.taskId = taskId;
   }
 
   public boolean isUsingTestingVersion() {
@@ -71,11 +76,6 @@ public class RepoInfo {
 
   public void setUsingTestingVersion(boolean usingTestingVersion) {
     this.usingTestingVersion = usingTestingVersion;
-  }
-
-  public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
-    return q.query(
-        "SELECT * from repos where repoid=?", new BeanHandler<RepoInfo>(RepoInfo.class), repoId);
   }
 
   public void insert(QueryRunner q) throws SQLException {

@@ -31,7 +31,6 @@ import javax.annotation.PreDestroy;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
-import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
@@ -43,12 +42,22 @@ import uk.ac.cam.cl.dtg.teaching.pottery.controllers.StatusController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.SubmissionsController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.WorkerController;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.PostgresDatabase;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class ApplicationModule implements Module {
+
+  public ApplicationModule() {
+    BeanConfig beanConfig = new BeanConfig();
+    beanConfig.setVersion("1.0.0");
+    beanConfig.setBasePath("/pottery-backend/api");
+    beanConfig.setResourcePackage("uk.ac.cam.cl.dtg.teaching.pottery.controllers");
+    beanConfig.setScan(true);
+  }
 
   @Override
   public void configure(Binder binder) {
@@ -74,18 +83,10 @@ public class ApplicationModule implements Module {
     binder.bind(RepoConfig.class).in(Singleton.class);
     binder.bind(ContainerEnvConfig.class).in(Singleton.class);
 
-    binder.bind(Database.class).in(Singleton.class);
+    binder.bind(Database.class).to(PostgresDatabase.class).in(Singleton.class);
     binder.bind(Worker.class).in(Singleton.class);
 
     binder.bind(GuiceDependencyController.class);
-  }
-
-  public ApplicationModule() {
-    BeanConfig beanConfig = new BeanConfig();
-    beanConfig.setVersion("1.0.0");
-    beanConfig.setBasePath("/pottery-backend/api");
-    beanConfig.setResourcePackage("uk.ac.cam.cl.dtg.teaching.pottery.controllers");
-    beanConfig.setScan(true);
   }
 
   @PreDestroy

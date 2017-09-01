@@ -28,7 +28,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.ac.cam.cl.dtg.teaching.pottery.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;

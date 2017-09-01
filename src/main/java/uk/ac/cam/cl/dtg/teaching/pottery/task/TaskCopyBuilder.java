@@ -25,10 +25,10 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
-import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
@@ -50,18 +50,15 @@ public class TaskCopyBuilder {
 
   /** DTO with information about the current state of this copy. */
   private final BuilderInfo builderInfo;
-
+  /** Worker object for copying files into this TaskCopy. */
+  private final Job copyFiles;
+  /** Worker object for compiling the tests in this TaskCopy. */
+  private final Job compileTests;
   /**
    * The TaskCopy object that this builder is building. Starts off as null and then gets set
    * asynchronously.
    */
   private volatile TaskCopy taskCopy;
-
-  /** Worker object for copying files into this TaskCopy. */
-  private final Job copyFiles;
-
-  /** Worker object for compiling the tests in this TaskCopy. */
-  private final Job compileTests;
 
   /**
    * Instances of this class should be created by the Task object only. The task object has to

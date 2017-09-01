@@ -28,10 +28,10 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 
@@ -42,7 +42,7 @@ public class RepoFactory {
   private UuidGenerator uuidGenerator = new UuidGenerator();
 
   private Database database;
-
+  private RepoConfig config;
   // We need to ensure that only onle Repo object exists for any repoId so that
   // we guarantee mutual exclusion on the filesystem operations. So we cache created objects
   // here.
@@ -56,8 +56,6 @@ public class RepoFactory {
                   return Repo.openRepo(key, config, database);
                 }
               });
-
-  private RepoConfig config;
 
   @Inject
   public RepoFactory(RepoConfig config, Database database) throws IOException {

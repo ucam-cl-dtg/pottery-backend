@@ -53,7 +53,6 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
-import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock.AutoCloseableLock;
@@ -61,6 +60,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
@@ -104,18 +104,15 @@ public class Repo {
    * version.
    */
   private final boolean usingTestingVersion;
-
-  /** A map of submissions that have been tested. Keys are tags. You can only have one per tag. */
-  private ConcurrentHashMap<String, Submission> activeSubmissions;
-
   /**
    * If you are modifying the fields of this object then you should hold this lock. Do not hold this
    * lock whilst executing a long running task since there are api calls for polling these fields.
    */
   private final Object lockFields = new Object();
-
   /** Protects access to the git repo and working directory. */
   private final FourLevelLock lock = new FourLevelLock();
+  /** A map of submissions that have been tested. Keys are tags. You can only have one per tag. */
+  private ConcurrentHashMap<String, Submission> activeSubmissions;
 
   private Repo(
       String repoId, RepoConfig c, String taskId, boolean usingTestingVersion, Date expiryDate) {
@@ -127,6 +124,98 @@ public class Repo {
     this.usingTestingVersion = usingTestingVersion;
     this.expiryDate = expiryDate;
     this.activeSubmissions = new ConcurrentHashMap<>();
+  }
+
+  /**
+   * Create a repo object for an existing repository. Use RepoFactory rather than calling this
+   * method directly.
+   *
+   * @param repoId the ID of the repo to open
+   * @param config server configuration
+   * @param database database connection
+   * @return a repo object for this repository
+   * @throws RepoNotFoundException if the repository does not exist or if it can't be opened
+   */
+  static Repo openRepo(String repoId, RepoConfig config, Database database)
+      throws RepoNotFoundException {
+
+    File repoDirectory = config.getRepoDir(repoId);
+
+    if (!repoDirectory.exists()) {
+      throw new RepoNotFoundException("Failed to find repository directory " + repoDirectory);
+    }
+
+    try (TransactionQueryRunner q = database.getQueryRunner()) {
+      RepoInfo r = RepoInfo.getByRepoId(repoId, q);
+      if (r != null) {
+        return new Repo(
+            repoId, config, r.getTaskId(), r.isUsingTestingVersion(), r.getExpiryDate());
+      } else {
+        throw new RepoNotFoundException(
+            "Repository with ID " + repoId + " does not exist in database");
+      }
+    } catch (SQLException e) {
+      throw new RepoNotFoundException(
+          "Failed to lookup repository with ID " + repoId + " in database", e);
+    }
+  }
+
+  /**
+   * Create a new repository and return an appropriate repo object. Use RepoFactory rather than
+   * calling this method directly.
+   *
+   * @param repoId the ID of the repo to open
+   * @param taskId is the ID of the task to begin
+   * @param usingTestingVersion indicates if we should use the registered version of the task or the
+   *     testing version
+   * @param config server configuration
+   * @param database database connection
+   * @return a repo object for this repository
+   * @throws RepoStorageException if the repository couldn't be created
+   */
+  static Repo createRepo(
+      String repoId,
+      String taskId,
+      boolean usingTestingVersion,
+      Date expiryDate,
+      RepoConfig config,
+      Database database)
+      throws RepoStorageException {
+
+    File repoDirectory = config.getRepoDir(repoId);
+
+    if (!repoDirectory.mkdir()) {
+      throw new RepoStorageException("Failed to create repository directory " + repoDirectory);
+    }
+
+    try {
+      Git.init().setDirectory(repoDirectory).call().close();
+    } catch (GitAPIException e) {
+      RepoStorageException t = new RepoStorageException("Failed to initialise git repository", e);
+      try {
+        FileUtil.deleteRecursive(repoDirectory);
+      } catch (IOException e1) {
+        t.addSuppressed(e1);
+      }
+      throw t;
+    }
+
+    RepoInfo r = new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate);
+
+    try (TransactionQueryRunner t = database.getQueryRunner()) {
+      r.insert(t);
+      t.commit();
+    } catch (SQLException e) {
+      RepoStorageException t = new RepoStorageException("Failed to store repository details", e);
+      try {
+        FileUtil.deleteRecursive(repoDirectory);
+      } catch (IOException e1) {
+        t.addSuppressed(e1);
+      }
+      throw t;
+    }
+
+    return new Repo(repoId, config, taskId, usingTestingVersion, expiryDate);
   }
 
   /** Recursively copy all files from the given sourceLocation and add them to the repository. */
@@ -786,98 +875,6 @@ public class Repo {
       throw new RepoStorageException("Failed to load revision for head of repository", e);
     }
     return tree;
-  }
-
-  /**
-   * Create a repo object for an existing repository. Use RepoFactory rather than calling this
-   * method directly.
-   *
-   * @param repoId the ID of the repo to open
-   * @param config server configuration
-   * @param database database connection
-   * @return a repo object for this repository
-   * @throws RepoNotFoundException if the repository does not exist or if it can't be opened
-   */
-  static Repo openRepo(String repoId, RepoConfig config, Database database)
-      throws RepoNotFoundException {
-
-    File repoDirectory = config.getRepoDir(repoId);
-
-    if (!repoDirectory.exists()) {
-      throw new RepoNotFoundException("Failed to find repository directory " + repoDirectory);
-    }
-
-    try (TransactionQueryRunner q = database.getQueryRunner()) {
-      RepoInfo r = RepoInfo.getByRepoId(repoId, q);
-      if (r != null) {
-        return new Repo(
-            repoId, config, r.getTaskId(), r.isUsingTestingVersion(), r.getExpiryDate());
-      } else {
-        throw new RepoNotFoundException(
-            "Repository with ID " + repoId + " does not exist in database");
-      }
-    } catch (SQLException e) {
-      throw new RepoNotFoundException(
-          "Failed to lookup repository with ID " + repoId + " in database", e);
-    }
-  }
-
-  /**
-   * Create a new repository and return an appropriate repo object. Use RepoFactory rather than
-   * calling this method directly.
-   *
-   * @param repoId the ID of the repo to open
-   * @param taskId is the ID of the task to begin
-   * @param usingTestingVersion indicates if we should use the registered version of the task or the
-   *     testing version
-   * @param config server configuration
-   * @param database database connection
-   * @return a repo object for this repository
-   * @throws RepoStorageException if the repository couldn't be created
-   */
-  static Repo createRepo(
-      String repoId,
-      String taskId,
-      boolean usingTestingVersion,
-      Date expiryDate,
-      RepoConfig config,
-      Database database)
-      throws RepoStorageException {
-
-    File repoDirectory = config.getRepoDir(repoId);
-
-    if (!repoDirectory.mkdir()) {
-      throw new RepoStorageException("Failed to create repository directory " + repoDirectory);
-    }
-
-    try {
-      Git.init().setDirectory(repoDirectory).call().close();
-    } catch (GitAPIException e) {
-      RepoStorageException t = new RepoStorageException("Failed to initialise git repository", e);
-      try {
-        FileUtil.deleteRecursive(repoDirectory);
-      } catch (IOException e1) {
-        t.addSuppressed(e1);
-      }
-      throw t;
-    }
-
-    RepoInfo r = new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate);
-
-    try (TransactionQueryRunner t = database.getQueryRunner()) {
-      r.insert(t);
-      t.commit();
-    } catch (SQLException e) {
-      RepoStorageException t = new RepoStorageException("Failed to store repository details", e);
-      try {
-        FileUtil.deleteRecursive(repoDirectory);
-      } catch (IOException e1) {
-        t.addSuppressed(e1);
-      }
-      throw t;
-    }
-
-    return new Repo(repoId, config, taskId, usingTestingVersion, expiryDate);
   }
 
   public String getRepoId() {

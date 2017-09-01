@@ -37,8 +37,7 @@ public class TestStep {
    * <p>Created an array &lt;codea&lt;/code with 10 elements: &lt;code1.0&lt;/code,
    * &lt;code4.5&lt;/code, &lt;code6.6&lt;/code, &lt;code2.1&lt;/code, &lt;code6.0&lt;/code,
    * &lt;code4.33&lt;/code, &lt;code10.0&lt;/code, &lt;code56.3&lt;/code, &lt;code100.4&lt;/code,
-   * &lt;code43.4&lt;/code.
-   * Called &lt;codeAverage.mean(a)&lt;/code
+   * &lt;code43.4&lt;/code. Called &lt;codeAverage.mean(a)&lt;/code
    */
   private List<String> testSteps;
 

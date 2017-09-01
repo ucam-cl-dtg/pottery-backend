@@ -23,12 +23,12 @@ import org.jboss.resteasy.annotations.providers.multipart.PartType;
 
 public class FileData {
 
-  @FormParam("mimeType")
-  private String mimeType;
-
   @FormParam("data")
   @PartType("application/octet-stream")
   byte[] data;
+
+  @FormParam("mimeType")
+  private String mimeType;
 
   public String getMimeType() {
     return mimeType;

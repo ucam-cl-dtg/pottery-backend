@@ -24,17 +24,19 @@ public class JobStatus implements Comparable<JobStatus> {
 
   public static final String STATUS_WAITING = "WAITING";
   public static final String STATUS_RUNNING = "RUNNING";
-
+  private static AtomicLong counter = new AtomicLong(0);
   private String description;
   private volatile String status;
   private long jobId;
-
-  private static AtomicLong counter = new AtomicLong(0);
 
   public JobStatus(String description) {
     this.description = description;
     this.status = STATUS_WAITING;
     this.jobId = counter.getAndIncrement();
+  }
+
+  public static AtomicLong getCounter() {
+    return counter;
   }
 
   public String getDescription() {
@@ -45,20 +47,16 @@ public class JobStatus implements Comparable<JobStatus> {
     return status;
   }
 
-  public long getJobId() {
-    return jobId;
+  public void setStatus(String status) {
+    this.status = status;
   }
 
-  public static AtomicLong getCounter() {
-    return counter;
+  public long getJobId() {
+    return jobId;
   }
 
   @Override
   public int compareTo(JobStatus o) {
     return Long.compare(jobId, o.jobId);
-  }
-
-  public void setStatus(String status) {
-    this.status = status;
   }
 }

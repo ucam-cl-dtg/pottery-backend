@@ -54,6 +54,45 @@ public class TaskDefInfo {
     this.retired = retired;
   }
 
+  public static TaskDefInfo getByTaskId(String taskId, QueryRunner q) throws SQLException {
+    return q.query(
+        "SELECT * from tasks where taskid=?", new BeanHandler<>(TaskDefInfo.class), taskId);
+  }
+
+  public static List<String> getAllTaskIds(QueryRunner q) throws SQLException {
+    return q.query(
+        "Select taskId from tasks",
+        new ResultSetHandler<List<String>>() {
+          @Override
+          public List<String> handle(ResultSet rs) throws SQLException {
+            List<String> result = new ArrayList<String>();
+            while (rs.next()) {
+              result.add(rs.getString(1));
+            }
+            return result;
+          }
+        });
+  }
+
+  public static void updateRegisteredCopy(String taskId, String tag, String copyId, QueryRunner q)
+      throws SQLException {
+    q.update(
+        "UPDATE tasks set registeredtag=?,registeredCopyId=? where taskid = ?",
+        tag,
+        copyId,
+        taskId);
+  }
+
+  public static void updateTestingCopy(String taskId, String copyId, QueryRunner q)
+      throws SQLException {
+    q.update("UPDATE tasks set testingCopyId=? where taskid = ?", copyId, taskId);
+  }
+
+  public static void updateRetired(String taskId, boolean retired, QueryRunner q)
+      throws SQLException {
+    q.update("UPDATE tasks set retired=? where taskid = ?", retired, taskId);
+  }
+
   public String getTestingCopyId() {
     return testingCopyId;
   }
@@ -94,51 +133,12 @@ public class TaskDefInfo {
     this.registeredTag = registeredTag;
   }
 
-  public static TaskDefInfo getByTaskId(String taskId, QueryRunner q) throws SQLException {
-    return q.query(
-        "SELECT * from tasks where taskid=?", new BeanHandler<>(TaskDefInfo.class), taskId);
-  }
-
   public void insert(QueryRunner q) throws SQLException {
     q.update(
         "INSERT INTO tasks(taskid,registeredtag,retired) values (?,?,?)",
         taskId,
         registeredTag,
         retired);
-  }
-
-  public static List<String> getAllTaskIds(QueryRunner q) throws SQLException {
-    return q.query(
-        "Select taskId from tasks",
-        new ResultSetHandler<List<String>>() {
-          @Override
-          public List<String> handle(ResultSet rs) throws SQLException {
-            List<String> result = new ArrayList<String>();
-            while (rs.next()) {
-              result.add(rs.getString(1));
-            }
-            return result;
-          }
-        });
-  }
-
-  public static void updateRegisteredCopy(String taskId, String tag, String copyId, QueryRunner q)
-      throws SQLException {
-    q.update(
-        "UPDATE tasks set registeredtag=?,registeredCopyId=? where taskid = ?",
-        tag,
-        copyId,
-        taskId);
-  }
-
-  public static void updateTestingCopy(String taskId, String copyId, QueryRunner q)
-      throws SQLException {
-    q.update("UPDATE tasks set testingCopyId=? where taskid = ?", copyId, taskId);
-  }
-
-  public static void updateRetired(String taskId, boolean retired, QueryRunner q)
-      throws SQLException {
-    q.update("UPDATE tasks set retired=? where taskid = ?", retired, taskId);
   }
 
   @Override

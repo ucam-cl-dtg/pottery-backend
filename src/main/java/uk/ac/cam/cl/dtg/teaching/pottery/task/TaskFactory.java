@@ -28,10 +28,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
@@ -42,6 +42,8 @@ public class TaskFactory {
   /** This object is used to generate new uuids for tasks. */
   private UuidGenerator uuidGenerator = new UuidGenerator();
 
+  private TaskConfig config;
+  private Database database;
   // Ensure that only only one Task object exists for any taskId so that
   // we guarantee mutual exclusion on the filesystem operations.
   private LoadingCache<String, Task> cache =
@@ -54,10 +56,6 @@ public class TaskFactory {
                   return Task.openTask(key, uuidGenerator, database, config);
                 }
               });
-
-  private TaskConfig config;
-
-  private Database database;
 
   @Inject
   public TaskFactory(TaskConfig config, Database database) throws IOException, GitAPIException {

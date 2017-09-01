@@ -81,6 +81,8 @@ public class ContainerManager implements Stoppable {
   private ConcurrentSkipListSet<String> runningContainers = new ConcurrentSkipListSet<>();
 
   private long smoothedCallTime = 0;
+  private AtomicInteger counter = new AtomicInteger(0);
+  private AtomicInteger timeoutMultiplier = new AtomicInteger(1);
 
   @Inject
   public ContainerManager(ContainerEnvConfig config) throws IOException, ApiUnavailableException {
@@ -174,33 +176,6 @@ public class ContainerManager implements Stoppable {
       LOG.error("Unable to remove running containers, API unavailable", e);
     }
   }
-
-  static class PathPair {
-    private File host;
-    private File container;
-    private boolean readWrite;
-
-    public PathPair(File host, String container, boolean readWrite) {
-      super();
-      this.host = host;
-      this.container = new File(container);
-      this.readWrite = readWrite;
-    }
-
-    public File getHost() {
-      return host;
-    }
-
-    public File getContainer() {
-      return container;
-    }
-
-    public boolean isReadWrite() {
-      return readWrite;
-    }
-  }
-
-  private AtomicInteger counter = new AtomicInteger(0);
 
   public <T> ContainerExecResponse<T> exec_container(
       ContainerManager.PathPair[] mapping,
@@ -497,9 +472,32 @@ public class ContainerManager implements Stoppable {
     }
   }
 
-  private AtomicInteger timeoutMultiplier = new AtomicInteger(1);
-
   public void setTimeoutMultiplier(int multiplier) {
     timeoutMultiplier.set(multiplier);
+  }
+
+  static class PathPair {
+    private File host;
+    private File container;
+    private boolean readWrite;
+
+    public PathPair(File host, String container, boolean readWrite) {
+      super();
+      this.host = host;
+      this.container = new File(container);
+      this.readWrite = readWrite;
+    }
+
+    public File getHost() {
+      return host;
+    }
+
+    public File getContainer() {
+      return container;
+    }
+
+    public boolean isReadWrite() {
+      return readWrite;
+    }
   }
 }

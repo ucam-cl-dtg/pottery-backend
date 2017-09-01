@@ -171,6 +171,22 @@ public class TaskInfo {
     this.startingPointFiles = startingPointFiles;
   }
 
+  public static TaskInfo load(String taskId, File taskDirectory, List<String> skeletonFiles)
+      throws InvalidTaskSpecificationException {
+    ObjectMapper o = new ObjectMapper();
+    try {
+      TaskInfo t = o.readValue(new File(taskDirectory, "task.json"), TaskInfo.class);
+      t.taskId = taskId;
+      if (t.startingPointFiles == null) {
+        t.startingPointFiles = Collections.unmodifiableList(new ArrayList<>(skeletonFiles));
+      }
+      return t;
+    } catch (IOException e) {
+      throw new InvalidTaskSpecificationException(
+          "Failed to load task information for task " + taskId, e);
+    }
+  }
+
   public ContainerRestrictions getCompilationRestrictions() {
     return compilationRestrictions;
   }
@@ -221,22 +237,6 @@ public class TaskInfo {
 
   public String getProblemStatement() {
     return problemStatement;
-  }
-
-  public static TaskInfo load(String taskId, File taskDirectory, List<String> skeletonFiles)
-      throws InvalidTaskSpecificationException {
-    ObjectMapper o = new ObjectMapper();
-    try {
-      TaskInfo t = o.readValue(new File(taskDirectory, "task.json"), TaskInfo.class);
-      t.taskId = taskId;
-      if (t.startingPointFiles == null) {
-        t.startingPointFiles = Collections.unmodifiableList(new ArrayList<>(skeletonFiles));
-      }
-      return t;
-    } catch (IOException e) {
-      throw new InvalidTaskSpecificationException(
-          "Failed to load task information for task " + taskId, e);
-    }
   }
 
   public List<String> getStartingPointFiles() {

@@ -60,10 +60,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 @Api(value = "/repo", description = "Manages the candidates attempt at the task", position = 1)
 public class RepoController {
 
+  protected static final Logger LOG = LoggerFactory.getLogger(RepoController.class);
   private RepoFactory repoFactory;
   private TaskIndex taskIndex;
-
-  protected static final Logger LOG = LoggerFactory.getLogger(RepoController.class);
 
   @Inject
   public RepoController(RepoFactory repoFactory, TaskIndex taskIndex) {

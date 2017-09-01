@@ -33,6 +33,10 @@ public class GuiceResteasyBootstrapServletContextListenerV3
 
   private static Injector injector;
 
+  public static Injector getInjector() {
+    return injector;
+  }
+
   @Override
   public void contextInitialized(ServletContextEvent event) {
     super.contextInitialized(event);
@@ -46,9 +50,5 @@ public class GuiceResteasyBootstrapServletContextListenerV3
   @Override
   protected void withInjector(Injector i) {
     injector = i;
-  }
-
-  public static Injector getInjector() {
-    return injector;
   }
 }

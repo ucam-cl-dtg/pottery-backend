@@ -44,22 +44,6 @@ public class ContainerRestrictions {
     this.networkDisabled = networkDisabled;
   }
 
-  public boolean isNetworkDisabled() {
-    return networkDisabled;
-  }
-
-  public int getTimeoutSec() {
-    return timeoutSec;
-  }
-
-  public int getDiskWriteLimitMegabytes() {
-    return diskWriteLimitMegabytes;
-  }
-
-  public int getRamLimitMegabytes() {
-    return ramLimitMegabytes;
-  }
-
   /** Restrictions to impose on a candidate. */
   public static ContainerRestrictions candidateRestriction(ContainerRestrictions v) {
     if (v != null) {
@@ -74,5 +58,21 @@ public class ContainerRestrictions {
       return v;
     }
     return new ContainerRestrictions(500, 50, 500, false);
+  }
+
+  public boolean isNetworkDisabled() {
+    return networkDisabled;
+  }
+
+  public int getTimeoutSec() {
+    return timeoutSec;
+  }
+
+  public int getDiskWriteLimitMegabytes() {
+    return diskWriteLimitMegabytes;
+  }
+
+  public int getRamLimitMegabytes() {
+    return ramLimitMegabytes;
   }
 }

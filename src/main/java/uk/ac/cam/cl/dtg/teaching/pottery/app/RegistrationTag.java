@@ -45,22 +45,6 @@ public class RegistrationTag {
     this.repository = repo;
   }
 
-  public File getRepository() {
-    return repository;
-  }
-
-  public boolean isActive() {
-    return active;
-  }
-
-  public String getRegisteredTaskUuid() {
-    return registeredTaskUuid;
-  }
-
-  public String toTagName() {
-    return (active ? PREFIX_ACTIVE : PREFIX_DISABLED) + registeredTaskUuid;
-  }
-
   public static RegistrationTag fromTagName(String tagName, File repo)
       throws InvalidTagFormatException {
     if (tagName.startsWith(Constants.R_TAGS)) {
@@ -81,6 +65,26 @@ public class RegistrationTag {
     return new RegistrationTag(active, uuid, repo);
   }
 
+  public File getRepository() {
+    return repository;
+  }
+
+  public boolean isActive() {
+    return active;
+  }
+
+  public void setActive(boolean active) {
+    this.active = active;
+  }
+
+  public String getRegisteredTaskUuid() {
+    return registeredTaskUuid;
+  }
+
+  public String toTagName() {
+    return (active ? PREFIX_ACTIVE : PREFIX_DISABLED) + registeredTaskUuid;
+  }
+
   /**
    * Lookup the SHA1 that corresponds to this tag.
    *
@@ -91,9 +95,5 @@ public class RegistrationTag {
       ObjectId o = g.getRepository().resolve(toTagName());
       return o.getName();
     }
-  }
-
-  public void setActive(boolean active) {
-    this.active = active;
   }
 }

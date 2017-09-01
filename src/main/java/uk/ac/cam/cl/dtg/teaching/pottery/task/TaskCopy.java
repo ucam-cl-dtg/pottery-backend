@@ -49,6 +49,7 @@ public class TaskCopy implements AutoCloseable {
   private TaskConfig config;
   private TaskInfo info;
   private String sha1;
+  private TwoPhaseLatch latch = new TwoPhaseLatch();
 
   /**
    * Instances of this object are created by the TaskCopyBuilder object. Its up to the
@@ -167,8 +168,6 @@ public class TaskCopy implements AutoCloseable {
     return config.getValidatorDir(copyId);
   }
 
-  private TwoPhaseLatch latch = new TwoPhaseLatch();
-
   public boolean acquire() {
     return latch.acquire();
   }
@@ -177,9 +176,7 @@ public class TaskCopy implements AutoCloseable {
     latch.release();
   }
 
-  /**
-   * Delete this copy from the disk.
-   */
+  /** Delete this copy from the disk. */
   void destroy() throws IOException, InterruptedException {
     latch.await();
     FileUtil.deleteRecursive(config.getTaskCopyDir(copyId));

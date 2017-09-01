@@ -65,7 +65,7 @@ class AttachListener implements WebSocketListener {
 
   @Override
   public void onWebSocketBinary(byte[] payload, int offset, int len) {
-    throw new RuntimeException("Unexpected binary data from container");
+    output.append(new String(payload, offset, len));
   }
 
   @Override

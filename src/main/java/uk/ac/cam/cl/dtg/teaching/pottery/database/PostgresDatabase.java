@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package uk.ac.cam.cl.dtg.teaching.pottery;
+package uk.ac.cam.cl.dtg.teaching.pottery.database;
 
 import com.google.inject.Singleton;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
@@ -24,22 +24,19 @@ import com.mchange.v2.c3p0.DataSources;
 import java.beans.PropertyVetoException;
 import java.sql.Driver;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Enumeration;
-import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.ResultSetHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 
 @Singleton
-public class Database implements Stoppable {
+public class PostgresDatabase implements Database {
 
+  protected static final Logger LOG = LoggerFactory.getLogger(PostgresDatabase.class);
   private ComboPooledDataSource connectionPool;
 
-  protected static final Logger LOG = LoggerFactory.getLogger(Database.class);
-
-  public Database() {
+  public PostgresDatabase() {
     try {
       connectionPool = new ComboPooledDataSource();
       connectionPool.setDriverClass("org.postgresql.Driver");
@@ -52,20 +49,9 @@ public class Database implements Stoppable {
     }
   }
 
+  @Override
   public TransactionQueryRunner getQueryRunner() throws SQLException {
     return new TransactionQueryRunner(connectionPool);
-  }
-
-  public static int nextVal(String sequence, QueryRunner q) throws SQLException {
-    return q.query(
-        "SELECT nextval('" + sequence + "')",
-        new ResultSetHandler<Integer>() {
-          @Override
-          public Integer handle(ResultSet rs) throws SQLException {
-            rs.next();
-            return rs.getInt(1);
-          }
-        });
   }
 
   @Override
