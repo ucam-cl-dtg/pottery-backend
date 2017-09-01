@@ -18,26 +18,11 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.database;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.ResultSetHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 
 public interface Database extends Stoppable {
-
-  static int nextVal(String sequence, QueryRunner q) throws SQLException {
-    return q.query(
-        "SELECT nextval('" + sequence + "')",
-        new ResultSetHandler<Integer>() {
-          @Override
-          public Integer handle(ResultSet rs) throws SQLException {
-            rs.next();
-            return rs.getInt(1);
-          }
-        });
-  }
 
   TransactionQueryRunner getQueryRunner() throws SQLException;
 
