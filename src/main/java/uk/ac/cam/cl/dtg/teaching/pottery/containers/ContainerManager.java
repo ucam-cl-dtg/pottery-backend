@@ -43,8 +43,8 @@ import java.util.function.Function;
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.ac.cam.cl.dtg.teaching.docker.APIListener;
-import uk.ac.cam.cl.dtg.teaching.docker.APIUnavailableException;
+import uk.ac.cam.cl.dtg.teaching.docker.ApiListener;
+import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerPatch;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
@@ -83,7 +83,7 @@ public class ContainerManager implements Stoppable {
   private long smoothedCallTime = 0;
 
   @Inject
-  public ContainerManager(ContainerEnvConfig config) throws IOException, APIUnavailableException {
+  public ContainerManager(ContainerEnvConfig config) throws IOException, ApiUnavailableException {
     this.config = config;
     this.scheduler = Executors.newSingleThreadScheduledExecutor();
     FileUtil.mkdir(config.getLibRoot());
@@ -97,12 +97,12 @@ public class ContainerManager implements Stoppable {
     return smoothedCallTime;
   }
 
-  private synchronized DockerApi getDockerApi() throws APIUnavailableException {
+  private synchronized DockerApi getDockerApi() throws ApiUnavailableException {
     if (dockerApi == null) {
       DockerApi docker =
           new Docker("localhost", 2375, 1)
               .api(
-                  new APIListener() {
+                  new ApiListener() {
                     @Override
                     public void callCompleted(
                         boolean apiAvailable, long timeTaken, String methodName) {
@@ -170,7 +170,7 @@ public class ContainerManager implements Stoppable {
         DockerUtil.killContainer(containerId, docker);
       }
       docker.close();
-    } catch (APIUnavailableException e) {
+    } catch (ApiUnavailableException e) {
       LOG.error("Unable to remove running containers, API unavailable", e);
     }
   }
@@ -209,7 +209,7 @@ public class ContainerManager implements Stoppable {
       String stdin,
       ContainerRestrictions restrictions,
       Function<String, T> converter)
-      throws ContainerExecutionException, APIUnavailableException {
+      throws ContainerExecutionException, ApiUnavailableException {
 
     String containerName = this.config.getContainerPrefix() + counter.incrementAndGet();
     LOG.debug("Creating container {}", containerName);
@@ -367,7 +367,7 @@ public class ContainerManager implements Stoppable {
 
   public ContainerExecResponse<String> execTaskCompilation(
       File taskDirHost, String imageName, ContainerRestrictions restrictions)
-      throws APIUnavailableException {
+      throws ApiUnavailableException {
     try {
       return exec_container(
           new PathPair[] {new PathPair(taskDirHost, "/task", true)},
@@ -386,7 +386,7 @@ public class ContainerManager implements Stoppable {
       File compilationRecipeDirHost,
       String imageName,
       ContainerRestrictions restrictions)
-      throws APIUnavailableException {
+      throws ApiUnavailableException {
     try {
       return exec_container(
           new PathPair[] {
@@ -409,7 +409,7 @@ public class ContainerManager implements Stoppable {
       File harnessRecipeDirHost,
       String imageName,
       ContainerRestrictions restrictions)
-      throws APIUnavailableException {
+      throws ApiUnavailableException {
     try {
       return exec_container(
           new PathPair[] {
@@ -447,7 +447,7 @@ public class ContainerManager implements Stoppable {
       HarnessResponse harnessResponse,
       String imageName,
       ContainerRestrictions restrictions)
-      throws APIUnavailableException {
+      throws ApiUnavailableException {
     ObjectMapper o = new ObjectMapper();
     List<Measurement> m =
         harnessResponse

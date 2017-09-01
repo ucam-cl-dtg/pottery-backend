@@ -154,7 +154,7 @@
     <dependency>
       <groupId>uk.ac.cam.cl.dtg.web</groupId>
       <artifactId>resteasy-docker</artifactId>
-      <version>1.0.4</version>
+      <version>1.0.5</version>
     </dependency>
 
     <!-- Resteasy CORS filter, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
@@ -187,6 +187,13 @@
           <groupId>javax.ws.rs</groupId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <!-- Jetty, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
+    <dependency>
+      <groupId>org.eclipse.jetty.websocket</groupId>
+      <artifactId>websocket-client</artifactId>
+      <version>9.3.7.v20160115</version>
     </dependency>
 
   </dependencies>

@@ -24,7 +24,7 @@ import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.ac.cam.cl.dtg.teaching.docker.APIUnavailableException;
+import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
@@ -109,7 +109,7 @@ public class TaskCopyBuilder {
               return compileFiles(taskConfig, taskDefDir, containerManager)
                   ? Job.STATUS_OK
                   : Job.STATUS_FAILED;
-            } catch (APIUnavailableException e) {
+            } catch (ApiUnavailableException e) {
               LOG.warn("Docker API unavailable. Retrying", e);
               return Job.STATUS_RETRY;
             }
@@ -224,7 +224,7 @@ public class TaskCopyBuilder {
 
   private boolean compileFiles(
       TaskConfig taskConfig, final File taskDefDir, ContainerManager containerManager)
-      throws APIUnavailableException {
+      throws ApiUnavailableException {
     String copyId = taskCopy.getCopyId();
 
     LOG.info("Compiling tests for {} into {}", taskDefDir, copyId);

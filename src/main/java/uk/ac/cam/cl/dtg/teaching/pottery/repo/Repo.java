@@ -52,7 +52,7 @@ import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.ac.cam.cl.dtg.teaching.docker.APIUnavailableException;
+import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock;
@@ -265,7 +265,7 @@ public class Repo {
                             c.getCompileRoot(),
                             image,
                             taskInfo.getCompilationRestrictions());
-                  } catch (APIUnavailableException e) {
+                  } catch (ApiUnavailableException e) {
                     LOG.warn(
                         "Docker API unavailable when trying to execute compilation step. Retrying",
                         e);
@@ -294,7 +294,7 @@ public class Repo {
                     harnessResponse =
                         containerManager.execHarness(
                             codeDir, c.getHarnessRoot(), image, taskInfo.getHarnessRestrictions());
-                  } catch (APIUnavailableException e) {
+                  } catch (ApiUnavailableException e) {
                     LOG.warn("Docker API unavailable when trying to run harness step. Retrying", e);
                     updateSubmission(
                         builder
@@ -322,7 +322,7 @@ public class Repo {
                             harnessResponse.getResponse(),
                             image,
                             taskInfo.getValidatorRestrictions());
-                  } catch (APIUnavailableException e) {
+                  } catch (ApiUnavailableException e) {
                     LOG.warn(
                         "Docker API unavailable when trying to run validator step. Retrying", e);
                     updateSubmission(

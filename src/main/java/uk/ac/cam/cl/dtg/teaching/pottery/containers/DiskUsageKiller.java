@@ -20,7 +20,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.ac.cam.cl.dtg.teaching.docker.APIUnavailableException;
+import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerInfo;
@@ -62,7 +62,7 @@ public class DiskUsageKiller implements Runnable {
         // avoid the race condition where the container exits just before we kill it
         LOG.error("Caught exception when trying to kill container for disk usage", e);
       }
-    } catch (APIUnavailableException e) {
+    } catch (ApiUnavailableException e) {
       // Just ignore this one - we'll be rerun in a few seconds (or cancelled by the managing
       // thread)
     }
