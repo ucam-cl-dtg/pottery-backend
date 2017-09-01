@@ -18,160 +18,21 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.SortedSet;
-import java.util.TreeSet;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
-@Singleton
-public class Worker implements Stoppable {
+public interface Worker extends Stoppable {
 
-  protected static final Logger LOG = LoggerFactory.getLogger(Worker.class);
-  private final SortedSet<JobStatus> queue = new TreeSet<JobStatus>();
-  private ExecutorService threadPool;
-  private TaskIndex taskIndex;
-  private RepoFactory repoFactory;
-  private ContainerManager containerManager;
-  private Database database;
-  private int numThreads;
-  private long smoothedWaitTime = 0;
-  private Object smoothedWaitTimeMutex = new Object();
+  void rebuildThreadPool(int numThreads);
 
-  @Inject
-  public Worker(
-      TaskIndex taskIndex,
-      RepoFactory repoFactory,
-      ContainerManager containerManager,
-      Database database) {
-    super();
-    this.threadPool = Executors.newFixedThreadPool(1);
-    this.numThreads = 1;
-    this.taskIndex = taskIndex;
-    this.repoFactory = repoFactory;
-    this.containerManager = containerManager;
-    this.database = database;
-  }
+  int getNumThreads();
 
-  public synchronized void rebuildThreadPool(int numThreads) {
-    final List<Runnable> pending = this.threadPool.shutdownNow();
-    try {
-      this.threadPool.awaitTermination(1, TimeUnit.MINUTES);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
-    this.threadPool = Executors.newFixedThreadPool(numThreads);
-    this.numThreads = numThreads;
-    for (Runnable r : pending) {
-      this.threadPool.execute(r);
-    }
-  }
+  List<JobStatus> getQueue();
 
-  public synchronized int getNumThreads() {
-    return numThreads;
-  }
+  void schedule(Job... jobs);
 
-  public List<JobStatus> getQueue() {
-    synchronized (queue) {
-      return new LinkedList<>(queue);
-    }
-  }
-
-  /**
-   * Schedule a sequence of jobs.
-   *
-   * @param jobs the jobs to be run in sequence (if a job fails then we stop there)
-   */
-  public synchronized void schedule(Job... jobs) {
-    threadPool.execute(new JobIteration(jobs, 0, false, System.currentTimeMillis()));
-  }
-
-  public long getSmoothedWaitTime() {
-    synchronized (smoothedWaitTimeMutex) {
-      return smoothedWaitTime;
-    }
-  }
+  long getSmoothedWaitTime();
 
   @Override
-  public void stop() {
-    LOG.info("Shutting down thread pool");
-    threadPool.shutdownNow();
-  }
-
-  private class JobIteration implements Runnable {
-    private Job[] jobs;
-    private int index;
-    private JobStatus status;
-    private boolean withPause;
-    private long enqueueTime;
-
-    /**
-     * Create an iteration ready to execute the nth item of the jobs list.
-     *
-     * @param jobs an array of jobs to execute
-     * @param index the index of the job to execute from the array
-     * @param withPause set to true if you want a 2 second pause before running the job (e.g. for
-     *     retries)
-     */
-    public JobIteration(Job[] jobs, int index, boolean withPause, long enqeueTime) {
-      super();
-      this.jobs = jobs;
-      this.index = index;
-      this.withPause = withPause;
-      this.status = new JobStatus(jobs[index].getDescription());
-      this.enqueueTime = enqeueTime;
-      synchronized (queue) {
-        queue.add(status);
-      }
-    }
-
-    @Override
-    public void run() {
-      status.setStatus(JobStatus.STATUS_RUNNING);
-      long startTime = System.currentTimeMillis();
-      if (withPause) {
-        try {
-          Thread.sleep(2000);
-        } catch (InterruptedException e) {
-          LOG.error("Interrupted", e);
-        }
-      }
-      try {
-        int result = jobs[index].execute(taskIndex, repoFactory, containerManager, database);
-        if (result == Job.STATUS_OK) {
-          if (index < jobs.length - 1) {
-            threadPool.execute(new JobIteration(jobs, index + 1, false, enqueueTime));
-          }
-        } else if (result == Job.STATUS_RETRY) {
-          threadPool.execute(new JobIteration(jobs, index, true, enqueueTime));
-        }
-
-        if ((result == Job.STATUS_OK || result == Job.STATUS_FAILED) && index == 0) {
-          // We've run the first step to completion so update the waitTime
-          synchronized (smoothedWaitTimeMutex) {
-            smoothedWaitTime =
-                ((startTime - enqueueTime) >> 3) + smoothedWaitTime - (smoothedWaitTime >> 3);
-          }
-        }
-
-      } catch (Exception e) {
-        LOG.error("Unhandled exception in worker", e);
-      } finally {
-        synchronized (queue) {
-          queue.remove(status);
-        }
-      }
-    }
-  }
+  void stop();
 }

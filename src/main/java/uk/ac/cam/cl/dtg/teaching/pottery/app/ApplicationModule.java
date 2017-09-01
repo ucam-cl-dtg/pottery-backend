@@ -47,6 +47,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.database.PostgresDatabase;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.ThreadPoolWorker;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class ApplicationModule implements Module {
@@ -84,7 +85,7 @@ public class ApplicationModule implements Module {
     binder.bind(ContainerEnvConfig.class).in(Singleton.class);
 
     binder.bind(Database.class).to(PostgresDatabase.class).in(Singleton.class);
-    binder.bind(Worker.class).in(Singleton.class);
+    binder.bind(Worker.class).to(ThreadPoolWorker.class).in(Singleton.class);
 
     binder.bind(GuiceDependencyController.class);
   }
