@@ -30,7 +30,41 @@ public class InMemoryDatabase implements Database {
 
   public InMemoryDatabase() {
     try {
-      dataSource = DataSources.unpooledDataSource("jdbc:hsqldb:mem:mymemdb","SA","");
+      dataSource = DataSources.unpooledDataSource("jdbc:hsqldb:mem:mymemdb", "SA", "");
+      try (TransactionQueryRunner queryRunner = getQueryRunner()) {
+        queryRunner.update(
+            "CREATE TABLE repos ("
+                + "repoid character varying(255) NOT NULL, "
+                + "taskid character varying(255) NOT NULL, "
+                + "using_testing_version boolean DEFAULT true NOT NULL, "
+                + "expirydate timestamp with time zone"
+                + ");");
+
+        queryRunner.update(
+            "CREATE TABLE submissions ("
+                + "    repoid character varying(255) NOT NULL, "
+                + "    tag character varying(255) NOT NULL, "
+                + "    status character varying(255) NOT NULL, "
+                + "    compilationoutput character varying(65536), "
+                + "    compilationtimems bigint DEFAULT '-1' NOT NULL, "
+                + "    harnesstimems bigint DEFAULT '-1' NOT NULL, "
+                + "    validatortimems bigint DEFAULT '-1' NOT NULL, "
+                + "    waittimems bigint DEFAULT '-1' NOT NULL, "
+                + "    errormessage character varying(65536), "
+                + "    teststeps character varying(65536), "
+                + "    datescheduled timestamp without time zone, "
+                + "    interpretation character varying(255)"
+                + ");");
+        queryRunner.update(
+            "CREATE TABLE tasks ("
+                + "    taskid character varying(255) NOT NULL, "
+                + "    registeredtag character varying(255), "
+                + "    retired boolean DEFAULT false NOT NULL, "
+                + "    testingcopyid character varying(255), "
+                + "    registeredcopyid character varying(255) "
+                + ");");
+        queryRunner.commit();
+      }
     } catch (SQLException e) {
       connectionException = e;
     }
@@ -45,6 +79,5 @@ public class InMemoryDatabase implements Database {
   }
 
   @Override
-  public void stop() {
-  }
+  public void stop() {}
 }
