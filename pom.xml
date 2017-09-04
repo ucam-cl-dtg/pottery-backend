@@ -126,7 +126,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>18.0</version>
+      <version>23.0</version>
     </dependency>
 
     <!-- Log4j, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
@@ -201,6 +201,14 @@
       <groupId>org.hsqldb</groupId>
       <artifactId>hsqldb</artifactId>
       <version>2.4.0</version>
+    </dependency>
+
+    <!-- Google truth, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
+    <dependency>
+      <groupId>com.google.truth</groupId>
+      <artifactId>truth</artifactId>
+      <version>0.35</version>
+      <scope>test</scope>
     </dependency>
 
   </dependencies>
