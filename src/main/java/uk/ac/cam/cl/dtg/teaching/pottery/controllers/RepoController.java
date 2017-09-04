@@ -21,6 +21,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 import com.google.inject.Inject;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -32,6 +34,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -146,7 +149,13 @@ public class RepoController {
       @PathParam("fileName") String fileName)
       throws RepoStorageException, RepoFileNotFoundException, RepoNotFoundException,
           RepoTagNotFoundException {
-    StreamingOutput s = repoFactory.getInstance(repoId).readFile(tag, fileName);
+    byte[] result = repoFactory.getInstance(repoId).readFile(tag, fileName);
+    StreamingOutput s = new StreamingOutput() {
+      @Override
+      public void write(OutputStream output) throws IOException, WebApplicationException {
+        output.write(result);
+      }
+    };
     return Response.ok(s, MediaType.APPLICATION_OCTET_STREAM).build();
   }
 

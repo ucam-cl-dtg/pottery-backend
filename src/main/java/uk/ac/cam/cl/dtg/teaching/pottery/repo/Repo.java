@@ -21,15 +21,12 @@ package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.StreamingOutput;
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
@@ -813,7 +810,7 @@ public class Repo {
    * @param fileName the filename relative to the root of the repository
    * @return a StreamingOutput instance containing the data
    */
-  public StreamingOutput readFile(String tag, String fileName)
+  public byte[] readFile(String tag, String fileName)
       throws RepoStorageException, RepoFileNotFoundException, RepoTagNotFoundException {
     try (AutoCloseableLock l = lock.takeFileReadingLock()) {
       try (Git git = Git.open(repoDirectory)) {
@@ -836,14 +833,7 @@ public class Repo {
 
           ObjectId objectId = treeWalk.getObjectId(0);
           ObjectLoader loader = repo.open(objectId);
-          byte[] result = loader.getBytes();
-
-          return new StreamingOutput() {
-            @Override
-            public void write(OutputStream output) throws IOException, WebApplicationException {
-              output.write(result);
-            }
-          };
+          return loader.getBytes();
         }
       } catch (IOException e) {
         throw new RepoFileNotFoundException("Failed to read file from repository", e);
