@@ -20,17 +20,21 @@ package uk.ac.cam.cl.dtg.teaching.pottery.database;
 
 import com.mchange.v2.c3p0.DataSources;
 import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 
 public class InMemoryDatabase implements Database {
+
+  private static AtomicInteger counter = new AtomicInteger();
 
   private DataSource dataSource;
   private SQLException connectionException;
 
   public InMemoryDatabase() {
     try {
-      dataSource = DataSources.unpooledDataSource("jdbc:hsqldb:mem:mymemdb", "SA", "");
+      dataSource =
+          DataSources.unpooledDataSource("jdbc:hsqldb:mem:" + counter.incrementAndGet(), "SA", "");
       try (TransactionQueryRunner queryRunner = getQueryRunner()) {
         queryRunner.update(
             "CREATE TABLE repos ("
