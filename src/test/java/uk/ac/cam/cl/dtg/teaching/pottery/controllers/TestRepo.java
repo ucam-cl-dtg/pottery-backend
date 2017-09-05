@@ -20,8 +20,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Files;
@@ -30,7 +30,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
+import java.util.Calendar;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.commons.io.Charsets;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.junit.After;
@@ -46,7 +50,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.InMemoryDatabase;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.dto.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
@@ -60,6 +63,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.BlockingWorker;
@@ -69,13 +73,21 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessRespo
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
-public class TestRepoController {
+public class TestRepo {
 
-  private RepoFactory repoFactory;
-  private RepoController repoController;
-  private Database database;
   private File testRootDir;
-  private String taskId;
+  private Repo repo;
+
+  private static String getScriptContents(Object toPrint) throws JsonProcessingException {
+    return ImmutableList.of(
+            "#!/bin/bash",
+            "",
+            "cat <<EOF",
+            new ObjectMapper().writer().writeValueAsString(toPrint),
+            "EOF")
+        .stream()
+        .collect(Collectors.joining("\n"));
+  }
 
   private static void mkJsonPrintingScript(File root, String fileName, Object toPrint, Git git)
       throws IOException, GitAPIException {
@@ -83,14 +95,8 @@ public class TestRepoController {
     if (!file.getParentFile().exists() && !file.getParentFile().mkdirs()) {
       throw new IOException("Failed to create " + file.getParent());
     }
-    ObjectMapper mapper = new ObjectMapper();
-    ObjectWriter writer = mapper.writer();
-    String string = writer.writeValueAsString(toPrint);
     try (PrintWriter w = new PrintWriter(new FileWriter(file))) {
-
-      for (String a : ImmutableList.of("#!/bin/bash", "", "cat <<EOF", string, "EOF")) {
-        w.println(a);
-      }
+      w.print(getScriptContents(toPrint));
     }
     if (!file.setExecutable(true)) {
       throw new IOException("Failed to chmod " + fileName);
@@ -103,16 +109,15 @@ public class TestRepoController {
   public void setup()
       throws IOException, GitAPIException, TaskStorageException, SQLException,
           TaskNotFoundException, CriterionNotFoundException, ApiUnavailableException,
-          RetiredTaskException {
+          RetiredTaskException, RepoExpiredException, RepoNotFoundException, RepoStorageException {
 
     this.testRootDir = Files.createTempDir();
-    this.database = new InMemoryDatabase();
-    this.repoFactory = new RepoFactory(new RepoConfig(new File(testRootDir, "repos")), database);
+    Database database = new InMemoryDatabase();
 
     TaskConfig taskConfig = new TaskConfig(new File(testRootDir, "tasks"));
     TaskFactory taskFactory = new TaskFactory(taskConfig, database);
     Task task = taskFactory.createInstance();
-    this.taskId = task.getTaskId();
+    String taskId = task.getTaskId();
 
     File copyRoot = new File(testRootDir, taskId + "-clone");
     if (!copyRoot.mkdirs()) {
@@ -178,26 +183,77 @@ public class TestRepoController {
 
     TaskIndex taskIndex = new TaskIndex(taskFactory, database);
     taskIndex.add(task);
+    RepoFactory repoFactory =
+        new RepoFactory(new RepoConfig(new File(testRootDir, "repos")), database);
     Worker w = new BlockingWorker(taskIndex, repoFactory, containerManager, database);
     task.scheduleBuildTestingCopy(w);
 
-    repoController = new RepoController(repoFactory, taskIndex);
+    Calendar calendar = Calendar.getInstance();
+    calendar.add(Calendar.YEAR, 10);
+    this.repo = repoFactory.createInstance(taskId, true, calendar.getTime());
+    try (TaskCopy c = task.acquireTestingCopy()) {
+      this.repo.copyFiles(c);
+    }
   }
 
   @After
   public void tearDown() throws IOException {
-    database.stop();
     FileUtil.deleteRecursive(testRootDir);
   }
 
   @Test
-  public void makeRepo_createsValidRepo()
+  public void readFile_getsCorrectContents()
       throws TaskNotFoundException, RepoExpiredException, RepoNotFoundException,
           RetiredTaskException, RepoStorageException, TaskStorageException,
-          RepoFileNotFoundException, RepoTagNotFoundException {
-    RepoInfo info = repoController.makeRepo(taskId, true, 60);
-    Repo r = repoFactory.getInstance(info.getRepoId());
-    String contents = new String(r.readFile("HEAD", "skeleton.sh"));
-    assertThat(contents).isNotEmpty();
+          RepoFileNotFoundException, RepoTagNotFoundException, JsonProcessingException {
+
+    // ARRANGE
+    String expectedContents = getScriptContents("Skeleton");
+
+    // ACT
+    byte[] fileContents = repo.readFile("HEAD", "skeleton.sh");
+
+    // ASSERT
+    assertThat(new String(fileContents)).isEqualTo(expectedContents);
+  }
+
+  @Test
+  public void listFiles_findsSkeletonFile() throws RepoStorageException, RepoTagNotFoundException {
+
+    // ARRANGE
+    ImmutableList<String> expectedFiles = ImmutableList.of("skeleton.sh");
+
+    // ACT
+    List<String> files = repo.listFiles("HEAD");
+
+    // ASSERT
+    assertThat(files).containsExactlyElementsIn(expectedFiles);
+  }
+
+  @Test
+  public void createTag_showsUpInListTags() throws RepoStorageException, RepoExpiredException {
+
+    // ACT
+    String tagName = repo.createNewTag();
+    List<String> tags = repo.listTags();
+
+    // ASSERT
+    assertThat(tags).contains(tagName);
+  }
+
+  @Test
+  public void updateFile_altersFileContents()
+      throws RepoExpiredException, RepoFileNotFoundException, RepoStorageException,
+          RepoTagNotFoundException {
+
+    // ARRANGE
+    byte[] updatedContents = "NEW CONTENTS".getBytes(Charsets.UTF_8);
+
+    // ACT
+    repo.updateFile("skeleton.sh", updatedContents);
+    byte[] readContents = repo.readFile("HEAD", "skeleton.sh");
+
+    // ASSERT
+    assertThat(readContents).isEqualTo(updatedContents);
   }
 }
