@@ -18,7 +18,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.api;
 
 import com.wordnik.swagger.annotations.ApiOperation;
-import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;

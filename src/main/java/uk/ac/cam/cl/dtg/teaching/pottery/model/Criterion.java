@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package uk.ac.cam.cl.dtg.teaching.pottery;
+package uk.ac.cam.cl.dtg.teaching.pottery.model;
 
 import com.wordnik.swagger.annotations.ApiModel;
 import java.util.HashMap;

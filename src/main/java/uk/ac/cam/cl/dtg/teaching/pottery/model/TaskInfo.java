@@ -20,13 +20,11 @@ package uk.ac.cam.cl.dtg.teaching.pottery.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wordnik.swagger.annotations.ApiModelProperty;
-import java.io.File;
-import java.io.IOException;
+
 import java.util.List;
 import java.util.Set;
-import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
+
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
 
 public class TaskInfo {

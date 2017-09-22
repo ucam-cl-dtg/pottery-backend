@@ -18,7 +18,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.api;
 
 import com.wordnik.swagger.annotations.ApiOperation;
-import uk.ac.cam.cl.dtg.teaching.pottery.worker.JobStatus;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
