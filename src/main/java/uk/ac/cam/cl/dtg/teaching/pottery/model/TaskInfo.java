@@ -24,13 +24,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wordnik.swagger.annotations.ApiModelProperty;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import uk.ac.cam.cl.dtg.teaching.pottery.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 
 public class TaskInfo {
 
@@ -171,22 +168,6 @@ public class TaskInfo {
     this.startingPointFiles = startingPointFiles;
   }
 
-  public static TaskInfo load(String taskId, File taskDirectory, List<String> skeletonFiles)
-      throws InvalidTaskSpecificationException {
-    ObjectMapper o = new ObjectMapper();
-    try {
-      TaskInfo t = o.readValue(new File(taskDirectory, "task.json"), TaskInfo.class);
-      t.taskId = taskId;
-      if (t.startingPointFiles == null) {
-        t.startingPointFiles = Collections.unmodifiableList(new ArrayList<>(skeletonFiles));
-      }
-      return t;
-    } catch (IOException e) {
-      throw new InvalidTaskSpecificationException(
-          "Failed to load task information for task " + taskId, e);
-    }
-  }
-
   public ContainerRestrictions getCompilationRestrictions() {
     return compilationRestrictions;
   }
@@ -243,8 +224,11 @@ public class TaskInfo {
     return startingPointFiles;
   }
 
-  public void save(File taskDirectory) throws IOException {
-    ObjectMapper o = new ObjectMapper();
-    o.writeValue(new File(taskDirectory, "task.json"), this);
+    public void setTaskId(String taskId) {
+    this.taskId = taskId;
+  }
+
+  public void setStartingPointFiles(List<String> startingPointFiles) {
+    this.startingPointFiles = startingPointFiles;
   }
 }
