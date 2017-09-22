@@ -60,6 +60,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;

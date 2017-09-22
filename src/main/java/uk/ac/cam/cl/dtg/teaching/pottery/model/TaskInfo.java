@@ -25,8 +25,6 @@ import com.wordnik.swagger.annotations.ApiModelProperty;
 import java.util.List;
 import java.util.Set;
 
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerRestrictions;
-
 public class TaskInfo {
 
   /**
