@@ -2,9 +2,9 @@ package uk.ac.cam.cl.dtg.teaching.pottery.api;
 
 import com.wordnik.swagger.annotations.ApiOperation;
 import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.FileData;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.RepoTag;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.FileData;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.*;
 
 import javax.ws.rs.*;

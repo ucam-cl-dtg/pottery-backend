@@ -16,13 +16,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package uk.ac.cam.cl.dtg.teaching.pottery.dto;
+package uk.ac.cam.cl.dtg.teaching.pottery.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Interpretation;
 

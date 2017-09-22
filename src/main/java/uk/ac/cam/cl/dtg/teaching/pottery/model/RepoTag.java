@@ -16,39 +16,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package uk.ac.cam.cl.dtg.teaching.pottery.dto;
+package uk.ac.cam.cl.dtg.teaching.pottery.model;
 
-import java.util.LinkedList;
-import java.util.List;
+public class RepoTag {
 
-public class TaskRepoInfo implements Comparable<TaskRepoInfo> {
+  private String tag;
 
-  private String taskRepoId;
-  private List<TaskInfo> registeredTasks = new LinkedList<>();
-
-  public TaskRepoInfo(String taskRepoId) {
-    super();
-    this.taskRepoId = taskRepoId;
+  public String getTag() {
+    return tag;
   }
 
-  public String getTaskRepoId() {
-    return taskRepoId;
-  }
-
-  public void setTaskRepoId(String taskRepoId) {
-    this.taskRepoId = taskRepoId;
-  }
-
-  public List<TaskInfo> getRegisteredTasks() {
-    return registeredTasks;
-  }
-
-  public void setRegisteredTasks(List<TaskInfo> registeredTasks) {
-    this.registeredTasks = registeredTasks;
-  }
-
-  @Override
-  public int compareTo(TaskRepoInfo o) {
-    return taskRepoId.compareTo(o.taskRepoId);
+  public void setTag(String tag) {
+    this.tag = tag;
   }
 }

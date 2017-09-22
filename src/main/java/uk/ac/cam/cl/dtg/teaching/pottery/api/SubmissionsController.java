@@ -1,7 +1,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.api;
 
 import com.wordnik.swagger.annotations.ApiOperation;
-import uk.ac.cam.cl.dtg.teaching.pottery.dto.Submission;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.*;
 
 import javax.ws.rs.GET;
