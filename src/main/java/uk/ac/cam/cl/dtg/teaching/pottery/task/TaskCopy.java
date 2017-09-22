@@ -33,9 +33,9 @@ import org.apache.commons.io.IOUtils;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TwoPhaseLatch;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 
 /**
  * A task copy is a checkout of a task. Its made by copying files out of the taskdef git repo. Task

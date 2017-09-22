@@ -15,22 +15,22 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.ResultSetHandler;
-import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.TestStep;
-
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
+import org.apache.commons.dbutils.QueryRunner;
+import org.apache.commons.dbutils.ResultSetHandler;
+import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.TestStep;
 
 public class Submissions {
     private static Submission resultSetToSubmission(ResultSet rs) throws SQLException {

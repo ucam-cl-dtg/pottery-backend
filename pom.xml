@@ -26,7 +26,15 @@
     </dependency>
 
 
-    <!-- Postgresql JDBC driver, BSD licence https://jdbc.postgresql.org/about/license.html -->
+    <!-- Java Pojos for json interface with the backend, Apache license -->
+    <dependency>
+      <groupId>uk.ac.cam.cl.dtg.teaching</groupId>
+      <artifactId>pottery-backend-interface</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+    </dependency>
+
+
+      <!-- Postgresql JDBC driver, BSD licence https://jdbc.postgresql.org/about/license.html -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>

@@ -21,19 +21,18 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 import com.google.inject.Inject;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
-import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
-
+import java.util.List;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
-import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 @Produces("application/json")
 @Path("/worker")

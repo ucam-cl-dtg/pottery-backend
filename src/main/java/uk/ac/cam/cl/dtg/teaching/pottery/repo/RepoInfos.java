@@ -15,14 +15,14 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
-import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.handlers.BeanHandler;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
+package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import org.apache.commons.dbutils.QueryRunner;
+import org.apache.commons.dbutils.handlers.BeanHandler;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 
 public class RepoInfos {
   public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {

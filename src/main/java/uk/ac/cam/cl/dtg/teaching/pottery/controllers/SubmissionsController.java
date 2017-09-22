@@ -29,13 +29,13 @@ import javax.ws.rs.Produces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -43,7 +43,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 @Produces("application/json")
 @Path("/submissions")
 @Api(value = "/submissions", description = "Manages requests for testing", position = 2)
-public class SubmissionsController implements uk.ac.cam.cl.dtg.teaching.pottery.api.SubmissionsController {
+public class SubmissionsController
+    implements uk.ac.cam.cl.dtg.teaching.pottery.api.SubmissionsController {
 
   protected static final Logger LOG = LoggerFactory.getLogger(SubmissionsController.class);
 

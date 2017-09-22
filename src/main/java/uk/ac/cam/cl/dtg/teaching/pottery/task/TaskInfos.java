@@ -15,17 +15,17 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 
 public class TaskInfos {
   public static TaskInfo load(String taskId, File taskDirectory, List<String> skeletonFiles)

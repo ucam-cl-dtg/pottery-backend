@@ -18,10 +18,9 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 
+import java.util.List;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
-
-import java.util.List;
 
 public interface Worker extends Stoppable {
 

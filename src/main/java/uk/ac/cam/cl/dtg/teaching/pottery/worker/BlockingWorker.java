@@ -15,16 +15,16 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
-
-import java.util.List;
 
 public class BlockingWorker implements Worker {
 

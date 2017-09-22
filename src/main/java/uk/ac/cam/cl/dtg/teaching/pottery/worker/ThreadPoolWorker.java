@@ -20,14 +20,6 @@ package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
-import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
-
 import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedSet;
@@ -35,6 +27,13 @@ import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
 @Singleton
 public class ThreadPoolWorker implements Worker {
