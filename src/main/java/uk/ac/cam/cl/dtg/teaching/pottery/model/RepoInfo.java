@@ -22,7 +22,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Date;
 import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.handlers.BeanHandler;
 
 public class RepoInfo {
 
@@ -39,11 +38,6 @@ public class RepoInfo {
     this.taskId = taskId;
     this.usingTestingVersion = usingTestingVersion;
     this.expiryDate = expiryDate;
-  }
-
-  public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
-    return q.query(
-        "SELECT * from repos where repoid=?", new BeanHandler<RepoInfo>(RepoInfo.class), repoId);
   }
 
   public Date getExpiryDate() {
@@ -78,12 +72,4 @@ public class RepoInfo {
     this.usingTestingVersion = usingTestingVersion;
   }
 
-  public void insert(QueryRunner q) throws SQLException {
-    q.update(
-        "INSERT INTO repos(repoid,taskid,using_testing_version,expiryDate) values (?,?,?,?)",
-        repoId,
-        taskId,
-        usingTestingVersion,
-        new Timestamp(expiryDate.getTime()));
-  }
 }

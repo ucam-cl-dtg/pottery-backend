@@ -143,7 +143,7 @@ public class Repo {
     }
 
     try (TransactionQueryRunner q = database.getQueryRunner()) {
-      RepoInfo r = RepoInfo.getByRepoId(repoId, q);
+      RepoInfo r = RepoInfos.getByRepoId(repoId, q);
       if (r != null) {
         return new Repo(
             repoId, config, r.getTaskId(), r.isUsingTestingVersion(), r.getExpiryDate());
@@ -200,7 +200,7 @@ public class Repo {
     RepoInfo r = new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate);
 
     try (TransactionQueryRunner t = database.getQueryRunner()) {
-      r.insert(t);
+      RepoInfos.insert(r, t);
       t.commit();
     } catch (SQLException e) {
       RepoStorageException t = new RepoStorageException("Failed to store repository details", e);
