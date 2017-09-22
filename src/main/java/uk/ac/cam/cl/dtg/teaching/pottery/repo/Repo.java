@@ -263,7 +263,7 @@ public class Repo {
       }
     }
     try (TransactionQueryRunner q = database.getQueryRunner()) {
-      Submission s = Submission.getByRepoIdAndTag(repoId, tag, q);
+      Submission s = Submissions.getByRepoIdAndTag(repoId, tag, q);
       if (s == null) {
         throw new SubmissionNotFoundException(
             "Failed to find a submission with tag " + tag + " on repository " + repoId);
@@ -460,7 +460,7 @@ public class Repo {
                   Submission s = builder.build();
                   if (!s.isNeedsRetry()) {
                     try (TransactionQueryRunner q = database.getQueryRunner()) {
-                      s.insert(q);
+                      Submissions.insert(s, q);
                       q.commit();
                     } catch (SQLException e) {
                       // This shouldn't happen, but if it does then we'll force
