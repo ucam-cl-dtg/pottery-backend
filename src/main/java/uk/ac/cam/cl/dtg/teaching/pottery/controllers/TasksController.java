@@ -44,7 +44,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.BuilderInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.BuilderInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;

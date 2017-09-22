@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package uk.ac.cam.cl.dtg.teaching.pottery.task;
+package uk.ac.cam.cl.dtg.teaching.pottery.model;
 
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;

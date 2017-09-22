@@ -23,7 +23,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.BuilderInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.BuilderInfo;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;

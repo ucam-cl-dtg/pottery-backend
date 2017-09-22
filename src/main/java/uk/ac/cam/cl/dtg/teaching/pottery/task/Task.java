@@ -39,6 +39,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.BuilderInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
