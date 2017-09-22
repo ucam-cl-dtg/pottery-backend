@@ -57,7 +57,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
   description = "Manages the descriptions of the programming questions.",
   position = 0
 )
-public class TasksController {
+public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.TasksController {
 
   protected static final Logger LOG = LoggerFactory.getLogger(TasksController.class);
 
@@ -79,6 +79,7 @@ public class TasksController {
     this.database = database;
   }
 
+  @Override
   @GET
   @Path("/registered")
   @ApiOperation(
@@ -91,6 +92,7 @@ public class TasksController {
     return taskIndex.getRegisteredTasks();
   }
 
+  @Override
   @GET
   @Path("/")
   @ApiOperation(
@@ -102,6 +104,7 @@ public class TasksController {
     return taskIndex.getAllTasks();
   }
 
+  @Override
   @GET
   @Path("/retired")
   @ApiOperation(
@@ -113,6 +116,7 @@ public class TasksController {
     return taskIndex.getRetiredTasks();
   }
 
+  @Override
   @GET
   @Path("/testing")
   @ApiOperation(
@@ -125,6 +129,7 @@ public class TasksController {
     return taskIndex.getTestingTasks();
   }
 
+  @Override
   @POST
   @Path("/create")
   @ApiOperation(value = "Create a new task", response = TaskInfo.class)
@@ -138,6 +143,7 @@ public class TasksController {
         .build();
   }
 
+  @Override
   @GET
   @Path("/{taskId}")
   @ApiOperation(value = "Returns information about a specific task", response = TaskInfo.class)
@@ -145,6 +151,7 @@ public class TasksController {
     return taskIndex.getTestingTaskInfo(taskId);
   }
 
+  @Override
   @POST
   @Path("/{taskId}/retire")
   @ApiOperation(value = "Mark a task as retired", response = TaskInfo.class)
@@ -154,6 +161,7 @@ public class TasksController {
     return Response.ok().entity("{\"message\":\"OK\"}").build();
   }
 
+  @Override
   @POST
   @Path("/{taskId}/register")
   @ApiOperation(
@@ -162,11 +170,12 @@ public class TasksController {
             + "HEAD is used."
   )
   public BuilderInfo scheduleTaskRegistration(
-      @PathParam("taskId") String taskId, @FormParam("sha1") String sha1)
+          @PathParam("taskId") String taskId, @FormParam("sha1") String sha1)
       throws TaskNotFoundException, RetiredTaskException {
     return taskIndex.getTask(taskId).scheduleBuildRegisteredCopy(sha1, worker);
   }
 
+  @Override
   @GET
   @Path("/{taskId}/registering_status")
   @ApiOperation(value = "Polls the progress of the current registration process.")
@@ -175,6 +184,7 @@ public class TasksController {
     return taskIndex.getTask(taskId).getRegisteredCopyBuilderInfo();
   }
 
+  @Override
   @POST
   @Path("/{taskId}/update")
   @ApiOperation(value = "Registers (or updates the testing version) of a task.")
@@ -183,6 +193,7 @@ public class TasksController {
     return taskIndex.getTask(taskId).scheduleBuildTestingCopy(worker);
   }
 
+  @Override
   @GET
   @Path("/{taskId}/update_status")
   @ApiOperation(value = "Polls the progress of the current testing registration process.")
@@ -191,6 +202,7 @@ public class TasksController {
     return taskIndex.getTask(taskId).getTestingCopyBuilderInfo();
   }
 
+  @Override
   @GET
   @Path("/types")
   @ApiOperation(value = "Lists defined task types and their description", position = 1)
@@ -233,6 +245,7 @@ public class TasksController {
         .build();
   }
 
+  @Override
   @GET
   @Path("/criteria")
   @ApiOperation(value = "Lists defined criteria and their description", position = 2)
@@ -256,6 +269,7 @@ public class TasksController {
     }
   }
 
+  @Override
   @GET
   @Path("/languages")
   @ApiOperation(value = "Lists the available programming languages", position = 3)

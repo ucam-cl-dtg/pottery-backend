@@ -37,7 +37,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 @Produces("application/json")
 @Path("/worker")
 @Api(value = "/worker", description = "Manages the work queue.", position = 0)
-public class WorkerController {
+public class WorkerController implements uk.ac.cam.cl.dtg.teaching.pottery.api.WorkerController {
 
   protected static final Logger LOG = LoggerFactory.getLogger(WorkerController.class);
 
@@ -52,6 +52,7 @@ public class WorkerController {
     this.containerManager = containerManager;
   }
 
+  @Override
   @GET
   @Path("/")
   @ApiOperation(
@@ -64,6 +65,7 @@ public class WorkerController {
     return worker.getQueue();
   }
 
+  @Override
   @POST
   @Path("/resize")
   @ApiOperation(value = "Change number of worker threads", response = Response.class)
@@ -72,6 +74,7 @@ public class WorkerController {
     return Response.ok().entity("{ \"message\":\"Thread pool resized\" }").build();
   }
 
+  @Override
   @POST
   @Path("/timeoutMultiplier")
   @ApiOperation(

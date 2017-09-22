@@ -61,7 +61,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 @Produces("application/json")
 @Path("/repo")
 @Api(value = "/repo", description = "Manages the candidates attempt at the task", position = 1)
-public class RepoController {
+public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.RepoController {
 
   protected static final Logger LOG = LoggerFactory.getLogger(RepoController.class);
   private RepoFactory repoFactory;
@@ -74,6 +74,7 @@ public class RepoController {
     this.taskIndex = taskIndex;
   }
 
+  @Override
   @POST
   @Path("/")
   @ApiOperation(
@@ -82,9 +83,9 @@ public class RepoController {
     position = 0
   )
   public RepoInfo makeRepo(
-      @FormParam("taskId") String taskId,
-      @FormParam("usingTestingVersion") Boolean usingTestingVersion,
-      @FormParam("validityMinutes") Integer validityMinutes)
+          @FormParam("taskId") String taskId,
+          @FormParam("usingTestingVersion") Boolean usingTestingVersion,
+          @FormParam("validityMinutes") Integer validityMinutes)
       throws TaskNotFoundException, RepoExpiredException, RepoStorageException,
           RetiredTaskException, RepoNotFoundException {
     if (taskId == null) {
@@ -110,6 +111,7 @@ public class RepoController {
     }
   }
 
+  @Override
   @GET
   @Path("/{repoId}")
   @ApiOperation(
@@ -122,6 +124,7 @@ public class RepoController {
     return repoFactory.getInstance(repoId).listTags();
   }
 
+  @Override
   @GET
   @Path("/{repoId}/{tag}")
   @ApiOperation(
@@ -135,6 +138,7 @@ public class RepoController {
     return repoFactory.getInstance(repoId).listFiles(tag);
   }
 
+  @Override
   @GET
   @Path("/{repoId}/{tag}/{fileName:.+}")
   @Produces("application/octet-stream")
@@ -144,9 +148,9 @@ public class RepoController {
     position = 2
   )
   public Response readFile(
-      @PathParam("repoId") String repoId,
-      @PathParam("tag") String tag,
-      @PathParam("fileName") String fileName)
+          @PathParam("repoId") String repoId,
+          @PathParam("tag") String tag,
+          @PathParam("fileName") String fileName)
       throws RepoStorageException, RepoFileNotFoundException, RepoNotFoundException,
           RepoTagNotFoundException {
     byte[] result = repoFactory.getInstance(repoId).readFile(tag, fileName);
@@ -159,6 +163,7 @@ public class RepoController {
     return Response.ok(s, MediaType.APPLICATION_OCTET_STREAM).build();
   }
 
+  @Override
   @POST
   @Consumes("multipart/form-data")
   @Path("/{repoId}/{tag}/{fileName:.+}")
@@ -170,10 +175,10 @@ public class RepoController {
     position = 3
   )
   public Response updateFile(
-      @PathParam("repoId") String repoId,
-      @PathParam("tag") String tag,
-      @PathParam("fileName") String fileName,
-      @MultipartForm FileData file)
+          @PathParam("repoId") String repoId,
+          @PathParam("tag") String tag,
+          @PathParam("fileName") String fileName,
+          @MultipartForm FileData file)
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException,
           RepoNotFoundException {
     if (!Constants.HEAD.equals(tag)) {
@@ -183,13 +188,14 @@ public class RepoController {
     return Response.ok().entity("{\"message\":\"OK\"}").build();
   }
 
+  @Override
   @DELETE
   @Path("/{repoId}/{tag}/{fileName:.+}")
   @ApiOperation(value = "Delete a file from the repository", position = 4)
   public Response deleteFile(
-      @PathParam("repoId") String repoId,
-      @PathParam("tag") String tag,
-      @PathParam("fileName") String fileName)
+          @PathParam("repoId") String repoId,
+          @PathParam("tag") String tag,
+          @PathParam("fileName") String fileName)
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException,
           RepoNotFoundException {
     if (!Constants.HEAD.equals(tag)) {
@@ -199,6 +205,7 @@ public class RepoController {
     return Response.ok().entity("{\"message\":\"Deleted file\"}").build();
   }
 
+  @Override
   @POST
   @Path("/{repoId}/reset/{tag}")
   @ApiOperation(
@@ -212,6 +219,7 @@ public class RepoController {
     return Response.ok().entity("{\"message\":\"OK\"}").build();
   }
 
+  @Override
   @POST
   @Path("/{repoId}")
   @ApiOperation(

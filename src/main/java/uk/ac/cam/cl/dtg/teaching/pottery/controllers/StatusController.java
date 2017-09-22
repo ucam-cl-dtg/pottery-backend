@@ -35,7 +35,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 @Produces("application/json")
 @Path("/status")
 @Api(value = "/status", description = "Server status", position = 0)
-public class StatusController {
+public class StatusController implements uk.ac.cam.cl.dtg.teaching.pottery.api.StatusController {
 
   protected static final Logger LOG = LoggerFactory.getLogger(WorkerController.class);
 
@@ -50,6 +50,7 @@ public class StatusController {
     this.containerManager = containerManager;
   }
 
+  @Override
   @GET
   @Path("/")
   @ApiOperation(

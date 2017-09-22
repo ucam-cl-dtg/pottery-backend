@@ -43,7 +43,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 @Produces("application/json")
 @Path("/submissions")
 @Api(value = "/submissions", description = "Manages requests for testing", position = 2)
-public class SubmissionsController {
+public class SubmissionsController implements uk.ac.cam.cl.dtg.teaching.pottery.api.SubmissionsController {
 
   protected static final Logger LOG = LoggerFactory.getLogger(SubmissionsController.class);
 
@@ -61,6 +61,7 @@ public class SubmissionsController {
     this.repoFactory = repoFactory;
   }
 
+  @Override
   @POST
   @Path("/{repoId}/{tag}")
   @ApiOperation(
@@ -75,6 +76,7 @@ public class SubmissionsController {
     return r.scheduleSubmission(tag, worker, database);
   }
 
+  @Override
   @GET
   @Path("/{repoId}/{tag}")
   @ApiOperation(
