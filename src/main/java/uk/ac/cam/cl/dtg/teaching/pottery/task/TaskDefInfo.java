@@ -18,9 +18,8 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import com.google.common.collect.ImmutableList;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.BeanHandler;
 
@@ -57,15 +56,15 @@ public class TaskDefInfo {
         "SELECT * from tasks where taskid=?", new BeanHandler<>(TaskDefInfo.class), taskId);
   }
 
-  public static List<String> getAllTaskIds(QueryRunner q) throws SQLException {
+  public static ImmutableList<String> getAllTaskIds(QueryRunner q) throws SQLException {
     return q.query(
         "Select taskId from tasks",
         rs -> {
-          List<String> result = new ArrayList<>();
+          ImmutableList.Builder<String> builder = ImmutableList.builder();
           while (rs.next()) {
-            result.add(rs.getString(1));
+            builder.add(rs.getString(1));
           }
-          return result;
+          return builder.build();
         });
   }
 

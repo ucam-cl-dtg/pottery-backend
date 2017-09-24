@@ -18,6 +18,7 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.sql.SQLException;
@@ -46,15 +47,7 @@ public class TaskIndex {
   @Inject
   public TaskIndex(TaskFactory taskFactory, Database database) throws TaskStorageException {
     this.definedTasks = new ConcurrentHashMap<>();
-
-    List<String> taskIds;
-    try (TransactionQueryRunner q = database.getQueryRunner()) {
-      taskIds = TaskDefInfo.getAllTaskIds(q);
-    } catch (SQLException e1) {
-      throw new TaskStorageException("Failed to load list of tasks from database", e1);
-    }
-
-    for (String taskId : taskIds) {
+    for (String taskId : getAllTaskIds(database)) {
       try {
         Task t = taskFactory.getInstance(taskId);
         definedTasks.put(taskId, t);
@@ -132,5 +125,16 @@ public class TaskIndex {
 
   public void add(Task newTask) {
     definedTasks.put(newTask.getTaskId(), newTask);
+  }
+
+  private static ImmutableList<String> getAllTaskIds(Database database)
+      throws TaskStorageException {
+    ImmutableList<String> taskIds;
+    try (TransactionQueryRunner q = database.getQueryRunner()) {
+      taskIds = TaskDefInfo.getAllTaskIds(q);
+    } catch (SQLException e1) {
+      throw new TaskStorageException("Failed to load list of tasks from database", e1);
+    }
+    return taskIds;
   }
 }
