@@ -19,17 +19,16 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.config;
 
 import java.io.File;
+import javax.inject.Inject;
+import javax.inject.Named;
 
 public class TaskConfig {
 
   private File taskPrefix;
 
-  public TaskConfig() {
-    this.taskPrefix = new File(Config.PREFIX, "tasks");
-  }
-
-  public TaskConfig(File taskPrefix) {
-    this.taskPrefix = taskPrefix;
+  @Inject
+  public TaskConfig(@Named("localStoragePrefix") String prefix) {
+    this.taskPrefix = new File(prefix, "tasks");
   }
 
   public File getTaskDefinitionRoot() {

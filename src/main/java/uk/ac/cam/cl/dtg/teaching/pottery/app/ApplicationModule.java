@@ -22,12 +22,15 @@ import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.Singleton;
+import com.google.inject.name.Names;
 import com.wordnik.swagger.jaxrs.config.BeanConfig;
 import com.wordnik.swagger.jaxrs.listing.ApiDeclarationProvider;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResource;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResourceJSON;
 import com.wordnik.swagger.jaxrs.listing.ResourceListingProvider;
+import java.util.Enumeration;
 import javax.annotation.PreDestroy;
+import javax.servlet.ServletContext;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
@@ -52,7 +55,10 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class ApplicationModule implements Module {
 
-  public ApplicationModule() {
+  private ServletContext context;
+
+  public ApplicationModule(ServletContext context) {
+    this.context = context;
     BeanConfig beanConfig = new BeanConfig();
     beanConfig.setVersion("1.0.0");
     beanConfig.setBasePath("/pottery-backend/api");
@@ -88,6 +94,12 @@ public class ApplicationModule implements Module {
     binder.bind(Worker.class).to(ThreadPoolWorker.class).in(Singleton.class);
 
     binder.bind(GuiceDependencyController.class);
+
+    Enumeration<String> names = context.getInitParameterNames();
+    while (names.hasMoreElements()) {
+      String name = names.nextElement();
+      binder.bindConstant().annotatedWith(Names.named(name)).to(context.getInitParameter(name));
+    }
   }
 
   @PreDestroy

@@ -18,26 +18,25 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.config;
 
+import com.google.inject.Inject;
 import java.io.File;
+import javax.inject.Named;
 
 public class RepoConfig {
 
-  private File prefix;
+  private File repoPrefix;
 
-  public RepoConfig() {
-    this.prefix = new File(Config.PREFIX, "repos");
-  }
-
-  public RepoConfig(File repoPrefix) {
-    this.prefix = repoPrefix;
+  @Inject
+  public RepoConfig(@Named("localStoragePrefix") String prefix) {
+    this.repoPrefix = new File(prefix, "repos");
   }
 
   public File getRepoRoot() {
-    return new File(prefix, "repos");
+    return new File(repoPrefix, "repos");
   }
 
   public File getRepoTestingRoot() {
-    return new File(prefix, "repo-testing");
+    return new File(repoPrefix, "repo-testing");
   }
 
   public String getWebtagPrefix() {

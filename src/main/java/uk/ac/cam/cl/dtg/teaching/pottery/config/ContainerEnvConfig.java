@@ -18,8 +18,10 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.config;
 
+import com.google.inject.Inject;
 import java.io.File;
 import java.io.IOException;
+import javax.inject.Named;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,15 +36,11 @@ public class ContainerEnvConfig {
 
   private File libDir;
 
-  public ContainerEnvConfig(File libDir) {
-    this();
-    this.libDir = libDir;
-  }
-
-  public ContainerEnvConfig() {
+  @Inject
+  public ContainerEnvConfig(@Named("localStoragePrefix") String prefix) {
     this.userName = System.getProperty("user.name");
     this.uid = getUidForUserName(userName);
-    this.libDir = new File(Config.PREFIX, "lib");
+    this.libDir = new File(prefix, "lib");
   }
 
   private static int getUidForUserName(String userName) {
