@@ -19,11 +19,16 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import com.google.common.collect.ImmutableList;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.BeanHandler;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 
 public class TaskDefInfo {
+
+  public static final String REMOTE_UNSET = "";
 
   private String taskId;
 
@@ -35,6 +40,11 @@ public class TaskDefInfo {
 
   private boolean retired;
 
+  /**
+   * If this is non-empty then read the task definition from here rather than using local storage.
+   */
+  private String remote;
+
   public TaskDefInfo() {}
 
   public TaskDefInfo(
@@ -42,13 +52,15 @@ public class TaskDefInfo {
       String registeredTag,
       String testingCopyId,
       String registeredCopyId,
-      boolean retired) {
+      boolean retired,
+      String remote) {
     super();
     this.taskId = taskId;
     this.registeredTag = registeredTag;
     this.testingCopyId = testingCopyId;
     this.registeredCopyId = registeredCopyId;
     this.retired = retired;
+    this.remote = remote;
   }
 
   public static TaskDefInfo getByTaskId(String taskId, QueryRunner q) throws SQLException {
@@ -85,6 +97,15 @@ public class TaskDefInfo {
   public static void updateRetired(String taskId, boolean retired, QueryRunner q)
       throws SQLException {
     q.update("UPDATE tasks set retired=? where taskid = ?", retired, taskId);
+  }
+
+  public URI getTaskDefLocation(TaskConfig taskConfig) throws URISyntaxException {
+    if (getRemote().equals(REMOTE_UNSET)) {
+      return new URI(
+          String.format("file://%s", taskConfig.getLocalTaskDefinitionDir(getTaskId()).getPath()));
+    } else {
+      return new URI(getRemote());
+    }
   }
 
   public String getTestingCopyId() {
@@ -127,26 +148,43 @@ public class TaskDefInfo {
     this.registeredTag = registeredTag;
   }
 
+  public String getRemote() {
+    return remote;
+  }
+
+  public void setRemote(String remote) {
+    this.remote = remote;
+  }
+
   public void insert(QueryRunner q) throws SQLException {
     q.update(
-        "INSERT INTO tasks(taskid,registeredtag,retired) values (?,?,?)",
+        "INSERT INTO tasks(taskid,registeredtag,retired,remote) values (?,?,?,?)",
         taskId,
         registeredTag,
-        retired);
+        retired,
+        remote);
   }
 
   @Override
   public String toString() {
-    return "TaskDefInfo [taskId="
+    return "TaskDefInfo{"
+        + "taskId='"
         + taskId
-        + ", registeredTag="
+        + '\''
+        + ", registeredTag='"
         + registeredTag
-        + ", testingCopyId="
+        + '\''
+        + ", testingCopyId='"
         + testingCopyId
-        + ", registeredCopyId="
+        + '\''
+        + ", registeredCopyId='"
         + registeredCopyId
+        + '\''
         + ", retired="
         + retired
-        + "]";
+        + ", remote='"
+        + remote
+        + '\''
+        + '}';
   }
 }

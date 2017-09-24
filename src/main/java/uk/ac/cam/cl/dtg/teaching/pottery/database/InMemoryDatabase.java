@@ -65,7 +65,8 @@ public class InMemoryDatabase implements Database {
                 + "    registeredtag character varying(255), "
                 + "    retired boolean DEFAULT false NOT NULL, "
                 + "    testingcopyid character varying(255), "
-                + "    registeredcopyid character varying(255) "
+                + "    registeredcopyid character varying(255), "
+                + "    remote character varying(255) default '' NOT NULL"
                 + ");");
         queryRunner.commit();
       }

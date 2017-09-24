@@ -21,8 +21,10 @@ package uk.ac.cam.cl.dtg.teaching.pottery.app;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Module;
-import com.google.inject.Singleton;
 import com.google.inject.name.Names;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
 import com.wordnik.swagger.jaxrs.config.BeanConfig;
 import com.wordnik.swagger.jaxrs.listing.ApiDeclarationProvider;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResource;
@@ -30,7 +32,12 @@ import com.wordnik.swagger.jaxrs.listing.ApiListingResourceJSON;
 import com.wordnik.swagger.jaxrs.listing.ResourceListingProvider;
 import java.util.Enumeration;
 import javax.annotation.PreDestroy;
+import javax.inject.Singleton;
 import javax.servlet.ServletContext;
+import org.eclipse.jgit.transport.JschConfigSessionFactory;
+import org.eclipse.jgit.transport.OpenSshConfig;
+import org.eclipse.jgit.transport.SshSessionFactory;
+import org.eclipse.jgit.util.FS;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
@@ -100,6 +107,22 @@ public class ApplicationModule implements Module {
       String name = names.nextElement();
       binder.bindConstant().annotatedWith(Names.named(name)).to(context.getInitParameter(name));
     }
+
+    SshSessionFactory.setInstance(
+        new JschConfigSessionFactory() {
+          @Override
+          protected void configure(OpenSshConfig.Host hc, Session session) {
+            // do nothing
+          }
+
+          @Override
+          protected JSch createDefaultJSch(FS fs) throws JSchException {
+            JSch defaultJSch = super.createDefaultJSch(fs);
+            defaultJSch.removeAllIdentity();
+            defaultJSch.addIdentity(context.getInitParameter("sshPrivateKey"));
+            return defaultJSch;
+          }
+        });
   }
 
   @PreDestroy

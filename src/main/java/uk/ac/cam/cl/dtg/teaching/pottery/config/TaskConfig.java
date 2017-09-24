@@ -39,10 +39,6 @@ public class TaskConfig {
     return new File(taskPrefix, "copy");
   }
 
-  public File getTaskDefinitionDir(String taskId) {
-    return new File(getTaskDefinitionRoot(), taskId);
-  }
-
   public File getTaskCopyDir(String copyId) {
     return new File(getTaskCopyRoot(), copyId);
   }
@@ -65,5 +61,9 @@ public class TaskConfig {
 
   public File getSkeletonDir(String copyId) {
     return new File(getTaskCopyDir(copyId), "skeleton");
+  }
+
+  public File getLocalTaskDefinitionDir(String taskId) {
+    return new File(getTaskDefinitionRoot(), taskId);
   }
 }

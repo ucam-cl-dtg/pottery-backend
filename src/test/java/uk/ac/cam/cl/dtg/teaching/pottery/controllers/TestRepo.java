@@ -127,7 +127,7 @@ public class TestRepo {
 
     try (Git g =
         Git.cloneRepository()
-            .setURI("file://" + taskConfig.getTaskDefinitionDir(taskId).getPath())
+            .setURI(task.getTaskDefLocation().toString())
             .setDirectory(copyRoot)
             .call()) {
 

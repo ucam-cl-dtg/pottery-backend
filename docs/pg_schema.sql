@@ -78,7 +78,8 @@ CREATE TABLE tasks (
     registeredtag character varying(255),
     retired boolean DEFAULT false NOT NULL,
     testingcopyid character varying(255),
-    registeredcopyid character varying(255)
+    registeredcopyid character varying(255),
+    remote character varying(255) not null default ''
 );
 
 

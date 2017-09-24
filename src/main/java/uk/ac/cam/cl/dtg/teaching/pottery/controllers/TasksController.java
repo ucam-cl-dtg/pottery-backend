@@ -95,8 +95,10 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
   }
 
   @Override
-  public TaskLocation createRemote() throws TaskStorageException {
-    return null;
+  public TaskLocation createRemote(String remote) throws TaskStorageException {
+    Task newTask = taskFactory.createRemoteInstance(remote);
+    taskIndex.add(newTask);
+    return new TaskLocation(newTask.getTaskId(), remote);
   }
 
   @Override

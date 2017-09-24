@@ -20,6 +20,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.eclipse.jgit.api.Git;
@@ -71,8 +73,9 @@ public class Task {
    * task.
    */
   private final String taskId;
+
   /** The taskdef is a bare git repo which is the upstream source for the task. */
-  private final File taskDefDir;
+  private final URI taskDefLocation;
 
   private final TaskConfig config;
   /** Used to generate unique taskIds and unique copyIds. */
@@ -115,6 +118,7 @@ public class Task {
    */
   private Task(
       String taskId,
+      URI taskDefLocation,
       TaskCopyBuilder testingBuilder,
       TaskCopy testingCopy,
       TaskCopyBuilder registeredBuilder,
@@ -124,12 +128,12 @@ public class Task {
       UuidGenerator uuidGenerator) {
     super();
     this.taskId = taskId;
+    this.taskDefLocation = taskDefLocation;
     this.testingBuilder = testingBuilder;
     this.testingCopy = testingCopy;
     this.registeredBuilder = registeredBuilder;
     this.registeredCopy = registeredCopy;
     this.retired = new AtomicBoolean(retired);
-    this.taskDefDir = config.getTaskDefinitionDir(taskId);
     this.config = config;
     this.uuidGenerator = uuidGenerator;
   }
@@ -146,28 +150,26 @@ public class Task {
     try (TransactionQueryRunner q = database.getQueryRunner()) {
       TaskDefInfo info = TaskDefInfo.getByTaskId(taskId, q);
       if (info != null) {
-        TaskCopyBuilder testingBuilder;
-        if (info.getTestingCopyId() == null) {
-          // No test version has been built before
-          // Use null for the copyId
-          testingBuilder = TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config);
-        } else {
-          // The test version has been built before
-          testingBuilder =
-              TaskCopyBuilder.createForExisting("HEAD", taskId, info.getTestingCopyId(), config);
-        }
+        URI taskDefLocation = info.getTaskDefLocation(config);
 
-        TaskCopyBuilder registeredBuilder;
-        if (info.getRegisteredCopyId() == null) {
-          registeredBuilder = TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config);
-        } else {
-          registeredBuilder =
-              TaskCopyBuilder.createForExisting(
-                  info.getRegisteredTag(), taskId, info.getRegisteredCopyId(), config);
-        }
+        TaskCopyBuilder testingBuilder =
+            info.getTestingCopyId() == null
+                ? TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config)
+                : TaskCopyBuilder.createForExisting(
+                    "HEAD", taskId, taskDefLocation, info.getTestingCopyId(), config);
+        TaskCopyBuilder registeredBuilder =
+            info.getRegisteredCopyId() == null
+                ? TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config)
+                : TaskCopyBuilder.createForExisting(
+                    info.getRegisteredTag(),
+                    taskId,
+                    taskDefLocation,
+                    info.getRegisteredCopyId(),
+                    config);
 
         return new Task(
             info.getTaskId(),
+            taskDefLocation,
             testingBuilder,
             testingBuilder.getTaskCopy(),
             registeredBuilder,
@@ -180,6 +182,8 @@ public class Task {
       }
     } catch (SQLException e) {
       throw new TaskStorageException("Failed to open task " + taskId, e);
+    } catch (URISyntaxException e) {
+      throw new TaskStorageException("Failed to parse task location", e);
     }
   }
 
@@ -192,38 +196,81 @@ public class Task {
       throws TaskStorageException {
 
     // create the task directory and clone the template
-    File taskDefDir = config.getTaskDefinitionDir(taskId);
-
-    taskDefDir.mkdir();
-
-    TaskDefInfo info = new TaskDefInfo(taskId, null, null, null, false);
-
-    try (Git g = Git.init().setBare(true).setDirectory(taskDefDir).call()) {
-
-      TaskCopyBuilder testingBuilder =
-          TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config);
-      TaskCopyBuilder registeredBuilder =
-          TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config);
-
-      // Mark status as success so that we don't try to compile these
-      testingBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
-      registeredBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
-
-      try (TransactionQueryRunner q = database.getQueryRunner()) {
-        info.insert(q);
-        q.commit();
-        return new Task(
-            taskId, testingBuilder, null, registeredBuilder, null, false, config, uuidGenerator);
+    File taskDefDir = config.getLocalTaskDefinitionDir(taskId);
+    try {
+      if (!taskDefDir.mkdir()) {
+        throw new TaskStorageException("Failed to create local definition directory");
       }
-    } catch (GitAPIException | SQLException e) {
-      TaskStorageException toThrow =
-          new TaskStorageException("Failed to initialise task " + taskId, e);
+      try {
+        Git.init().setBare(true).setDirectory(taskDefDir).call().close();
+      } catch (GitAPIException e) {
+        throw new TaskStorageException("Failed to initialize git repository", e);
+      }
+      return storeTask(taskId, "", uuidGenerator, config, database);
+    } catch (TaskStorageException e) {
       try {
         FileUtil.deleteRecursive(taskDefDir);
       } catch (IOException e1) {
-        toThrow.addSuppressed(e1);
+        e.addSuppressed(e1);
       }
-      throw toThrow;
+      throw e;
+    }
+  }
+
+  /**
+   * Create a new remote task which is stored on another server. Don't call this method directly.
+   * Instead use TaskFactory.
+   */
+  static Task createRemoteTask(
+      String taskId,
+      String remote,
+      UuidGenerator uuidGenerator,
+      TaskConfig config,
+      Database database)
+      throws TaskStorageException {
+
+    // Preflight
+    try {
+      Git.lsRemoteRepository().setRemote(remote).call();
+    } catch (GitAPIException e) {
+      throw new TaskStorageException("Unable to connect to remote repository", e);
+    }
+
+    return storeTask(taskId, remote, uuidGenerator, config, database);
+  }
+
+  private static Task storeTask(
+      String taskId,
+      String remote,
+      UuidGenerator uuidGenerator,
+      TaskConfig config,
+      Database database)
+      throws TaskStorageException {
+    TaskDefInfo info = new TaskDefInfo(taskId, null, null, null, false, remote);
+    TaskCopyBuilder testingBuilder =
+        TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config);
+    TaskCopyBuilder registeredBuilder =
+        TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config);
+    // Mark status as success so that we don't try to compile these
+    testingBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
+    registeredBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
+    try (TransactionQueryRunner q = database.getQueryRunner()) {
+      info.insert(q);
+      q.commit();
+      return new Task(
+          taskId,
+          info.getTaskDefLocation(config),
+          testingBuilder,
+          null,
+          registeredBuilder,
+          null,
+          false,
+          config,
+          uuidGenerator);
+    } catch (SQLException e) {
+      throw new TaskStorageException("Failed to store information about task " + taskId, e);
+    } catch (URISyntaxException e) {
+      throw new TaskStorageException("Failed to parse URI for task location", e);
     }
   }
 
@@ -233,6 +280,10 @@ public class Task {
 
   public boolean isRetired() {
     return retired.get();
+  }
+
+  public URI getTaskDefLocation() {
+    return taskDefLocation;
   }
 
   // *** END METHODS FOR MANAGING THE REGISTERED COPY OF THE TASK ***
@@ -286,7 +337,8 @@ public class Task {
           sha1 = getHeadSha();
         }
         registeredBuilder =
-            TaskCopyBuilder.createNew(sha1, taskId, uuidGenerator.generate(), config);
+            TaskCopyBuilder.createNew(
+                sha1, taskId, taskDefLocation, uuidGenerator.generate(), config);
 
         registeredBuilder.schedule(
             w,
@@ -372,12 +424,13 @@ public class Task {
         return testingBuilder.getBuilderInfo();
       }
 
-      LOG.info("Scheduling testing build for " + taskDefDir);
+      LOG.info("Scheduling testing build for " + taskDefLocation);
 
       try {
         String headSha = getHeadSha();
         testingBuilder =
-            TaskCopyBuilder.createNew(headSha, taskId, uuidGenerator.generate(), config);
+            TaskCopyBuilder.createNew(
+                headSha, taskId, taskDefLocation, uuidGenerator.generate(), config);
 
         testingBuilder.schedule(
             w,
@@ -438,12 +491,21 @@ public class Task {
    * @throws TaskStorageException if an error occurs trying to read the repo
    */
   public String getHeadSha() throws TaskStorageException {
-    try (Git g = Git.open(taskDefDir)) {
-      Ref r = g.getRepository().findRef(Constants.HEAD);
-      return r.getObjectId().getName();
-    } catch (IOException e) {
-      throw new TaskStorageException("Failed to read Git repository for " + taskDefDir, e);
+    try {
+      for (Ref r :
+          Git.lsRemoteRepository()
+              .setRemote(taskDefLocation.toString())
+              .setHeads(true)
+              .setTags(false)
+              .call()) {
+        if (r.getName().equals(Constants.R_HEADS + Constants.MASTER)) {
+          return r.getObjectId().getName();
+        }
+      }
+    } catch (GitAPIException e) {
+      throw new TaskStorageException("Failed to read Git repository for " + taskDefLocation, e);
     }
+    throw new TaskStorageException("Failed to find head reference");
   }
 
   /** Schedule the deletion of this taskcopy. */

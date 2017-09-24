@@ -24,10 +24,12 @@ import com.google.common.cache.LoadingCache;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
+import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
@@ -57,7 +59,8 @@ public class TaskFactory {
               });
 
   @Inject
-  public TaskFactory(TaskConfig config, Database database) throws IOException, GitAPIException {
+  public TaskFactory(TaskConfig config, Database database)
+      throws IOException, GitAPIException, SQLException {
     this.config = config;
     this.database = database;
     FileUtil.mkdir(config.getTaskDefinitionRoot());
@@ -68,6 +71,12 @@ public class TaskFactory {
             Stream.of(config.getTaskCopyRoot().listFiles()))
         .filter(f -> !f.getName().startsWith("."))
         .forEach(f -> uuidGenerator.reserve(f.getName()));
+
+    try (TransactionQueryRunner q = database.getQueryRunner()) {
+      for (String taskId : TaskDefInfo.getAllTaskIds(q)) {
+        uuidGenerator.reserve(taskId);
+      }
+    }
   }
 
   public Task getInstance(String taskId)
@@ -93,6 +102,21 @@ public class TaskFactory {
     try {
       return cache.get(
           newRepoId, () -> Task.createTask(newRepoId, uuidGenerator, config, database));
+    } catch (ExecutionException e) {
+      if (e.getCause() instanceof TaskStorageException) {
+        throw (TaskStorageException) e.getCause();
+      } else {
+        throw new Error(e);
+      }
+    }
+  }
+
+  public Task createRemoteInstance(String remote) throws TaskStorageException {
+    final String newTaskId = uuidGenerator.generate();
+    try {
+      return cache.get(
+          newTaskId,
+          () -> Task.createRemoteTask(newTaskId, remote, uuidGenerator, config, database));
     } catch (ExecutionException e) {
       if (e.getCause() instanceof TaskStorageException) {
         throw (TaskStorageException) e.getCause();

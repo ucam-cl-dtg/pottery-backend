@@ -19,6 +19,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import java.io.File;
+import java.net.URI;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -65,9 +66,8 @@ public class TaskCopyBuilder {
    * Instances of this class should be created by the Task object only. The task object has to
    * ensure that there is only one instance per copyId.
    */
-  private TaskCopyBuilder(String sha1, String taskId, String copyId, TaskConfig taskConfig) {
-    final File taskDefDir = taskConfig.getTaskDefinitionDir(taskId);
-
+  private TaskCopyBuilder(
+      String sha1, String taskId, URI taskDefLocation, String copyId, TaskConfig taskConfig) {
     // We know that noone else will have access to the TaskCopy until we are done
     // 1) our copyId is unique and Task ensures that there is only one instance of TaskCopyBuilder
     // for each copyId
@@ -85,7 +85,7 @@ public class TaskCopyBuilder {
               RepoFactory repoFactory,
               ContainerManager containerManager,
               Database database) {
-            return copyFiles(sha1, taskId, copyId, taskConfig, taskDefDir)
+            return copyFiles(sha1, taskId, copyId, taskConfig, taskDefLocation)
                 ? Job.STATUS_OK
                 : Job.STATUS_FAILED;
           }
@@ -104,9 +104,7 @@ public class TaskCopyBuilder {
               ContainerManager containerManager,
               Database database) {
             try {
-              return compileFiles(taskConfig, taskDefDir, containerManager)
-                  ? Job.STATUS_OK
-                  : Job.STATUS_FAILED;
+              return compileFiles(taskConfig, containerManager) ? Job.STATUS_OK : Job.STATUS_FAILED;
             } catch (ApiUnavailableException e) {
               LOG.warn("Docker API unavailable. Retrying", e);
               return Job.STATUS_RETRY;
@@ -121,14 +119,14 @@ public class TaskCopyBuilder {
   }
 
   static TaskCopyBuilder createNew(
-      String sha1, String taskId, String copyId, TaskConfig taskConfig) {
-    return new TaskCopyBuilder(sha1, taskId, copyId, taskConfig);
+      String sha1, String taskId, URI taskDefLocation, String copyId, TaskConfig taskConfig) {
+    return new TaskCopyBuilder(sha1, taskId, taskDefLocation, copyId, taskConfig);
   }
 
   static TaskCopyBuilder createForExisting(
-      String sha1, String taskId, String copyId, TaskConfig taskConfig)
+      String sha1, String taskId, URI taskDefLocation, String copyId, TaskConfig taskConfig)
       throws InvalidTaskSpecificationException, TaskCopyNotFoundException, TaskStorageException {
-    TaskCopyBuilder result = new TaskCopyBuilder(sha1, taskId, copyId, taskConfig);
+    TaskCopyBuilder result = new TaskCopyBuilder(sha1, taskId, taskDefLocation, copyId, taskConfig);
     if (taskConfig.getTaskCopyDir(copyId).exists()) {
       result.taskCopy = new TaskCopy(taskId, copyId, sha1, taskConfig);
       result.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
@@ -142,7 +140,7 @@ public class TaskCopyBuilder {
   /** Create a placeholder TaskCopyBuilder to represent that no TaskCopy has been built. */
   static TaskCopyBuilder createSuccessPlaceholder(
       String sha1, String taskId, TaskConfig taskConfig) {
-    TaskCopyBuilder result = new TaskCopyBuilder(sha1, taskId, null, taskConfig);
+    TaskCopyBuilder result = new TaskCopyBuilder(sha1, taskId, null, null, taskConfig);
     result.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
     return result;
   }
@@ -153,7 +151,7 @@ public class TaskCopyBuilder {
    */
   static TaskCopyBuilder createFailurePlaceholder(
       String taskId, TaskConfig taskConfig, Exception e) {
-    TaskCopyBuilder result = new TaskCopyBuilder("INVALID", taskId, null, taskConfig);
+    TaskCopyBuilder result = new TaskCopyBuilder("INVALID", taskId, null, null, taskConfig);
     result.builderInfo.setException(e);
     return result;
   }
@@ -190,23 +188,24 @@ public class TaskCopyBuilder {
   }
 
   private boolean copyFiles(
-      String sha1, String taskId, String copyId, TaskConfig taskConfig, final File taskDefDir) {
+      String sha1, String taskId, String copyId, TaskConfig taskConfig, final URI taskDefLocation) {
     // We are the only object writing to this directory (we have a unique id)
     // As many threads as you like can read from the bare git repo
     // Assignments to builderInfo are atomic
     // => No locks needed
 
     builderInfo.setStatus(BuilderInfo.STATUS_COPYING_FILES);
-    LOG.info("Copying files for {} into {}", taskDefDir, copyId);
+    LOG.info("Copying files for {} into {}", taskDefLocation, copyId);
     File location = taskConfig.getTaskCopyDir(copyId);
 
     // copy the files from the repo
-    try (Git g = Git.cloneRepository().setURI(taskDefDir.getPath()).setDirectory(location).call()) {
+    try (Git g =
+        Git.cloneRepository().setURI(taskDefLocation.toString()).setDirectory(location).call()) {
       g.reset().setMode(ResetType.HARD).setRef(sha1).call();
     } catch (GitAPIException e) {
       builderInfo.setException(
           new TaskStorageException(
-              "Failed to create clone of " + taskDefDir + " and reset to " + sha1, e));
+              "Failed to create clone of " + taskDefLocation + " and reset to " + sha1, e));
       return false;
     }
 
@@ -220,14 +219,13 @@ public class TaskCopyBuilder {
     return true;
   }
 
-  private boolean compileFiles(
-      TaskConfig taskConfig, final File taskDefDir, ContainerManager containerManager)
+  private boolean compileFiles(TaskConfig taskConfig, ContainerManager containerManager)
       throws ApiUnavailableException {
     String copyId = taskCopy.getCopyId();
-
-    LOG.info("Compiling tests for {} into {}", taskDefDir, copyId);
     TaskInfo taskInfo = taskCopy.getInfo();
     String image = taskInfo.getImage();
+
+    LOG.info("Compiling tests for task {} in {}", taskInfo.getTaskId(), copyId);
 
     builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TEST);
     ContainerExecResponse<String> r =
