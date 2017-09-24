@@ -18,12 +18,12 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -33,9 +33,6 @@ import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.RevertCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.JGitInternalException;
-import org.eclipse.jgit.errors.AmbiguousObjectException;
-import org.eclipse.jgit.errors.IncorrectObjectTypeException;
-import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.RevisionSyntaxException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
@@ -294,9 +291,8 @@ public class Repo {
     }
     synchronized (lockFields) {
       try {
-        Submission s = getSubmission(tag, db);
         // Means we've already scheduled (and possibly already run) the test for this tag
-        return s;
+        return getSubmission(tag, db);
       } catch (SubmissionNotFoundException e) {
         // Lets make one
       }
@@ -325,7 +321,7 @@ public class Repo {
               } catch (TaskNotFoundException e1) {
                 updateSubmission(
                     builder.setCompilationResponse("Task no longer available", false, 0));
-                return Job.STATUS_FAILED;
+                return STATUS_FAILED;
               }
               try (TaskCopy c =
                   usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
@@ -336,7 +332,7 @@ public class Repo {
                     updateSubmission(
                         builder.addErrorMessage(
                             "Failed to reset repository to requested tag (" + tag + ")"));
-                    return Job.STATUS_FAILED;
+                    return STATUS_FAILED;
                   }
 
                   File codeDir = repoTestingDirectory;
@@ -361,7 +357,7 @@ public class Repo {
                                 "Compilation failed, unable to contact the container API. "
                                     + "Retrying...")
                             .setRetry());
-                    return Job.STATUS_RETRY;
+                    return STATUS_RETRY;
                   }
                   updateSubmission(
                       builder.setCompilationResponse(
@@ -371,7 +367,7 @@ public class Repo {
                   if (!compilationResponse.isSuccess()) {
                     updateSubmission(
                         builder.addErrorMessage("Compilation failed, no tests were run"));
-                    return Job.STATUS_FAILED;
+                    return STATUS_FAILED;
                   }
 
                   updateSubmission(builder.setStatus(Submission.STATUS_HARNESS_RUNNING));
@@ -387,7 +383,7 @@ public class Repo {
                             .addErrorMessage(
                                 "Harness failed, unable to contact the container API. Retrying...")
                             .setRetry());
-                    return Job.STATUS_RETRY;
+                    return STATUS_RETRY;
                   }
                   updateSubmission(
                       builder.setHarnessResponse(
@@ -395,7 +391,7 @@ public class Repo {
                   updateSubmission(
                       builder.addErrorMessage(harnessResponse.getResponse().getErrorMessage()));
                   if (!harnessResponse.getResponse().isCompleted()) {
-                    return Job.STATUS_FAILED;
+                    return STATUS_FAILED;
                   }
 
                   updateSubmission(builder.setStatus(Submission.STATUS_VALIDATOR_RUNNING));
@@ -417,7 +413,7 @@ public class Repo {
                                 "Validation failed, unable to contact the container API. "
                                     + "Retrying...")
                             .setRetry());
-                    return Job.STATUS_RETRY;
+                    return STATUS_RETRY;
                   }
 
                   boolean acceptableFound = false;
@@ -447,13 +443,13 @@ public class Repo {
                           .setInterpretation(interpretation)
                           .addErrorMessage(validatorResponse.getResponse().getErrorMessage()));
                   if (!validatorResponse.getResponse().isCompleted()) {
-                    return Job.STATUS_FAILED;
+                    return STATUS_FAILED;
                   }
                 } catch (InterruptedException e) {
                   updateSubmission(
                       Submission.builder(repoId, tag)
                           .setCompilationResponse("Job was interrupted, retrying", false, 0));
-                  return Job.STATUS_RETRY;
+                  return STATUS_RETRY;
                 } finally {
                   builder.setComplete();
 
@@ -469,14 +465,14 @@ public class Repo {
                           Submission.builder(repoId, tag)
                               .addErrorMessage(
                                   "Failed to store result in database: " + e.getMessage()));
-                      return Job.STATUS_FAILED;
+                      return STATUS_FAILED;
                     }
                   }
                   updateSubmission(s);
                 }
               } catch (TaskNotFoundException e1) {
                 updateSubmission(builder.addErrorMessage("Task no longer available"));
-                return Job.STATUS_FAILED;
+                return STATUS_FAILED;
               }
               return Job.STATUS_OK;
             }
@@ -549,27 +545,27 @@ public class Repo {
    * @param tag the tag of interest
    * @return a list of file names relative to the root of the repository
    */
-  public List<String> listFiles(String tag) throws RepoStorageException, RepoTagNotFoundException {
+  public ImmutableList<String> listFiles(String tag)
+      throws RepoStorageException, RepoTagNotFoundException {
     try (AutoCloseableLock l = lock.takeFileReadingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository repo = git.getRepository();
         RevWalk revWalk = new RevWalk(repo);
 
-        List<String> result;
         try {
+          ImmutableList.Builder<String> builder = ImmutableList.builder();
           RevTree tree = getRevTree(tag, repo, revWalk);
           try (TreeWalk treeWalk = new TreeWalk(repo)) {
             treeWalk.addTree(tree);
             treeWalk.setRecursive(true);
-            result = new LinkedList<String>();
             while (treeWalk.next()) {
-              result.add(treeWalk.getPathString());
+              builder.add(treeWalk.getPathString());
             }
           }
           revWalk.dispose();
-          return result;
+          return builder.build();
         } catch (NoHeadInRepoException e) {
-          return new LinkedList<String>();
+          return ImmutableList.of();
         }
       } catch (IOException e) {
         throw new RepoStorageException(
@@ -844,9 +840,7 @@ public class Repo {
   }
 
   private RevTree getRevTree(String tag, Repository repo, RevWalk revWalk)
-      throws AmbiguousObjectException, IncorrectObjectTypeException, IOException,
-          RepoStorageException, MissingObjectException, NoHeadInRepoException,
-          RepoTagNotFoundException {
+      throws IOException, RepoStorageException, RepoTagNotFoundException {
     RevTree tree;
     try {
       ObjectId tagId =
