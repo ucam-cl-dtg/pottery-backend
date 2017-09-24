@@ -19,7 +19,7 @@ $(document).ready(
 		function() {
 
 			var submissionId = 0;
-			
+
 			var reportSuccess = function(result) {
 //				$("#assignmentsList pre").text(JSON.stringify(result,undefined,2));
 //				$("#error pre").text("");
@@ -50,7 +50,7 @@ $(document).ready(
 						});
 					});
 
-			
+
 			$("#listRetiredTasksButton").click(
 					function(e) {
 						e.preventDefault();
@@ -67,7 +67,7 @@ $(document).ready(
 						});
 					});
 
-			
+
 			$("#listTestingTasksButton").click(
 					function(e) {
 						e.preventDefault();
@@ -115,7 +115,7 @@ $(document).ready(
 							}
 						});
 					});
-			
+
 			$("#updateTestingTaskButton").click(
 					function(e) {
 						e.preventDefault();
@@ -147,7 +147,7 @@ $(document).ready(
 							}
 						});
 					});
-			
+
 			$("#registerTaskButton").click(
 					function(e) {
 						e.preventDefault();
@@ -196,8 +196,8 @@ $(document).ready(
 							}
 						});
 					});
-			
-			
+
+
 			$("#unretireTaskButton").click(
 					function(e) {
 						e.preventDefault();
@@ -214,9 +214,23 @@ $(document).ready(
 							}
 						});
 					});
-			
-			
-			
+
+			$("#createRemoteTaskForm").submit(function(event) {
+			  event.preventDefault();
+			  $.ajax({
+                  url: 'api/tasks/create_remote',
+                  type: 'POST',
+                  data: {"remote" : $("#remoteURI").val() },
+                  success : function(result) {
+                      reportSuccess(result);
+                      $("#taskId").val(result.taskId);
+                  },
+                  error : function(xhr,textStatus,errorThrown) {
+                      reportError(xhr);
+                  }
+              })
+            });
+
 			$("#startTaskForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
@@ -232,7 +246,7 @@ $(document).ready(
 					}
 				});
 
-				return false;				
+				return false;
 			});
 
 			$("#startTestingTaskForm").submit(function(event) {
@@ -250,9 +264,9 @@ $(document).ready(
 					}
 				});
 
-				return false;				
+				return false;
 			});
-			
+
 			$("#listRepoTags").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
@@ -266,9 +280,9 @@ $(document).ready(
 					}
 				});
 
-				return false;				
+				return false;
 			});
-			
+
 			$("#listRepo").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
@@ -282,9 +296,9 @@ $(document).ready(
 					}
 				});
 
-				return false;				
+				return false;
 			});
-			
+
 
 			$("#updateRepo").submit(function(event) {
 				event.preventDefault();
@@ -321,7 +335,7 @@ $(document).ready(
 					}
 				});
 
-				return false;				
+				return false;
 			});
 
 			$("#resetRepo").submit(function(event) {
@@ -337,7 +351,7 @@ $(document).ready(
 					}
 				});
 
-				return false;				
+				return false;
 			});
 
 			$("#readRepo").submit(function(event) {
@@ -353,9 +367,9 @@ $(document).ready(
 					}
 				});
 
-				return false;				
+				return false;
 			});
-			
+
 
 
 			$("#tagRepo").submit(function(event) {
@@ -372,7 +386,7 @@ $(document).ready(
 					}
 				});
 
-				return false;				
+				return false;
 			});
 
 			$("#requestTestForm").submit(function(event) {
@@ -387,7 +401,7 @@ $(document).ready(
 						reportError(xhr);
 					}
 				});
-				return false;				
+				return false;
 			});
 
 			$("#pollStatusForm").submit(function(event) {
@@ -402,10 +416,10 @@ $(document).ready(
 						reportError(xhr);
 					}
 				});
-				return false;				
+				return false;
 			});
 
-			
+
 			$("#setWorkersForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
@@ -418,10 +432,10 @@ $(document).ready(
 					error : function(xhr,textStatus,errorThrown) {
 						reportError(xhr);
 					}
-				});				
-				return false;				
+				});
+				return false;
 			});
-			
+
 			$("#getWorkQueueForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
@@ -434,7 +448,7 @@ $(document).ready(
 						reportError(xhr);
 					}
 				});
-				return false;				
+				return false;
 			});
 
 			$("#serverStatusForm").submit(function(event) {
@@ -449,10 +463,10 @@ $(document).ready(
 						reportError(xhr);
 					}
 				});
-				return false;				
+				return false;
 			});
 
-						
-			
-			
+
+
+
 		});
