@@ -18,12 +18,10 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.ResultSetHandler;
 import org.apache.commons.dbutils.handlers.BeanHandler;
 
 public class TaskDefInfo {
@@ -62,15 +60,12 @@ public class TaskDefInfo {
   public static List<String> getAllTaskIds(QueryRunner q) throws SQLException {
     return q.query(
         "Select taskId from tasks",
-        new ResultSetHandler<List<String>>() {
-          @Override
-          public List<String> handle(ResultSet rs) throws SQLException {
-            List<String> result = new ArrayList<String>();
-            while (rs.next()) {
-              result.add(rs.getString(1));
-            }
-            return result;
+        rs -> {
+          List<String> result = new ArrayList<>();
+          while (rs.next()) {
+            result.add(rs.getString(1));
           }
+          return result;
         });
   }
 
