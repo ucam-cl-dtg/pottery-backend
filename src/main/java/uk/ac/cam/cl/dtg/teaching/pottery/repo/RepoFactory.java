@@ -26,7 +26,6 @@ import com.google.inject.Singleton;
 import java.io.File;
 import java.io.IOException;
 import java.util.Date;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
@@ -43,7 +42,7 @@ public class RepoFactory {
 
   private Database database;
   private RepoConfig config;
-  // We need to ensure that only onle Repo object exists for any repoId so that
+  // We need to ensure that only one Repo object exists for any repoId so that
   // we guarantee mutual exclusion on the filesystem operations. So we cache created objects
   // here.
   private LoadingCache<String, Repo> cache =
@@ -76,14 +75,7 @@ public class RepoFactory {
     try {
       return cache.get(repoId);
     } catch (ExecutionException e) {
-      // this is thrown if an exception is thrown in the load method of the cache.
-      if (e.getCause() instanceof RepoStorageException) {
-        throw (RepoStorageException) e.getCause();
-      } else if (e.getCause() instanceof RepoNotFoundException) {
-        throw (RepoNotFoundException) e.getCause();
-      } else {
-        throw new Error(e);
-      }
+      unpackExecutionException(e);
     }
   }
 
@@ -93,21 +85,22 @@ public class RepoFactory {
     try {
       return cache.get(
           newRepoId,
-          new Callable<Repo>() {
-            @Override
-            public Repo call() throws Exception {
-              return Repo.createRepo(
-                  newRepoId, taskId, usingTestingVersion, expiryDate, config, database);
-            }
-          });
+          () ->
+              Repo.createRepo(
+                  newRepoId, taskId, usingTestingVersion, expiryDate, config, database));
     } catch (ExecutionException e) {
-      if (e.getCause() instanceof RepoStorageException) {
-        throw (RepoStorageException) e.getCause();
-      } else if (e.getCause() instanceof RepoNotFoundException) {
-        throw (RepoNotFoundException) e.getCause();
-      } else {
-        throw new Error(e);
-      }
+      unpackExecutionException(e);
+    }
+  }
+
+  private void unpackExecutionException(ExecutionException e)
+      throws RepoStorageException, RepoNotFoundException {
+    if (e.getCause() instanceof RepoStorageException) {
+      throw (RepoStorageException) e.getCause();
+    } else if (e.getCause() instanceof RepoNotFoundException) {
+      throw (RepoNotFoundException) e.getCause();
+    } else {
+      throw new Error(e);
     }
   }
 }
