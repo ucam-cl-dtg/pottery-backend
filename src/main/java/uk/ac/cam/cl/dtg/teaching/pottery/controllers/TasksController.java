@@ -94,6 +94,9 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
     return new TaskLocation(newTask.getTaskId(), uri);
   }
 
+  @Override
+  public TaskLocation createRemote() throws TaskStorageException {
+    return null;
   }
 
   @Override
