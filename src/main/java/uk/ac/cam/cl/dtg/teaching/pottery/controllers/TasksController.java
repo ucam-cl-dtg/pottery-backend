@@ -21,17 +21,9 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import com.wordnik.swagger.annotations.Api;
-import com.wordnik.swagger.annotations.ApiOperation;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
@@ -45,18 +37,12 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.BuilderInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskLocation;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
-@Produces("application/json")
-@Path("/tasks")
-@Api(
-  value = "/tasks",
-  description = "Manages the descriptions of the programming questions.",
-  position = 0
-)
 public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.TasksController {
 
   protected static final Logger LOG = LoggerFactory.getLogger(TasksController.class);
@@ -80,132 +66,71 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
   }
 
   @Override
-  @GET
-  @Path("/registered")
-  @ApiOperation(
-    value = "Lists all registered tasks",
-    response = TaskInfo.class,
-    responseContainer = "List",
-    position = 0
-  )
   public Collection<TaskInfo> listRegistered() {
     return taskIndex.getRegisteredTasks();
   }
 
   @Override
-  @GET
-  @Path("/")
-  @ApiOperation(
-    value = "List the ids of all tasks (not retired) that exist",
-    response = String.class,
-    responseContainer = "List"
-  )
   public Collection<String> listAll() {
     return taskIndex.getAllTasks();
   }
 
   @Override
-  @GET
-  @Path("/retired")
-  @ApiOperation(
-    value = "List the ids of all retired tasks",
-    response = String.class,
-    responseContainer = "List"
-  )
   public Collection<String> listRetired() {
     return taskIndex.getRetiredTasks();
   }
 
   @Override
-  @GET
-  @Path("/testing")
-  @ApiOperation(
-    value = "Lists all tasks with a testing version",
-    response = TaskInfo.class,
-    responseContainer = "List",
-    position = 0
-  )
   public Collection<TaskInfo> listTesting() {
     return taskIndex.getTestingTasks();
   }
 
   @Override
-  @POST
-  @Path("/create")
-  @ApiOperation(value = "Create a new task", response = TaskInfo.class)
-  public Response create(@Context UriInfo uriInfo) throws TaskStorageException {
+  public TaskLocation create(@Context UriInfo uriInfo) throws TaskStorageException {
     Task newTask = taskFactory.createInstance();
     taskIndex.add(newTask);
     String uri = uriInfo.getBaseUri().toString();
     uri = uri.replaceAll("/api/", "/git/" + newTask.getTaskId());
-    return Response.ok()
-        .entity(String.format("{\"taskId\":\"%s\",\"remote\":\"%s\"}", newTask.getTaskId(), uri))
-        .build();
+    return new TaskLocation(newTask.getTaskId(), uri);
+  }
+
   }
 
   @Override
-  @GET
-  @Path("/{taskId}")
-  @ApiOperation(value = "Returns information about a specific task", response = TaskInfo.class)
-  public TaskInfo getTask(@PathParam("taskId") String taskId) throws TaskNotFoundException {
+  public TaskInfo getTask(String taskId) throws TaskNotFoundException {
     return taskIndex.getTestingTaskInfo(taskId);
   }
 
   @Override
-  @POST
-  @Path("/{taskId}/retire")
-  @ApiOperation(value = "Mark a task as retired", response = TaskInfo.class)
-  public Response retireTask(@PathParam("taskId") String taskId)
+  public Response retireTask(String taskId)
       throws TaskNotFoundException, TaskStorageException, RetiredTaskException {
     taskIndex.getTask(taskId).setRetired(database);
     return Response.ok().entity("{\"message\":\"OK\"}").build();
   }
 
   @Override
-  @POST
-  @Path("/{taskId}/register")
-  @ApiOperation(
-    value =
-        "Registers (or updates the registered version) of a task. If sha1 is not specified then "
-            + "HEAD is used."
-  )
-  public BuilderInfo scheduleTaskRegistration(
-          @PathParam("taskId") String taskId, @FormParam("sha1") String sha1)
+  public BuilderInfo scheduleTaskRegistration(String taskId, String sha1)
       throws TaskNotFoundException, RetiredTaskException {
     return taskIndex.getTask(taskId).scheduleBuildRegisteredCopy(sha1, worker);
   }
 
   @Override
-  @GET
-  @Path("/{taskId}/registering_status")
-  @ApiOperation(value = "Polls the progress of the current registration process.")
-  public BuilderInfo pollTaskRegistraionStatus(@PathParam("taskId") String taskId)
-      throws TaskNotFoundException {
+  public BuilderInfo pollTaskRegistrationStatus(String taskId) throws TaskNotFoundException {
     return taskIndex.getTask(taskId).getRegisteredCopyBuilderInfo();
   }
 
   @Override
-  @POST
-  @Path("/{taskId}/update")
-  @ApiOperation(value = "Registers (or updates the testing version) of a task.")
-  public BuilderInfo scheduleTaskTesting(@PathParam("taskId") String taskId)
+  public BuilderInfo scheduleTaskTesting(String taskId)
       throws TaskNotFoundException, RetiredTaskException {
     return taskIndex.getTask(taskId).scheduleBuildTestingCopy(worker);
   }
 
   @Override
-  @GET
-  @Path("/{taskId}/update_status")
-  @ApiOperation(value = "Polls the progress of the current testing registration process.")
-  public BuilderInfo pollTaskTestingStatus(@PathParam("taskId") String taskId)
-      throws TaskNotFoundException {
+  public BuilderInfo pollTaskTestingStatus(String taskId) throws TaskNotFoundException {
     return taskIndex.getTask(taskId).getTestingCopyBuilderInfo();
   }
 
   @Override
-  @GET
-  @Path("/types")
-  @ApiOperation(value = "Lists defined task types and their description", position = 1)
   public Map<String, String> listTypes() {
     return ImmutableMap.<String, String>builder()
         .put(
@@ -246,9 +171,6 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
   }
 
   @Override
-  @GET
-  @Path("/criteria")
-  @ApiOperation(value = "Lists defined criteria and their description", position = 2)
   public List<Criterion> listCriteria() {
     try {
       return ImmutableList.<Criterion>builder()
@@ -270,9 +192,6 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
   }
 
   @Override
-  @GET
-  @Path("/languages")
-  @ApiOperation(value = "Lists the available programming languages", position = 3)
   public List<String> listLanguages() {
     return ImmutableList.of("java");
   }
