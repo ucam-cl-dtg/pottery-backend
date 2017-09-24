@@ -18,11 +18,22 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Files;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.SQLException;
+import java.util.Calendar;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.commons.io.Charsets;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -30,13 +41,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.InMemoryDatabase;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
@@ -48,6 +57,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
@@ -62,18 +73,6 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
-
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.sql.SQLException;
-import java.util.Calendar;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import static com.google.common.truth.Truth.assertThat;
 
 public class TestRepo {
 
@@ -116,7 +115,7 @@ public class TestRepo {
     this.testRootDir = Files.createTempDir();
     Database database = new InMemoryDatabase();
 
-    TaskConfig taskConfig = new TaskConfig(new File(testRootDir, "tasks"));
+    TaskConfig taskConfig = new TaskConfig(testRootDir.getPath());
     TaskFactory taskFactory = new TaskFactory(taskConfig, database);
     Task task = taskFactory.createInstance();
     String taskId = task.getTaskId();
@@ -181,12 +180,12 @@ public class TestRepo {
       g.push().call();
     }
 
-    ContainerManager containerManager = new ContainerManager(new ContainerEnvConfig());
+    ContainerManager containerManager =
+        new ContainerManager(new ContainerEnvConfig(testRootDir.getPath()));
 
     TaskIndex taskIndex = new TaskIndex(taskFactory, database);
     taskIndex.add(task);
-    RepoFactory repoFactory =
-        new RepoFactory(new RepoConfig(new File(testRootDir, "repos")), database);
+    RepoFactory repoFactory = new RepoFactory(new RepoConfig(testRootDir.getPath()), database);
     Worker w = new BlockingWorker(taskIndex, repoFactory, containerManager, database);
     task.scheduleBuildTestingCopy(w);
 
