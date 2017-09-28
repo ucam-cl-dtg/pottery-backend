@@ -75,7 +75,8 @@ public class RepoFactory {
     try {
       return cache.get(repoId);
     } catch (ExecutionException e) {
-      unpackExecutionException(e);
+      rethrowExecutionException(e);
+      throw new Error(e);
     }
   }
 
@@ -89,18 +90,17 @@ public class RepoFactory {
               Repo.createRepo(
                   newRepoId, taskId, usingTestingVersion, expiryDate, config, database));
     } catch (ExecutionException e) {
-      unpackExecutionException(e);
+      rethrowExecutionException(e);
+      throw new Error(e);
     }
   }
 
-  private void unpackExecutionException(ExecutionException e)
+  private void rethrowExecutionException(ExecutionException e)
       throws RepoStorageException, RepoNotFoundException {
     if (e.getCause() instanceof RepoStorageException) {
       throw (RepoStorageException) e.getCause();
     } else if (e.getCause() instanceof RepoNotFoundException) {
       throw (RepoNotFoundException) e.getCause();
-    } else {
-      throw new Error(e);
     }
   }
 }
