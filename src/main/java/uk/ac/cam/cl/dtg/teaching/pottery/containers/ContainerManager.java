@@ -89,7 +89,7 @@ public class ContainerManager implements Stoppable {
   public ContainerManager(ContainerEnvConfig config) throws IOException, ApiUnavailableException {
     this.config = config;
     this.scheduler = Executors.newSingleThreadScheduledExecutor();
-    FileUtil.mkdir(config.getLibRoot());
+    FileUtil.mkdirIfNotExists(config.getLibRoot());
   }
 
   public synchronized String getApiStatus() {

@@ -28,7 +28,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 
 public class FileUtil {
 
-  public static void mkdir(File dir) throws IOException {
+  public static void mkdirIfNotExists(File dir) throws IOException {
     if (!dir.exists()) {
       if (!dir.mkdirs()) {
         throw new IOException("Failed to create directory " + dir);
@@ -81,5 +81,35 @@ public class FileUtil {
       }
     } while ((descendant = descendant.getParentFile()) != null);
     return false;
+  }
+
+
+  public static AutoDelete mkdirWithAutoDelete(File dir) throws IOException {
+    if (!dir.mkdirs()) {
+      throw new IOException("Failed to create directory " + dir);
+    }
+    return new AutoDelete(dir);
+  }
+
+  public static class AutoDelete implements AutoCloseable {
+
+    private boolean persist;
+    private File parent;
+
+    AutoDelete(File parent) {
+      this.parent = parent;
+      this.persist = false;
+    }
+
+    public void persist() {
+      persist = true;
+    }
+
+    @Override
+    public void close() throws IOException {
+      if (!persist) {
+        FileUtil.deleteRecursive(parent);
+      }
+    }
   }
 }

@@ -60,8 +60,8 @@ public class RepoFactory {
   public RepoFactory(RepoConfig config, Database database) throws IOException {
     this.database = database;
     this.config = config;
-    FileUtil.mkdir(config.getRepoRoot());
-    FileUtil.mkdir(config.getRepoTestingRoot());
+    FileUtil.mkdirIfNotExists(config.getRepoRoot());
+    FileUtil.mkdirIfNotExists(config.getRepoTestingRoot());
     for (File f : config.getRepoRoot().listFiles()) {
       if (f.getName().startsWith(".")) {
         continue;

@@ -63,8 +63,8 @@ public class TaskFactory {
       throws IOException, GitAPIException, SQLException {
     this.config = config;
     this.database = database;
-    FileUtil.mkdir(config.getTaskDefinitionRoot());
-    FileUtil.mkdir(config.getTaskCopyRoot());
+    FileUtil.mkdirIfNotExists(config.getTaskDefinitionRoot());
+    FileUtil.mkdirIfNotExists(config.getTaskCopyRoot());
 
     Stream.concat(
             Stream.of(config.getTaskDefinitionRoot().listFiles()),
