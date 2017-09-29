@@ -42,7 +42,8 @@ public class RepoInfos {
 
   public static void insert(RepoInfo repoInfo, QueryRunner q) throws SQLException {
     q.update(
-        "INSERT INTO repos(repoid,taskid,using_testing_version,expiryDate, remote) values (?,?,?,?,?)",
+        "INSERT INTO repos(repoid,taskid,using_testing_version,expiryDate, remote) "
+            + "values (?,?,?,?,?)",
         repoInfo.getRepoId(),
         repoInfo.getTaskId(),
         repoInfo.isUsingTestingVersion(),
