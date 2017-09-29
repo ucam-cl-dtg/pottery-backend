@@ -197,23 +197,16 @@ public class Task {
 
     // create the task directory and clone the template
     File taskDefDir = config.getLocalTaskDefinitionDir(taskId);
-    try {
-      if (!taskDefDir.mkdir()) {
-        throw new TaskStorageException("Failed to create local definition directory");
-      }
+    try (FileUtil.AutoDelete createdDirectory = FileUtil.mkdirWithAutoDelete(taskDefDir)) {
       try {
         Git.init().setBare(true).setDirectory(taskDefDir).call().close();
       } catch (GitAPIException e) {
         throw new TaskStorageException("Failed to initialize git repository", e);
       }
+      createdDirectory.persist();
       return storeTask(taskId, "", uuidGenerator, config, database);
-    } catch (TaskStorageException e) {
-      try {
-        FileUtil.deleteRecursive(taskDefDir);
-      } catch (IOException e1) {
-        e.addSuppressed(e1);
-      }
-      throw e;
+    } catch (IOException e) {
+      throw new TaskStorageException("Failed to create local definition directory");
     }
   }
 

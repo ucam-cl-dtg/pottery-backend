@@ -59,6 +59,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Criterion;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
@@ -191,7 +192,7 @@ public class TestRepo {
 
     Calendar calendar = Calendar.getInstance();
     calendar.add(Calendar.YEAR, 10);
-    this.repo = repoFactory.createInstance(taskId, true, calendar.getTime());
+    this.repo = repoFactory.createInstance(taskId, true, calendar.getTime(), RepoInfo.REMOTE_UNSET);
     try (TaskCopy c = task.acquireTestingCopy()) {
       this.repo.copyFiles(c);
     }

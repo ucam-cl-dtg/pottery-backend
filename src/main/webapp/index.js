@@ -267,7 +267,27 @@ $(document).ready(
 				return false;
 			});
 
-			$("#listRepoTags").submit(function(event) {
+
+            $("#startRemoteTaskForm").submit(function(event) {
+                event.preventDefault();
+                $.ajax({
+                    url: 'api/repo/remote',
+                    type: 'POST',
+                    data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validity").val(),"remote":$("#repoRemote").val() },
+                    success: function (result) {
+                        reportSuccess(result);
+                        $("#repoId").val(result.repoId);
+                    },
+                    error : function(xhr,textStatus,errorThrown) {
+                        reportError(xhr);
+                    }
+                });
+
+                return false;
+            });
+
+
+            $("#listRepoTags").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
 					url: 'api/repo/'+$("#repoId").val(),

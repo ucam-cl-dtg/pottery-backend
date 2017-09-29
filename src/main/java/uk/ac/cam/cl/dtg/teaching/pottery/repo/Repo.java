@@ -76,15 +76,24 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessRespo
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Interpretation;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
+/**
+ * A repo represents the candidate's attempt at a task.
+ *
+ * <p>We store the local version of the repo in a directory in a non-bare git repo. File updates and
+ * tags etc. are made to this repo directly.
+ *
+ * <p>When we run the tests we make a clone of the repo directory at the specified tag so as to test
+ * in isolation of new changes
+ *
+ * <p>If there is a remote set then we don't store the local version but we do make a clone for each
+ * test. All the apis for listing the contents of the repo and changing it are disabled when we use
+ * a remote.
+ */
 public class Repo {
 
   protected static final Logger LOG = LoggerFactory.getLogger(Repo.class);
 
-  private final String repoId;
-
-  private final String taskId;
-
-  private final Date expiryDate;
+  private final RepoInfo repoInfo;
 
   /** The directory holding this repository. */
   private final File repoDirectory;
@@ -94,29 +103,22 @@ public class Repo {
   private final String webtagPrefix;
 
   /**
-   * Set to true if this repo is for the testing version of a task rather than the registered
-   * version.
-   */
-  private final boolean usingTestingVersion;
-  /**
    * If you are modifying the fields of this object then you should hold this lock. Do not hold this
    * lock whilst executing a long running task since there are api calls for polling these fields.
    */
   private final Object lockFields = new Object();
+
   /** Protects access to the git repo and working directory. */
   private final FourLevelLock lock = new FourLevelLock();
+
   /** A map of submissions that have been tested. Keys are tags. You can only have one per tag. */
   private ConcurrentHashMap<String, Submission> activeSubmissions;
 
-  private Repo(
-      String repoId, RepoConfig c, String taskId, boolean usingTestingVersion, Date expiryDate) {
-    this.repoId = repoId;
-    this.repoDirectory = c.getRepoDir(repoId);
-    this.repoTestingDirectory = c.getRepoTestingDir(repoId);
+  private Repo(RepoInfo repoInfo, RepoConfig c) {
+    this.repoInfo = repoInfo;
+    this.repoDirectory = c.getRepoDir(repoInfo.getRepoId());
+    this.repoTestingDirectory = c.getRepoTestingDir(repoInfo.getRepoId());
     this.webtagPrefix = c.getWebtagPrefix();
-    this.taskId = taskId;
-    this.usingTestingVersion = usingTestingVersion;
-    this.expiryDate = expiryDate;
     this.activeSubmissions = new ConcurrentHashMap<>();
   }
 
@@ -135,15 +137,13 @@ public class Repo {
 
     File repoDirectory = config.getRepoDir(repoId);
 
-    if (!repoDirectory.exists()) {
-      throw new RepoNotFoundException("Failed to find repository directory " + repoDirectory);
-    }
-
     try (TransactionQueryRunner q = database.getQueryRunner()) {
       RepoInfo r = RepoInfos.getByRepoId(repoId, q);
       if (r != null) {
-        return new Repo(
-            repoId, config, r.getTaskId(), r.isUsingTestingVersion(), r.getExpiryDate());
+        if (!r.getRemote().equals(RepoInfo.REMOTE_UNSET) && !repoDirectory.exists()) {
+          throw new RepoNotFoundException("Failed to find repository directory " + repoDirectory);
+        }
+        return new Repo(r, config);
       } else {
         throw new RepoNotFoundException(
             "Repository with ID " + repoId + " does not exist in database");
@@ -157,67 +157,48 @@ public class Repo {
   /**
    * Create a new repository and return an appropriate repo object. Use RepoFactory rather than
    * calling this method directly.
-   *
-   * @param repoId the ID of the repo to open
-   * @param taskId is the ID of the task to begin
-   * @param usingTestingVersion indicates if we should use the registered version of the task or the
-   *     testing version
-   * @param config server configuration
-   * @param database database connection
-   * @return a repo object for this repository
-   * @throws RepoStorageException if the repository couldn't be created
    */
-  static Repo createRepo(
-      String repoId,
-      String taskId,
-      boolean usingTestingVersion,
-      Date expiryDate,
-      RepoConfig config,
-      Database database)
+  static Repo createRepo(RepoInfo repoInfo, RepoConfig config, Database database)
       throws RepoStorageException {
 
-    File repoDirectory = config.getRepoDir(repoId);
-
-    if (!repoDirectory.mkdir()) {
-      throw new RepoStorageException("Failed to create repository directory " + repoDirectory);
-    }
-
-    try {
-      Git.init().setDirectory(repoDirectory).call().close();
-    } catch (GitAPIException e) {
-      RepoStorageException t = new RepoStorageException("Failed to initialise git repository", e);
+    if (repoInfo.isRemote()) {
       try {
-        FileUtil.deleteRecursive(repoDirectory);
-      } catch (IOException e1) {
-        t.addSuppressed(e1);
+        Git.lsRemoteRepository().setRemote(repoInfo.getRemote()).call();
+      } catch (GitAPIException e) {
+        throw new RepoStorageException("Failed to find remote repository", e);
       }
-      throw t;
-    }
-
-    RepoInfo r = new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate);
-
-    try (TransactionQueryRunner t = database.getQueryRunner()) {
-      RepoInfos.insert(r, t);
-      t.commit();
-    } catch (SQLException e) {
-      RepoStorageException t = new RepoStorageException("Failed to store repository details", e);
-      try {
-        FileUtil.deleteRecursive(repoDirectory);
-      } catch (IOException e1) {
-        t.addSuppressed(e1);
+      try (TransactionQueryRunner t = database.getQueryRunner()) {
+        RepoInfos.insert(repoInfo, t);
+        t.commit();
+      } catch (SQLException e) {
+        throw new RepoStorageException("Failed to store repository details", e);
       }
-      throw t;
+    } else {
+      File repoDirectory = config.getRepoDir(repoInfo.getRepoId());
+      try (FileUtil.AutoDelete createdDirectory = FileUtil.mkdirWithAutoDelete(repoDirectory)) {
+        try {
+          Git.init().setDirectory(repoDirectory).call().close();
+        } catch (GitAPIException e) {
+          throw new RepoStorageException("Failed to initialise git repository", e);
+        }
+        try (TransactionQueryRunner t = database.getQueryRunner()) {
+          RepoInfos.insert(repoInfo, t);
+          t.commit();
+        } catch (SQLException e) {
+          throw new RepoStorageException("Failed to store repository details", e);
+        }
+        createdDirectory.persist();
+      } catch (IOException e) {
+        throw new RepoStorageException("Failed to create repo directory", e);
+      }
     }
-
-    return new Repo(repoId, config, taskId, usingTestingVersion, expiryDate);
+    return new Repo(repoInfo, config);
   }
 
   /** Recursively copy all files from the given sourceLocation and add them to the repository. */
   public void copyFiles(TaskCopy task) throws RepoStorageException, RepoExpiredException {
-    if (isExpired()) {
-      throw new RepoExpiredException(
-          "This repository expired at " + expiryDate + " and is no longer editable");
-    }
+    throwIfRepoExpired();
+    throwIfRemote();
     try (AutoCloseableLock l = lock.takeFileWritingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         try {
@@ -260,10 +241,13 @@ public class Repo {
       }
     }
     try (TransactionQueryRunner q = database.getQueryRunner()) {
-      Submission s = Submissions.getByRepoIdAndTag(repoId, tag, q);
+      Submission s = Submissions.getByRepoIdAndTag(repoInfo.getRepoId(), tag, q);
       if (s == null) {
         throw new SubmissionNotFoundException(
-            "Failed to find a submission with tag " + tag + " on repository " + repoId);
+            "Failed to find a submission with tag "
+                + tag
+                + " on repository "
+                + repoInfo.getRepoId());
       }
       return s;
     } catch (SQLException e) {
@@ -285,10 +269,7 @@ public class Repo {
   public Submission scheduleSubmission(String tag, Worker w, Database db)
       throws RepoExpiredException, SubmissionStorageException, RepoTagNotFoundException,
           RepoStorageException {
-    if (isExpired()) {
-      throw new RepoExpiredException(
-          "This repository expired at " + expiryDate + " and is no longer editable");
-    }
+    throwIfRepoExpired();
     synchronized (lockFields) {
       try {
         // Means we've already scheduled (and possibly already run) the test for this tag
@@ -297,11 +278,7 @@ public class Repo {
         // Lets make one
       }
 
-      if (!existsTag(tag)) {
-        throw new RepoTagNotFoundException("Tag " + tag + " does not exist in repository");
-      }
-
-      Submission.Builder builder = Submission.builder(repoId, tag);
+      Submission.Builder builder = Submission.builder(repoInfo.getRepoId(), tag);
 
       Submission currentSubmission = builder.build();
       updateSubmission(currentSubmission);
@@ -317,14 +294,16 @@ public class Repo {
               updateSubmission(builder.setStarted());
               Task t;
               try {
-                t = taskIndex.getTask(taskId);
+                t = taskIndex.getTask(repoInfo.getTaskId());
               } catch (TaskNotFoundException e1) {
                 updateSubmission(
                     builder.setCompilationResponse("Task no longer available", false, 0));
                 return STATUS_FAILED;
               }
               try (TaskCopy c =
-                  usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
+                  repoInfo.isUsingTestingVersion()
+                      ? t.acquireTestingCopy()
+                      : t.acquireRegisteredCopy()) {
                 try (AutoCloseableLock l = lock.takeFileWritingLock()) {
                   try {
                     setVersionToTest(tag);
@@ -447,7 +426,7 @@ public class Repo {
                   }
                 } catch (InterruptedException e) {
                   updateSubmission(
-                      Submission.builder(repoId, tag)
+                      Submission.builder(repoInfo.getRepoId(), tag)
                           .setCompilationResponse("Job was interrupted, retrying", false, 0));
                   return STATUS_RETRY;
                 } finally {
@@ -462,7 +441,7 @@ public class Repo {
                       // This shouldn't happen, but if it does then we'll force
                       // an error message out to the user
                       updateSubmission(
-                          Submission.builder(repoId, tag)
+                          Submission.builder(repoInfo.getRepoId(), tag)
                               .addErrorMessage(
                                   "Failed to store result in database: " + e.getMessage()));
                       return STATUS_FAILED;
@@ -479,10 +458,24 @@ public class Repo {
 
             @Override
             public String getDescription() {
-              return "Testing submission " + repoId + ":" + tag;
+              return "Testing submission " + repoInfo.getRepoId() + ":" + tag;
             }
           });
       return currentSubmission;
+    }
+  }
+
+  private void throwIfRepoExpired() throws RepoExpiredException {
+    if (isExpired()) {
+      throw new RepoExpiredException(
+          "This repository expired at " + repoInfo.getExpiryDate() + " and is no longer editable");
+    }
+  }
+
+  private void throwIfRemote() throws RepoStorageException {
+    if (repoInfo.isRemote()) {
+      throw new RepoStorageException(
+          "This repository is remote and so cannot be accessed locally.");
     }
   }
 
@@ -507,11 +500,10 @@ public class Repo {
 
       try (Git g =
           Git.cloneRepository()
-              .setURI(repoDirectory.getPath())
+              .setURI(repoInfo.isRemote() ? repoInfo.getRemote() : repoDirectory.getPath())
               .setDirectory(repoTestingDirectory)
-              .setBranch(tag)
               .call()) {
-        // empty
+        g.checkout().setName(tag).call();
       } catch (GitAPIException e) {
         throw new RepoStorageException("Failed to clone repository", e);
       }
@@ -532,7 +524,8 @@ public class Repo {
       try (Git git = Git.open(repoDirectory)) {
         return git.getRepository().resolve(Constants.R_TAGS + tag) != null;
       } catch (IOException e) {
-        throw new RepoStorageException("Failed to lookup tag in repository " + repoId, e);
+        throw new RepoStorageException(
+            "Failed to lookup tag in repository " + repoInfo.getRepoId(), e);
       }
     } catch (InterruptedException e) {
       throw new RepoStorageException("Interrupted whilst waiting for git operation lock", e);
@@ -547,6 +540,7 @@ public class Repo {
    */
   public ImmutableList<String> listFiles(String tag)
       throws RepoStorageException, RepoTagNotFoundException {
+    throwIfRemote();
     try (AutoCloseableLock l = lock.takeFileReadingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository repo = git.getRepository();
@@ -569,7 +563,8 @@ public class Repo {
         }
       } catch (IOException e) {
         throw new RepoStorageException(
-            "Failed to access files in repository " + repoId + " under tag " + tag, e);
+            "Failed to access files in repository " + repoInfo.getRepoId() + " under tag " + tag,
+            e);
       }
     } catch (InterruptedException e) {
       throw new RepoStorageException("Interrupted whilst waiting for file reading lock", e);
@@ -582,10 +577,8 @@ public class Repo {
    * @return the name of the tag
    */
   public String createNewTag() throws RepoStorageException, RepoExpiredException {
-    if (isExpired()) {
-      throw new RepoExpiredException(
-          "This repository expired at " + expiryDate + " and is no longer editable");
-    }
+    throwIfRepoExpired();
+    throwIfRemote();
     try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
       try (Git git = Git.open(repoDirectory)) {
         List<Ref> tagList;
@@ -617,11 +610,12 @@ public class Repo {
         try {
           git.tag().setName(newTag).call();
         } catch (GitAPIException e) {
-          throw new RepoStorageException("Failed to apply tag " + newTag + " to repo " + repoId, e);
+          throw new RepoStorageException(
+              "Failed to apply tag " + newTag + " to repo " + repoInfo.getRepoId(), e);
         }
         return newTag;
       } catch (IOException e) {
-        throw new RepoStorageException("Failed to open repository " + repoId, e);
+        throw new RepoStorageException("Failed to open repository " + repoInfo.getRepoId(), e);
       }
     } catch (InterruptedException e) {
       throw new RepoStorageException("Interrupted whilst waiting for git operation lock", e);
@@ -635,6 +629,7 @@ public class Repo {
    * @throws RepoStorageException if something goes wrong
    */
   public List<String> listTags() throws RepoStorageException {
+    throwIfRemote();
     String prefix = Constants.R_TAGS + webtagPrefix;
     try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
       try (Git g = Git.open(repoDirectory)) {
@@ -660,16 +655,15 @@ public class Repo {
    */
   public void reset(String tag)
       throws RepoStorageException, RepoExpiredException, RepoTagNotFoundException {
-    if (isExpired()) {
-      throw new RepoExpiredException(
-          "This repository expired at " + expiryDate + " and is no longer editable");
-    }
+    throwIfRepoExpired();
+    throwIfRemote();
     try (AutoCloseableLock l = lock.takeFileWritingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository r = git.getRepository();
         Ref tagRef = r.findRef(tag);
         if (tagRef == null) {
-          throw new RepoTagNotFoundException("Tag " + tag + " not found in repository " + repoId);
+          throw new RepoTagNotFoundException(
+              "Tag " + tag + " not found in repository " + repoInfo.getRepoId());
         }
         Ref peeled = r.peel(tagRef);
         ObjectId tagObjectId = peeled != null ? peeled.getPeeledObjectId() : tagRef.getObjectId();
@@ -695,10 +689,8 @@ public class Repo {
    */
   public void deleteFile(String fileName)
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException {
-    if (isExpired()) {
-      throw new RepoExpiredException(
-          "This repository expired at " + expiryDate + " and is no longer editable");
-    }
+    throwIfRepoExpired();
+    throwIfRemote();
     try (AutoCloseableLock l = lock.takeFileWritingLock()) {
       File f = new File(repoDirectory, fileName);
       try {
@@ -732,7 +724,7 @@ public class Repo {
           }
         }
       } catch (IOException e) {
-        throw new RepoStorageException("Failed to open repository " + repoId, e);
+        throw new RepoStorageException("Failed to open repository " + repoInfo.getRepoId(), e);
       }
     } catch (InterruptedException e) {
       throw new RepoStorageException("Interrupted whilst waiting for file writing lock", e);
@@ -747,10 +739,8 @@ public class Repo {
    */
   public void updateFile(String fileName, byte[] data)
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException {
-    if (isExpired()) {
-      throw new RepoExpiredException(
-          "This repository expired at " + expiryDate + " and is no longer editable");
-    }
+    throwIfRepoExpired();
+    throwIfRemote();
     try (AutoCloseableLock l = lock.takeFileWritingLock()) {
       File f = new File(repoDirectory, fileName);
       try {
@@ -808,6 +798,7 @@ public class Repo {
    */
   public byte[] readFile(String tag, String fileName)
       throws RepoStorageException, RepoFileNotFoundException, RepoTagNotFoundException {
+    throwIfRemote();
     try (AutoCloseableLock l = lock.takeFileReadingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository repo = git.getRepository();
@@ -862,22 +853,22 @@ public class Repo {
   }
 
   public String getRepoId() {
-    return repoId;
+    return repoInfo.getRepoId();
   }
 
   public String getTaskId() {
-    return taskId;
+    return repoInfo.getTaskId();
   }
 
   public boolean isUsingTestingVersion() {
-    return usingTestingVersion;
+    return repoInfo.isUsingTestingVersion();
   }
 
   public RepoInfo toRepoInfo() {
-    return new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate);
+    return repoInfo;
   }
 
   public boolean isExpired() {
-    return new Date().after(expiryDate);
+    return new Date().after(repoInfo.getExpiryDate());
   }
 }

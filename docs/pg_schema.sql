@@ -42,6 +42,7 @@ CREATE TABLE repos (
     taskid character varying(255) NOT NULL,
     using_testing_version boolean DEFAULT true NOT NULL,
     expirydate timestamp with time zone
+    remote character varying(255) DEFAULT '' NOT NULL,
 );
 
 

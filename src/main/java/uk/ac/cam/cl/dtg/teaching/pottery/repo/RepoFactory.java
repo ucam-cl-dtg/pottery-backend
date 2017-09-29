@@ -33,6 +33,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 
 @Singleton
 public class RepoFactory {
@@ -80,7 +81,8 @@ public class RepoFactory {
     }
   }
 
-  public Repo createInstance(String taskId, boolean usingTestingVersion, Date expiryDate)
+  public Repo createInstance(
+      String taskId, boolean usingTestingVersion, Date expiryDate, String remote)
       throws RepoStorageException, RepoNotFoundException {
     final String newRepoId = uuidGenerator.generate();
     try {
@@ -88,7 +90,9 @@ public class RepoFactory {
           newRepoId,
           () ->
               Repo.createRepo(
-                  newRepoId, taskId, usingTestingVersion, expiryDate, config, database));
+                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate, remote),
+                  config,
+                  database));
     } catch (ExecutionException e) {
       rethrowExecutionException(e);
       throw new Error(e);

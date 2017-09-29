@@ -61,7 +61,8 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public RepoInfo makeRepo(String taskId, Boolean usingTestingVersion, Integer validityMinutes)
+  public RepoInfo makeRemoteRepo(
+      String taskId, Boolean usingTestingVersion, Integer validityMinutes, String remote)
       throws TaskNotFoundException, RepoExpiredException, RepoStorageException,
           RetiredTaskException, RepoNotFoundException {
     if (taskId == null) {
@@ -73,6 +74,9 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
     if (validityMinutes == null) {
       validityMinutes = 60;
     }
+    if (remote == null) {
+      throw new TaskNotFoundException("No remote specified");
+    }
     Calendar cal = Calendar.getInstance();
     cal.add(Calendar.MINUTE, validityMinutes);
     Date expiryDate = cal.getTime();
@@ -81,10 +85,20 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       throw new RetiredTaskException("Cannot start a new repository for task " + taskId);
     }
     try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
-      Repo r = repoFactory.createInstance(taskId, usingTestingVersion, expiryDate);
-      r.copyFiles(c);
-      return r.toRepoInfo();
+      Repo r = repoFactory.createInstance(taskId, usingTestingVersion, expiryDate, remote);
+      RepoInfo info = r.toRepoInfo();
+      if (!info.isRemote()) {
+        r.copyFiles(c);
+      }
+      return info;
     }
+  }
+
+  @Override
+  public RepoInfo makeRepo(String taskId, Boolean usingTestingVersion, Integer validityMinutes)
+      throws TaskNotFoundException, RepoExpiredException, RepoNotFoundException,
+          RetiredTaskException, RepoStorageException {
+    return makeRemoteRepo(taskId, usingTestingVersion, validityMinutes, RepoInfo.REMOTE_UNSET);
   }
 
   @Override

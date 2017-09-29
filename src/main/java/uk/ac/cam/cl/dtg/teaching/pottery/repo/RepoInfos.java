@@ -18,24 +18,35 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
+import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.handlers.BeanHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 
 public class RepoInfos {
   public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
     return q.query(
-        "SELECT * from repos where repoid=?", new BeanHandler<RepoInfo>(RepoInfo.class), repoId);
+        "SELECT repoid,taskid,using_testing_version,expiryDate,remote from repos where repoid=?",
+        rs -> {
+          rs.next();
+          return new RepoInfo(
+              rs.getString(1),
+              rs.getString(2),
+              rs.getBoolean(3),
+              new Date(rs.getTimestamp(4).getTime()),
+              rs.getString(5));
+        },
+        repoId);
   }
 
   public static void insert(RepoInfo repoInfo, QueryRunner q) throws SQLException {
     q.update(
-        "INSERT INTO repos(repoid,taskid,using_testing_version,expiryDate) values (?,?,?,?)",
+        "INSERT INTO repos(repoid,taskid,using_testing_version,expiryDate, remote) values (?,?,?,?,?)",
         repoInfo.getRepoId(),
         repoInfo.getTaskId(),
         repoInfo.isUsingTestingVersion(),
-        new Timestamp(repoInfo.getExpiryDate().getTime()));
+        new Timestamp(repoInfo.getExpiryDate().getTime()),
+        repoInfo.getRemote());
   }
 }
