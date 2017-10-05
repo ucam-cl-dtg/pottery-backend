@@ -21,33 +21,19 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Files;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.sql.SQLException;
-import java.util.Calendar;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.apache.commons.io.Charsets;
-import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
-import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
-import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
-import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.database.InMemoryDatabase;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
@@ -57,54 +43,13 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Criterion;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
-import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskInfos;
-import uk.ac.cam.cl.dtg.teaching.pottery.worker.BlockingWorker;
-import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 public class TestRepo {
 
   private File testRootDir;
   private Repo repo;
-
-  private static String getScriptContents(Object toPrint) throws JsonProcessingException {
-    return ImmutableList.of(
-            "#!/bin/bash",
-            "",
-            "cat <<EOF",
-            new ObjectMapper().writer().writeValueAsString(toPrint),
-            "EOF")
-        .stream()
-        .collect(Collectors.joining("\n"));
-  }
-
-  private static void mkJsonPrintingScript(File root, String fileName, Object toPrint, Git git)
-      throws IOException, GitAPIException {
-    File file = new File(root, fileName);
-    if (!file.getParentFile().exists() && !file.getParentFile().mkdirs()) {
-      throw new IOException("Failed to create " + file.getParent());
-    }
-    try (PrintWriter w = new PrintWriter(new FileWriter(file))) {
-      w.print(getScriptContents(toPrint));
-    }
-    if (!file.setExecutable(true)) {
-      throw new IOException("Failed to chmod " + fileName);
-    }
-    git.add().addFilepattern(fileName).call();
-  }
 
   /** Configure the test environment. */
   @Before
@@ -114,88 +59,10 @@ public class TestRepo {
           RetiredTaskException, RepoExpiredException, RepoNotFoundException, RepoStorageException {
 
     this.testRootDir = Files.createTempDir();
-    Database database = new InMemoryDatabase();
+    TestEnvironment testEnvironment = new TestEnvironment(testRootDir.getPath());
 
-    TaskConfig taskConfig = new TaskConfig(testRootDir.getPath());
-    TaskFactory taskFactory = new TaskFactory(taskConfig, database);
-    Task task = taskFactory.createInstance();
-    String taskId = task.getTaskId();
-
-    File copyRoot = new File(testRootDir, taskId + "-clone");
-    if (!copyRoot.mkdirs()) {
-      throw new IOException("Failed to create " + copyRoot);
-    }
-
-    try (Git g =
-        Git.cloneRepository()
-            .setURI(task.getTaskDefLocation().toString())
-            .setDirectory(copyRoot)
-            .call()) {
-
-      mkJsonPrintingScript(copyRoot, "compile-test.sh", "Compiling test", g);
-
-      mkJsonPrintingScript(copyRoot, "compile/compile-solution.sh", "Compiling solution", g);
-
-      mkJsonPrintingScript(
-          copyRoot,
-          "harness/run-harness.sh",
-          new HarnessResponse(
-              new LinkedList<>(
-                  ImmutableList.of(
-                      new HarnessPart(
-                          "A no-op task",
-                          ImmutableList.of("Doing nothing"),
-                          ImmutableList.of(new Measurement("correctness", "true", "id")),
-                          null,
-                          null))),
-              true),
-          g);
-
-      mkJsonPrintingScript(copyRoot, "skeleton/skeleton.sh", "Skeleton", g);
-
-      TaskInfo i =
-          new TaskInfo(
-              TaskInfo.TYPE_ALGORITHM,
-              "Empty task",
-              ImmutableSet.of(new Criterion("correctness")),
-              "template:java",
-              "easy",
-              0,
-              "java",
-              "Empty task",
-              ContainerRestrictions.candidateRestriction(null),
-              ContainerRestrictions.candidateRestriction(null),
-              ContainerRestrictions.candidateRestriction(null),
-              ContainerRestrictions.authorRestriction(null),
-              ImmutableList.of());
-      TaskInfos.save(i, copyRoot);
-      g.add().addFilepattern("task.json").call();
-
-      mkJsonPrintingScript(
-          copyRoot,
-          "validator/run-validator.sh",
-          new ValidatorResponse(true, null, ImmutableList.of(), null),
-          g);
-
-      g.commit().setMessage("Empty task").call();
-      g.push().call();
-    }
-
-    ContainerManager containerManager =
-        new ContainerManager(new ContainerEnvConfig(testRootDir.getPath()));
-
-    TaskIndex taskIndex = new TaskIndex(taskFactory, database);
-    taskIndex.add(task);
-    RepoFactory repoFactory = new RepoFactory(new RepoConfig(testRootDir.getPath()), database);
-    Worker w = new BlockingWorker(taskIndex, repoFactory, containerManager, database);
-    task.scheduleBuildTestingCopy(w);
-
-    Calendar calendar = Calendar.getInstance();
-    calendar.add(Calendar.YEAR, 10);
-    this.repo = repoFactory.createInstance(taskId, true, calendar.getTime(), RepoInfo.REMOTE_UNSET);
-    try (TaskCopy c = task.acquireTestingCopy()) {
-      this.repo.copyFiles(c);
-    }
+    Task task = testEnvironment.createNoOpTask();
+    this.repo = testEnvironment.createRepo(task);
   }
 
   @After
@@ -210,7 +77,7 @@ public class TestRepo {
           RepoFileNotFoundException, RepoTagNotFoundException, JsonProcessingException {
 
     // ARRANGE
-    String expectedContents = getScriptContents("Skeleton");
+    String expectedContents = TestEnvironment.getScriptContents("Skeleton");
 
     // ACT
     byte[] fileContents = repo.readFile("HEAD", "skeleton.sh");
