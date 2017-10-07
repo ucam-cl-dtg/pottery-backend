@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
@@ -33,6 +34,7 @@ import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.RevertCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.JGitInternalException;
+import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.eclipse.jgit.errors.RevisionSyntaxException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
@@ -270,6 +272,11 @@ public class Repo {
       throws RepoExpiredException, SubmissionStorageException, RepoTagNotFoundException,
           RepoStorageException {
     throwIfRepoExpired();
+
+    if (tag.equals("HEAD")) {
+      return scheduleSubmission(resolveHeadSha(), w, db);
+    }
+
     synchronized (lockFields) {
       try {
         // Means we've already scheduled (and possibly already run) the test for this tag
@@ -462,6 +469,23 @@ public class Repo {
             }
           });
       return currentSubmission;
+    }
+  }
+
+  public String resolveHeadSha() throws RepoStorageException {
+    try {
+      return Git.lsRemoteRepository()
+          .setRemote(repoInfo.isRemote() ? repoInfo.getRemote() : repoDirectory.getPath())
+          .setHeads(true)
+          .call()
+          .stream()
+          .filter(ref -> ref.getName().equals("HEAD"))
+          .map(Ref::getObjectId)
+          .map(Object::toString)
+          .findFirst()
+          .orElseThrow(() -> new RefNotFoundException("Failed to find reference named HEAD"));
+    } catch (GitAPIException e) {
+      throw new RepoStorageException("Failed to resolve SHA1 for HEAD", e);
     }
   }
 

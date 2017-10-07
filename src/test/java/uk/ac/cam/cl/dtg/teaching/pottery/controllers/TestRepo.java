@@ -27,8 +27,11 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
+
 import org.apache.commons.io.Charsets;
+import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.revwalk.RevCommit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -50,6 +53,7 @@ public class TestRepo {
 
   private File testRootDir;
   private Repo repo;
+  private TestEnvironment testEnvironment;
 
   /** Configure the test environment. */
   @Before
@@ -59,7 +63,7 @@ public class TestRepo {
           RetiredTaskException, RepoExpiredException, RepoNotFoundException, RepoStorageException {
 
     this.testRootDir = Files.createTempDir();
-    TestEnvironment testEnvironment = new TestEnvironment(testRootDir.getPath());
+    this.testEnvironment = new TestEnvironment(testRootDir.getPath());
 
     Task task = testEnvironment.createNoOpTask();
     this.repo = testEnvironment.createRepo(task);
@@ -124,5 +128,26 @@ public class TestRepo {
 
     // ASSERT
     assertThat(readContents).isEqualTo(updatedContents);
+  }
+
+  @Test
+  public void resolveHeadSha_findsCorrectValue()
+      throws IOException, GitAPIException, RepoStorageException {
+
+    // ARRANGE
+    String headSha;
+    File repoDir = testEnvironment.getRepoConfig().getRepoDir(repo.getRepoId());
+    try (Git g = Git.open(repoDir)) {
+      Files.write(new byte[] {0}, new File(repoDir, "text.txt"));
+      g.add().addFilepattern("test.txt").call();
+      RevCommit commit = g.commit().call();
+      headSha = commit.getName();
+    }
+
+    // ACT
+    String foundSha = repo.resolveHeadSha();
+
+    // ASSERT
+    assertThat(foundSha).isEqualTo(headSha);
   }
 }

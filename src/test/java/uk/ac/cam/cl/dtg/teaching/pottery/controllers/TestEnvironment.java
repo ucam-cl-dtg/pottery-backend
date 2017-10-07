@@ -74,6 +74,7 @@ public class TestEnvironment {
   private final RepoFactory repoFactory;
   private final TaskIndex taskIndex;
   private final Worker worker;
+  private final RepoConfig repoConfig;
 
   public TestEnvironment(String testRootDir)
       throws GitAPIException, SQLException, IOException, ApiUnavailableException,
@@ -83,9 +84,14 @@ public class TestEnvironment {
     this.taskConfig = new TaskConfig(testRootDir);
     this.taskFactory = new TaskFactory(taskConfig, database);
     this.containerManager = new ContainerManager(new ContainerEnvConfig(testRootDir));
-    this.repoFactory = new RepoFactory(new RepoConfig(testRootDir), database);
+    this.repoConfig = new RepoConfig(testRootDir);
+    this.repoFactory = new RepoFactory(repoConfig, database);
     this.taskIndex = new TaskIndex(taskFactory, database);
     this.worker = new BlockingWorker(taskIndex, repoFactory, containerManager, database);
+  }
+
+  RepoConfig getRepoConfig() {
+    return repoConfig;
   }
 
   Repo createRepo(Task task)
