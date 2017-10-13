@@ -31,6 +31,7 @@ import com.wordnik.swagger.jaxrs.listing.ApiListingResource;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResourceJSON;
 import com.wordnik.swagger.jaxrs.listing.ResourceListingProvider;
 import java.util.Enumeration;
+import java.util.Properties;
 import javax.annotation.PreDestroy;
 import javax.inject.Singleton;
 import javax.servlet.ServletContext;
@@ -120,6 +121,9 @@ public class ApplicationModule implements Module {
             JSch defaultJSch = super.createDefaultJSch(fs);
             defaultJSch.removeAllIdentity();
             defaultJSch.addIdentity(context.getInitParameter("sshPrivateKey"));
+            Properties config = new Properties();
+            config.put("StrictHostKeyChecking", "no");
+            defaultJSch.setConfig(config);
             return defaultJSch;
           }
         });
