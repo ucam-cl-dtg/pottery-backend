@@ -117,13 +117,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       throws RepoStorageException, RepoFileNotFoundException, RepoNotFoundException,
           RepoTagNotFoundException {
     byte[] result = repoFactory.getInstance(repoId).readFile(tag, fileName);
-    StreamingOutput s =
-        new StreamingOutput() {
-          @Override
-          public void write(OutputStream output) throws IOException, WebApplicationException {
-            output.write(result);
-          }
-        };
+    StreamingOutput s = output -> output.write(result);
     return Response.ok(s, MediaType.APPLICATION_OCTET_STREAM).build();
   }
 
