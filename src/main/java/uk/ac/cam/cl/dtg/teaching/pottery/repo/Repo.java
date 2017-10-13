@@ -142,7 +142,7 @@ public class Repo {
     try (TransactionQueryRunner q = database.getQueryRunner()) {
       RepoInfo r = RepoInfos.getByRepoId(repoId, q);
       if (r != null) {
-        if (!r.getRemote().equals(RepoInfo.REMOTE_UNSET) && !repoDirectory.exists()) {
+        if (r.getRemote().equals(RepoInfo.REMOTE_UNSET) && !repoDirectory.exists()) {
           throw new RepoNotFoundException("Failed to find repository directory " + repoDirectory);
         }
         return new Repo(r, config);
