@@ -78,7 +78,11 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       throw new TaskNotFoundException("No remote specified");
     }
     Calendar cal = Calendar.getInstance();
-    cal.add(Calendar.MINUTE, validityMinutes);
+    if (validityMinutes == -1) {
+      cal.add(Calendar.YEAR, 1000);
+    } else {
+      cal.add(Calendar.MINUTE, validityMinutes);
+    }
     Date expiryDate = cal.getTime();
     Task t = taskIndex.getTask(taskId);
     if (t.isRetired()) {
