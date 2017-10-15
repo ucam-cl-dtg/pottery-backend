@@ -20,6 +20,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.File;
@@ -29,7 +30,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
@@ -43,7 +43,6 @@ import java.util.function.Function;
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.ac.cam.cl.dtg.teaching.docker.ApiListener;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerPatch;
@@ -61,6 +60,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
+import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
@@ -105,20 +105,16 @@ public class ContainerManager implements Stoppable {
       DockerApi docker =
           new Docker("localhost", 2375, 1)
               .api(
-                  new ApiListener() {
-                    @Override
-                    public void callCompleted(
-                        boolean apiAvailable, long timeTaken, String methodName) {
-                      synchronized (ContainerManager.this) {
-                        smoothedCallTime =
-                            (timeTaken >> 3) + smoothedCallTime - (smoothedCallTime >> 3);
-                        if (!apiAvailable) {
-                          apiStatus = "FAILED";
-                        } else if (smoothedCallTime > 1000) {
-                          apiStatus = "SLOW_RESPONSE_TIME";
-                        } else {
-                          apiStatus = "OK";
-                        }
+                  (apiAvailable, timeTaken, methodName) -> {
+                    synchronized (ContainerManager.this) {
+                      smoothedCallTime =
+                          (timeTaken >> 3) + smoothedCallTime - (smoothedCallTime >> 3);
+                      if (!apiAvailable) {
+                        apiStatus = "FAILED";
+                      } else if (smoothedCallTime > 1000) {
+                        apiStatus = "SLOW_RESPONSE_TIME";
+                      } else {
+                        apiStatus = "OK";
                       }
                     }
                   });
@@ -178,7 +174,7 @@ public class ContainerManager implements Stoppable {
     }
   }
 
-  public <T> ContainerExecResponse<T> exec_container(
+  private <T> ContainerExecResponse<T> exec_container(
       ContainerManager.PathPair[] mapping,
       String[] command,
       String imageName,
@@ -194,56 +190,27 @@ public class ContainerManager implements Stoppable {
 
     long startTime = System.currentTimeMillis();
     try {
-      ContainerConfig config = new ContainerConfig();
-      config.setOpenStdin(true);
-      config.setEnv(Arrays.asList("LOCAL_USER_ID=" + this.config.getUid()));
-      config.setCmd(Arrays.asList(command));
-      config.setImage(imageName);
-      config.setNetworkDisabled(restrictions.isNetworkDisabled());
-      ContainerHostConfig hc = new ContainerHostConfig();
-      hc.setMemory(restrictions.getRamLimitMegabytes() * 1024 * 1024);
-      hc.setMemorySwap(hc.getMemory()); // disable swap
-      String[] binds = new String[mapping.length];
-      for (int i = 0; i < mapping.length; ++i) {
-        LOG.debug(
-            "Added mapping {} -> {} readWrite:{}",
-            mapping[i].getHost().getPath(),
-            mapping[i].getContainer().getPath(),
-            mapping[i].isReadWrite());
-        binds[i] =
-            DockerUtil.bind(
-                mapping[i].getHost(), mapping[i].getContainer(), !mapping[i].isReadWrite());
-      }
-      hc.setBinds(Arrays.asList(binds));
-      config.setHostConfig(hc);
-      Map<String, Map<String, String>> volumes = new HashMap<String, Map<String, String>>();
-      for (ContainerManager.PathPair p : mapping) {
-        volumes.put(p.getContainer().getPath(), new HashMap<String, String>());
-      }
-      config.setVolumes(volumes);
+      ContainerConfig config = buildContainerConfig(mapping, command, imageName, restrictions);
       ContainerResponse response = docker.createContainer(containerName, config);
       final String containerId = response.getId();
       runningContainers.add(containerId);
       try {
         docker.startContainer(containerId);
         StringBuffer output = new StringBuffer();
-        AttachListener l = new AttachListener(output, stdin);
+        AttachListener attachListener = new AttachListener(output, stdin);
 
         ScheduledFuture<Boolean> timeoutKiller = null;
         if (restrictions.getTimeoutSec() > 0) {
           timeoutKiller =
               scheduler.schedule(
-                  new Callable<Boolean>() {
-                    @Override
-                    public Boolean call() throws Exception {
-                      try {
-                        DockerUtil.killContainer(containerId, docker);
-                        l.notifyClose();
-                        return true;
-                      } catch (RuntimeException e) {
-                        LOG.error("Caught exception killing container", e);
-                        return false;
-                      }
+                  () -> {
+                    try {
+                      DockerUtil.killContainer(containerId, docker);
+                      attachListener.notifyClose();
+                      return true;
+                    } catch (RuntimeException e) {
+                      LOG.error("Caught exception killing container", e);
+                      return false;
                     }
                   },
                   restrictions.getTimeoutSec() * timeoutMultiplier.get(),
@@ -252,11 +219,15 @@ public class ContainerManager implements Stoppable {
 
         DiskUsageKiller diskUsageKiller =
             new DiskUsageKiller(
-                containerId, docker, restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024, l);
+                containerId,
+                docker,
+                restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024,
+                attachListener);
         ScheduledFuture<?> diskUsageKillerFuture =
             scheduler.scheduleAtFixedRate(diskUsageKiller, 10L, 10L, TimeUnit.SECONDS);
         try {
-          Future<Session> session = docker.attach(containerId, true, true, true, true, true, l);
+          Future<Session> session =
+              docker.attach(containerId, true, true, true, true, true, attachListener);
 
           // Wait for container to finish (or be killed)
           boolean success = false;
@@ -265,7 +236,7 @@ public class ContainerManager implements Stoppable {
 
           while (!closed) {
             try {
-              closed = l.waitForClose(60 * 1000);
+              closed = attachListener.waitForClose(60 * 1000);
             } catch (InterruptedException e) {
               // ignore
             }
@@ -341,6 +312,38 @@ public class ContainerManager implements Stoppable {
     }
   }
 
+  private ContainerConfig buildContainerConfig(
+      PathPair[] mapping, String[] command, String imageName, ContainerRestrictions restrictions) {
+    ContainerConfig config = new ContainerConfig();
+    config.setOpenStdin(true);
+    config.setEnv(ImmutableList.of("LOCAL_USER_ID=" + this.config.getUid()));
+    config.setCmd(Arrays.asList(command));
+    config.setImage(imageName);
+    config.setNetworkDisabled(restrictions.isNetworkDisabled());
+    ContainerHostConfig hc = new ContainerHostConfig();
+    hc.setMemory(restrictions.getRamLimitMegabytes() * 1024 * 1024);
+    hc.setMemorySwap(hc.getMemory()); // disable swap
+    String[] binds = new String[mapping.length];
+    for (int i = 0; i < mapping.length; ++i) {
+      LOG.debug(
+          "Added mapping {} -> {} readWrite:{}",
+          mapping[i].getHost().getPath(),
+          mapping[i].getContainer().getPath(),
+          mapping[i].isReadWrite());
+      binds[i] =
+          DockerUtil.bind(
+              mapping[i].getHost(), mapping[i].getContainer(), !mapping[i].isReadWrite());
+    }
+    hc.setBinds(Arrays.asList(binds));
+    config.setHostConfig(hc);
+    Map<String, Map<String, String>> volumes = new HashMap<>();
+    for (PathPair p : mapping) {
+      volumes.put(p.getContainer().getPath(), new HashMap<>());
+    }
+    config.setVolumes(volumes);
+    return config;
+  }
+
   public ContainerExecResponse<String> execTaskCompilation(
       File taskDirHost, String imageName, ContainerRestrictions restrictions)
       throws ApiUnavailableException {
@@ -397,19 +400,16 @@ public class ContainerManager implements Stoppable {
           imageName,
           null,
           restrictions,
-          new Function<String, HarnessResponse>() {
-            @Override
-            public HarnessResponse apply(String t) {
-              try {
-                ObjectMapper o = new ObjectMapper();
-                return o.readValue(t, HarnessResponse.class);
-              } catch (IOException e) {
-                return new HarnessResponse(
-                    "Failed to deserialise response from harness: "
-                        + e.getMessage()
-                        + ". Response was "
-                        + t);
-              }
+          t -> {
+            try {
+              ObjectMapper o = new ObjectMapper();
+              return o.readValue(t, HarnessResponse.class);
+            } catch (IOException e) {
+              return new HarnessResponse(
+                  "Failed to deserialise response from harness: "
+                      + e.getMessage()
+                      + ". Response was "
+                      + t);
             }
           });
     } catch (ContainerExecutionException e) {
@@ -429,7 +429,7 @@ public class ContainerManager implements Stoppable {
         harnessResponse
             .getTestParts()
             .stream()
-            .map(p -> p.getMeasurements())
+            .map(HarnessPart::getMeasurements)
             .collect(ArrayList::new, ArrayList::addAll, ArrayList::addAll);
     String stdin;
     try {
@@ -452,19 +452,16 @@ public class ContainerManager implements Stoppable {
           imageName,
           stdin,
           restrictions,
-          new Function<String, ValidatorResponse>() {
-            @Override
-            public ValidatorResponse apply(String t) {
-              try {
-                ObjectMapper o = new ObjectMapper();
-                return o.readValue(t, ValidatorResponse.class);
-              } catch (IOException e) {
-                return new ValidatorResponse(
-                    "Failed to deserialise response from validator: "
-                        + e.getMessage()
-                        + ". Response was "
-                        + t);
-              }
+          t -> {
+            try {
+              ObjectMapper o1 = new ObjectMapper();
+              return o1.readValue(t, ValidatorResponse.class);
+            } catch (IOException e) {
+              return new ValidatorResponse(
+                  "Failed to deserialise response from validator: "
+                      + e.getMessage()
+                      + ". Response was "
+                      + t);
             }
           });
     } catch (ContainerExecutionException e) {
