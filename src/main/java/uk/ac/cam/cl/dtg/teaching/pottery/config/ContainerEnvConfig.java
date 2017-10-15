@@ -36,11 +36,14 @@ public class ContainerEnvConfig {
 
   private File libDir;
 
+  private File tempDir;
+
   @Inject
   public ContainerEnvConfig(@Named("localStoragePrefix") String prefix) {
     this.userName = System.getProperty("user.name");
     this.uid = getUidForUserName(userName);
     this.libDir = new File(prefix, "lib");
+    this.tempDir = new File(prefix, "temp");
   }
 
   private static int getUidForUserName(String userName) {
@@ -74,5 +77,9 @@ public class ContainerEnvConfig {
 
   public String getContainerPrefix() {
     return "pottery-transient-";
+  }
+
+  public File getTempRoot() {
+    return tempDir;
   }
 }

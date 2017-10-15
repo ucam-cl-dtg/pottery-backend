@@ -24,12 +24,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
@@ -82,8 +84,9 @@ public class ContainerManager implements Stoppable {
   private ConcurrentSkipListSet<String> runningContainers = new ConcurrentSkipListSet<>();
 
   private long smoothedCallTime = 0;
-  private AtomicInteger counter = new AtomicInteger(0);
+  private AtomicInteger containerNameCounter = new AtomicInteger(0);
   private AtomicInteger timeoutMultiplier = new AtomicInteger(1);
+  private AtomicInteger tempDirCounter = new AtomicInteger(0);
 
   @Inject
   public ContainerManager(ContainerEnvConfig config) throws IOException, ApiUnavailableException {
@@ -175,15 +178,15 @@ public class ContainerManager implements Stoppable {
   }
 
   private <T> ContainerExecResponse<T> exec_container(
-      ContainerManager.PathPair[] mapping,
+      PathPair[] mapping,
       String[] command,
       String imageName,
-      String stdin,
       ContainerRestrictions restrictions,
       Function<String, T> converter)
       throws ContainerExecutionException, ApiUnavailableException {
 
-    String containerName = this.config.getContainerPrefix() + counter.incrementAndGet();
+    String containerName =
+        this.config.getContainerPrefix() + containerNameCounter.incrementAndGet();
     LOG.debug("Creating container {}", containerName);
 
     DockerApi docker = getDockerApi();
@@ -197,7 +200,7 @@ public class ContainerManager implements Stoppable {
       try {
         docker.startContainer(containerId);
         StringBuffer output = new StringBuffer();
-        AttachListener attachListener = new AttachListener(output, stdin);
+        AttachListener attachListener = new AttachListener(output);
 
         ScheduledFuture<Boolean> timeoutKiller = null;
         if (restrictions.getTimeoutSec() > 0) {
@@ -352,7 +355,6 @@ public class ContainerManager implements Stoppable {
           new PathPair[] {new PathPair(taskDirHost, "/task", true)},
           new String[] {"/task/compile-test.sh", "/task/test", "/task/harness", "/task/validator"},
           imageName,
-          null,
           restrictions,
           Function.identity());
     } catch (ContainerExecutionException e) {
@@ -375,7 +377,6 @@ public class ContainerManager implements Stoppable {
           },
           new String[] {"/compile/compile-solution.sh", "/code", "/testlib"},
           imageName,
-          null,
           restrictions,
           Function.identity());
     } catch (ContainerExecutionException e) {
@@ -398,7 +399,6 @@ public class ContainerManager implements Stoppable {
           },
           new String[] {"/harness/run-harness.sh", "/code", "/harness", "/testlib"},
           imageName,
-          null,
           restrictions,
           t -> {
             try {
@@ -418,12 +418,7 @@ public class ContainerManager implements Stoppable {
     }
   }
 
-  public ContainerExecResponse<ValidatorResponse> execValidator(
-      File validatorDirectory,
-      HarnessResponse harnessResponse,
-      String imageName,
-      ContainerRestrictions restrictions)
-      throws ApiUnavailableException {
+  private static Optional<String> getMeasurements(HarnessResponse harnessResponse) {
     ObjectMapper o = new ObjectMapper();
     List<Measurement> m =
         harnessResponse
@@ -431,10 +426,22 @@ public class ContainerManager implements Stoppable {
             .stream()
             .map(HarnessPart::getMeasurements)
             .collect(ArrayList::new, ArrayList::addAll, ArrayList::addAll);
-    String stdin;
     try {
-      stdin = o.writeValueAsString(m);
+      return Optional.of(o.writeValueAsString(m));
     } catch (JsonProcessingException e) {
+      return Optional.empty();
+    }
+  }
+
+  public ContainerExecResponse<ValidatorResponse> execValidator(
+      File validatorDirectory,
+      HarnessResponse harnessResponse,
+      String imageName,
+      ContainerRestrictions restrictions)
+      throws ApiUnavailableException {
+
+    Optional<String> measurements = getMeasurements(harnessResponse);
+    if (!measurements.isPresent()) {
       return new ContainerExecResponse<>(
           false,
           new ValidatorResponse("Failed to serialise measurement list"),
@@ -442,15 +449,24 @@ public class ContainerManager implements Stoppable {
           -1);
     }
 
-    try {
+    File containerTempDir =
+        new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
+
+    try (FileUtil.AutoDelete autoDelete = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
+
+      try (FileWriter w = new FileWriter(new File(containerTempDir, "input.json"))) {
+        w.write(measurements.get());
+      }
       return exec_container(
           new PathPair[] {
+            new PathPair(containerTempDir, "/input", false),
             new PathPair(validatorDirectory, "/validator", false),
             new PathPair(config.getLibRoot(), "/testlib", false)
           },
-          new String[] {"/validator/run-validator.sh", "/validator", "/testlib"},
+          new String[] {
+            "/validator/run-validator.sh", "/validator", "/testlib", "/input/input.json"
+          },
           imageName,
-          stdin,
           restrictions,
           t -> {
             try {
@@ -464,7 +480,7 @@ public class ContainerManager implements Stoppable {
                       + t);
             }
           });
-    } catch (ContainerExecutionException e) {
+    } catch (ContainerExecutionException | IOException e) {
       return new ContainerExecResponse<>(
           false, new ValidatorResponse(e.getMessage()), e.getMessage(), -1);
     }

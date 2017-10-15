@@ -18,19 +18,16 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
-import java.io.IOException;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketListener;
 
 class AttachListener implements WebSocketListener {
   private StringBuffer output;
-  private String data;
 
   private boolean closed = false;
 
-  public AttachListener(StringBuffer output, String data) {
+  AttachListener(StringBuffer output) {
     this.output = output;
-    this.data = data;
   }
 
   @Override
@@ -40,21 +37,7 @@ class AttachListener implements WebSocketListener {
   }
 
   @Override
-  public void onWebSocketConnect(Session session) {
-    if (data != null) {
-      try {
-        StringBuffer toSend = new StringBuffer(data);
-        // Push a load of newlines down the pipe at the end to make sure that
-        // we don't get blocked on line buffering
-        for (int i = 0; i < 10; ++i) {
-          toSend.append(System.lineSeparator());
-        }
-        session.getRemote().sendString(toSend.toString());
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to send input data to container", e);
-      }
-    }
-  }
+  public void onWebSocketConnect(Session session) {}
 
   @Override
   public synchronized void onWebSocketError(Throwable cause) {
@@ -73,7 +56,7 @@ class AttachListener implements WebSocketListener {
     output.append(message);
   }
 
-  public synchronized boolean waitForClose(long timeoutMs) throws InterruptedException {
+  synchronized boolean waitForClose(long timeoutMs) throws InterruptedException {
     long startTime = System.currentTimeMillis();
     while (!this.closed) {
       this.wait(timeoutMs);
@@ -84,7 +67,7 @@ class AttachListener implements WebSocketListener {
     return true;
   }
 
-  public synchronized void notifyClose() {
+  synchronized void notifyClose() {
     closed = true;
     this.notifyAll();
   }
