@@ -93,6 +93,7 @@ public class ContainerManager implements Stoppable {
     this.config = config;
     this.scheduler = Executors.newSingleThreadScheduledExecutor();
     FileUtil.mkdirIfNotExists(config.getLibRoot());
+    FileUtil.mkdirIfNotExists(config.getTempRoot());
   }
 
   public synchronized String getApiStatus() {
@@ -453,7 +454,6 @@ public class ContainerManager implements Stoppable {
         new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
 
     try (FileUtil.AutoDelete autoDelete = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
-
       try (FileWriter w = new FileWriter(new File(containerTempDir, "input.json"))) {
         w.write(measurements.get());
       }
