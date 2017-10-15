@@ -18,6 +18,8 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -479,13 +481,14 @@ public class Repo {
           .setHeads(true)
           .call()
           .stream()
-          .filter(ref -> ref.getName().equals("HEAD"))
+          .filter(ref -> ref.getName().equals("refs/heads/master"))
           .map(Ref::getObjectId)
-          .map(Object::toString)
+          .map(ObjectId::getName)
           .findFirst()
-          .orElseThrow(() -> new RefNotFoundException("Failed to find reference named HEAD"));
+          .orElseThrow(
+              () -> new RefNotFoundException("Failed to find reference named refs/heads/master"));
     } catch (GitAPIException e) {
-      throw new RepoStorageException("Failed to resolve SHA1 for HEAD", e);
+      throw new RepoStorageException("Failed to resolve SHA1 for refs/heads/master", e);
     }
   }
 
