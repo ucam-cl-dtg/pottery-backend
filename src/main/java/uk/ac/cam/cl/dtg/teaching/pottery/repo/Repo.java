@@ -18,8 +18,6 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
-
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -27,7 +25,6 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
@@ -405,7 +402,8 @@ public class Repo {
                   }
 
                   boolean acceptableFound = false;
-                  boolean badFound = validatorResponse.getResponse().getErrorMessage() != null;
+                  String errorMessage = validatorResponse.getResponse().getErrorMessage();
+                  boolean badFound = errorMessage != null && !errorMessage.trim().equals("");
                   for (Interpretation i : validatorResponse.getResponse().getInterpretations()) {
                     if (i.getResult().equals(Interpretation.INTERPRETED_ACCEPTABLE)) {
                       acceptableFound = true;
@@ -429,7 +427,7 @@ public class Repo {
                               validatorResponse.getResponse(),
                               validatorResponse.getExecutionTimeMs())
                           .setInterpretation(interpretation)
-                          .addErrorMessage(validatorResponse.getResponse().getErrorMessage()));
+                          .addErrorMessage(errorMessage));
                   if (!validatorResponse.getResponse().isCompleted()) {
                     return STATUS_FAILED;
                   }
