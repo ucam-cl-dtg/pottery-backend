@@ -63,4 +63,19 @@ public class ContainerExecResponse<T> {
   public String getRawResponse() {
     return rawResponse;
   }
+
+  @Override
+  public String toString() {
+    return "ContainerExecResponse{"
+        + "success="
+        + success
+        + ", response="
+        + response
+        + ", rawResponse='"
+        + rawResponse
+        + '\''
+        + ", executionTimeMs="
+        + executionTimeMs
+        + '}';
+  }
 }
