@@ -38,6 +38,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.BuilderInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskLocation;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
@@ -104,6 +105,20 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
   @Override
   public TaskInfo getTask(String taskId) throws TaskNotFoundException {
     return taskIndex.getTestingTaskInfo(taskId);
+  }
+
+  @Override
+  public TaskStatus getStatus(String taskId) throws TaskNotFoundException, TaskStorageException {
+    Task task = taskIndex.getTask(taskId);
+    String head = task.getHeadSha();
+    BuilderInfo testResult = task.getTestingCopyBuilderInfo();
+    BuilderInfo registrationResult = task.getRegisteredCopyBuilderInfo();
+    return new TaskStatus(
+        head,
+        testResult.getStatus(),
+        testResult.getSha1(),
+        registrationResult.getStatus(),
+        registrationResult.getSha1());
   }
 
   @Override
