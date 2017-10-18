@@ -132,7 +132,7 @@ public class GitServletV3 extends GitServlet {
                         if (b.getStatus().equals(BuilderInfo.STATUS_FAILURE)) {
                           output.println("Failed");
                           if (b.getException() != null) {
-                            b.getException().printStackTrace(output);
+                            output.println(b.getException());
                           }
                         } else {
                           output.println("Success");
