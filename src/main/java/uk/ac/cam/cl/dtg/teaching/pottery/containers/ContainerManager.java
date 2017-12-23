@@ -325,7 +325,10 @@ public class ContainerManager implements Stoppable {
       PathPair[] mapping, String[] command, String imageName, ContainerRestrictions restrictions) {
     ContainerConfig config = new ContainerConfig();
     config.setOpenStdin(true);
-    config.setEnv(ImmutableList.of("LOCAL_USER_ID=" + this.config.getUid()));
+    config.setEnv(
+        ImmutableList.of(
+            "LOCAL_USER_ID=" + this.config.getUid(),
+            "RAM_LIMIT_MEGABYTES=" + restrictions.getRamLimitMegabytes()));
     config.setCmd(Arrays.asList(command));
     config.setImage(imageName);
     config.setNetworkDisabled(restrictions.isNetworkDisabled());
