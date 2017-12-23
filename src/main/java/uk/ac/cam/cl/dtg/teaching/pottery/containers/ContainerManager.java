@@ -104,6 +104,11 @@ public class ContainerManager implements Stoppable {
     return smoothedCallTime;
   }
 
+  public synchronized String getDockerVersion() throws ApiUnavailableException {
+    DockerApi api = getDockerApi();
+    return api.getVersion().getApiVersion();
+  }
+
   private synchronized DockerApi getDockerApi() throws ApiUnavailableException {
     if (dockerApi == null) {
       DockerApi docker =

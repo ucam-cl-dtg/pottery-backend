@@ -23,8 +23,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class StatusController implements uk.ac.cam.cl.dtg.teaching.pottery.api.StatusController {
@@ -36,7 +36,7 @@ public class StatusController implements uk.ac.cam.cl.dtg.teaching.pottery.api.S
   private ContainerManager containerManager;
 
   @Inject
-  public StatusController(Worker worker, ContainerManager containerManager, TaskIndex taskIndex) {
+  public StatusController(Worker worker, ContainerManager containerManager) {
     super();
     this.worker = worker;
     this.containerManager = containerManager;
@@ -45,11 +45,22 @@ public class StatusController implements uk.ac.cam.cl.dtg.teaching.pottery.api.S
   @Override
   public Map<String, String> getStatus() {
     Map<String, String> response = new TreeMap<>();
-    response.put("Worker.numThreads", worker.getNumThreads() + "");
-    response.put("Worker.queueSize", worker.getQueue().size() + "");
-    response.put("Worker.smoothedWaitTime", worker.getSmoothedWaitTime() + "");
-    response.put("ContainerManager.smoothedCallTime", containerManager.getSmoothedCallTime() + "");
-    response.put("ContainerManager.apiStatus", containerManager.getApiStatus());
+    response.put("Worker.numThreads", String.valueOf(worker.getNumThreads()));
+    response.put("Worker.queueSize", String.valueOf(worker.getQueue().size()));
+    response.put("Worker.smoothedWaitTime", String.valueOf(worker.getSmoothedWaitTime()));
+    response.put(
+        "ContainerManager.smoothedCallTime",
+        String.valueOf(containerManager.getSmoothedCallTime()));
+    response.put("ContainerManager.apiStatus", String.valueOf(containerManager.getApiStatus()));
     return response;
+  }
+
+  @Override
+  public String checkDockerVersion() {
+    try {
+      return containerManager.getDockerVersion();
+    } catch (ApiUnavailableException e) {
+      return "UNAVAILABLE: " + e.getMessage();
+    }
   }
 }
