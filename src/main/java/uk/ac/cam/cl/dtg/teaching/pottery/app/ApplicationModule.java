@@ -46,7 +46,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerBackend;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.GuiceDependencyController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.StatusController;
@@ -100,6 +102,7 @@ public class ApplicationModule implements Module {
 
     binder.bind(Database.class).to(PostgresDatabase.class).in(Singleton.class);
     binder.bind(Worker.class).to(ThreadPoolWorker.class).in(Singleton.class);
+    binder.bind(ContainerBackend.class).to(DockerContainerImpl.class).in(Singleton.class);
 
     binder.bind(GuiceDependencyController.class);
 

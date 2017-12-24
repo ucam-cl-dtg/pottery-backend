@@ -58,7 +58,7 @@ public class StatusController implements uk.ac.cam.cl.dtg.teaching.pottery.api.S
   @Override
   public String checkDockerVersion() {
     try {
-      return containerManager.getDockerVersion();
+      return containerManager.getVersion();
     } catch (ApiUnavailableException e) {
       return "UNAVAILABLE: " + e.getMessage();
     }

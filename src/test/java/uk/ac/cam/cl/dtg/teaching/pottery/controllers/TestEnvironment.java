@@ -37,6 +37,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.InMemoryDatabase;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
@@ -83,7 +84,9 @@ public class TestEnvironment {
     this.database = new InMemoryDatabase();
     this.taskConfig = new TaskConfig(testRootDir);
     this.taskFactory = new TaskFactory(taskConfig, database);
-    this.containerManager = new ContainerManager(new ContainerEnvConfig(testRootDir));
+    ContainerEnvConfig containerEnvConfig = new ContainerEnvConfig(testRootDir);
+    this.containerManager =
+        new ContainerManager(containerEnvConfig, new DockerContainerImpl(containerEnvConfig));
     this.repoConfig = new RepoConfig(testRootDir);
     this.repoFactory = new RepoFactory(repoConfig, database);
     this.taskIndex = new TaskIndex(taskFactory, database);

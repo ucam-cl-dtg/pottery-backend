@@ -31,7 +31,7 @@ public class DiskUsageKiller implements Runnable {
 
   private final String containerId;
   private final int maxBytes;
-  private final ContainerManager containerManager;
+  private final DockerContainerImpl containerManager;
 
   private boolean killed = false;
   private int bytesWritten = 0;
@@ -39,7 +39,7 @@ public class DiskUsageKiller implements Runnable {
   private AttachListener attachListener;
 
   public DiskUsageKiller(
-      String containerId, ContainerManager containerManager, int maxBytes, AttachListener l) {
+      String containerId, DockerContainerImpl containerManager, int maxBytes, AttachListener l) {
     this.containerId = containerId;
     this.containerManager = containerManager;
     this.maxBytes = maxBytes;
