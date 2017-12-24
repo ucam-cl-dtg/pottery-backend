@@ -25,7 +25,15 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
 /** Abstraction for the container backend service. */
 public interface ContainerBackend extends Stoppable {
-  String getApiStatus();
+
+  enum ApiStatus {
+    OK,
+    UNINITIALISED,
+    FAILED,
+    SLOW_RESPONSE_TIME
+  }
+
+  ApiStatus getApiStatus();
 
   long getSmoothedCallTime();
 

@@ -46,13 +46,6 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorRes
 @Singleton
 public class ContainerManager implements Stoppable {
 
-  enum ApiStatus {
-    OK,
-    UNINITIALISED,
-    FAILED,
-    SLOW_RESPONSE_TIME
-  }
-
   private final ContainerEnvConfig config;
   private final ContainerBackend containerBackend;
   private final AtomicInteger tempDirCounter = new AtomicInteger(0);
@@ -73,7 +66,7 @@ public class ContainerManager implements Stoppable {
   }
 
   public String getApiStatus() {
-    return containerBackend.getApiStatus();
+    return containerBackend.getApiStatus().name()g;
   }
 
   public long getSmoothedCallTime() {

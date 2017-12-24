@@ -69,8 +69,8 @@ public class DockerContainerImpl implements ContainerBackend {
 
   private final AtomicInteger containerNameCounter = new AtomicInteger(0);
   private final AtomicInteger timeoutMultiplier = new AtomicInteger(1);
-  private final AtomicReference<ContainerManager.ApiStatus> apiStatus =
-      new AtomicReference<>(ContainerManager.ApiStatus.UNINITIALISED);
+  private final AtomicReference<ApiStatus> apiStatus =
+      new AtomicReference<>(ApiStatus.UNINITIALISED);
   private final AtomicLong smoothedCallTime = new AtomicLong(0);
 
   @Inject
@@ -100,8 +100,8 @@ public class DockerContainerImpl implements ContainerBackend {
   }
 
   @Override
-  public String getApiStatus() {
-    return apiStatus.get().name();
+  public ApiStatus getApiStatus() {
+    return apiStatus.get();
   }
 
   @Override
@@ -275,7 +275,7 @@ public class DockerContainerImpl implements ContainerBackend {
               + "swapaccount=1\" to your kernel command line");
     }
     deleteOldContainers(config.getContainerPrefix(), docker);
-    apiStatus.set(ContainerManager.ApiStatus.OK);
+    apiStatus.set(ApiStatus.OK);
     return docker;
   }
 
@@ -306,11 +306,11 @@ public class DockerContainerImpl implements ContainerBackend {
       callTime = (timeTaken >> 3) + callTime - (callTime >> 3);
       smoothedCallTime.set(callTime);
       if (!apiAvailable) {
-        apiStatus.set(ContainerManager.ApiStatus.FAILED);
+        apiStatus.set(ApiStatus.FAILED);
       } else if (callTime > 1000) {
-        apiStatus.set(ContainerManager.ApiStatus.SLOW_RESPONSE_TIME);
+        apiStatus.set(ApiStatus.SLOW_RESPONSE_TIME);
       } else {
-        apiStatus.set(ContainerManager.ApiStatus.OK);
+        apiStatus.set(ApiStatus.OK);
       }
     }
   }
