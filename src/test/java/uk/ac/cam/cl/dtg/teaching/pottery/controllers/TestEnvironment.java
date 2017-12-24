@@ -32,12 +32,11 @@ import java.util.LinkedList;
 import java.util.stream.Collectors;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerImpl;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.UncontainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.InMemoryDatabase;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
@@ -65,31 +64,27 @@ import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessRespo
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
-public class TestEnvironment {
+class TestEnvironment {
 
   private final String testRootDir;
-  private final Database database;
-  private final TaskConfig taskConfig;
   private final TaskFactory taskFactory;
-  private final ContainerManager containerManager;
   private final RepoFactory repoFactory;
   private final TaskIndex taskIndex;
   private final Worker worker;
   private final RepoConfig repoConfig;
 
-  public TestEnvironment(String testRootDir)
-      throws GitAPIException, SQLException, IOException, ApiUnavailableException,
-          TaskStorageException {
+  TestEnvironment(String testRootDir)
+      throws GitAPIException, SQLException, IOException, TaskStorageException {
     this.testRootDir = testRootDir;
-    this.database = new InMemoryDatabase();
-    this.taskConfig = new TaskConfig(testRootDir);
+    Database database = new InMemoryDatabase();
+    TaskConfig taskConfig = new TaskConfig(testRootDir);
     this.taskFactory = new TaskFactory(taskConfig, database);
-    ContainerEnvConfig containerEnvConfig = new ContainerEnvConfig(testRootDir);
-    this.containerManager =
-        new ContainerManager(containerEnvConfig, new DockerContainerImpl(containerEnvConfig));
     this.repoConfig = new RepoConfig(testRootDir);
     this.repoFactory = new RepoFactory(repoConfig, database);
     this.taskIndex = new TaskIndex(taskFactory, database);
+    ContainerEnvConfig containerEnvConfig = new ContainerEnvConfig(testRootDir);
+    ContainerManager containerManager =
+        new ContainerManager(containerEnvConfig, new UncontainerImpl());
     this.worker = new BlockingWorker(taskIndex, repoFactory, containerManager, database);
   }
 

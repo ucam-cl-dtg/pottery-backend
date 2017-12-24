@@ -18,9 +18,8 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import com.google.common.collect.ImmutableList;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -29,7 +28,6 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.LinkedList;
 import java.util.List;
-import org.apache.commons.io.IOUtils;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TwoPhaseLatch;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
@@ -48,7 +46,6 @@ public class TaskCopy implements AutoCloseable {
   private String copyId;
   private TaskConfig config;
   private TaskInfo info;
-  private String sha1;
   private TwoPhaseLatch latch = new TwoPhaseLatch();
 
   /**
@@ -57,22 +54,16 @@ public class TaskCopy implements AutoCloseable {
    *
    * @param taskId the ID of the task itself
    * @param copyId the unique ID for this copy
-   * @param sha1 the SHA1 of the copy we made from the parent repo
    * @param config information for tasks
    * @throws InvalidTaskSpecificationException if we can't load the task specification
    * @throws TaskStorageException if the task cannot be accessed
    */
-  TaskCopy(String taskId, String copyId, String sha1, TaskConfig config)
+  TaskCopy(String taskId, String copyId, TaskConfig config)
       throws InvalidTaskSpecificationException, TaskStorageException {
     super();
     this.copyId = copyId;
     this.config = config;
-    this.sha1 = sha1;
     this.info = TaskInfos.load(taskId, config.getTaskCopyDir(copyId), listSkeleton());
-  }
-
-  public String getSha1() {
-    return sha1;
   }
 
   public String getCopyId() {
@@ -87,7 +78,7 @@ public class TaskCopy implements AutoCloseable {
     return config.getTaskCopyDir(copyId);
   }
 
-  public List<String> listSkeleton() throws TaskStorageException {
+  private List<String> listSkeleton() throws TaskStorageException {
     File sourceLocation = config.getSkeletonDir(copyId);
     if (!sourceLocation.exists()) {
       return new LinkedList<>();
@@ -99,8 +90,7 @@ public class TaskCopy implements AutoCloseable {
           sourceLocation.toPath(),
           new SimpleFileVisitor<Path>() {
             @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                throws IOException {
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
               Path localLocation = sourceLocation.toPath().relativize(file);
               result.add(localLocation.toString());
               return FileVisitResult.CONTINUE;
@@ -121,39 +111,8 @@ public class TaskCopy implements AutoCloseable {
    * Copy the skeleton files from this task copy to the target directory given (this will be in a
    * candidates repo).
    */
-  public List<String> copySkeleton(File destination) throws IOException {
-    File sourceLocation = config.getSkeletonDir(copyId);
-    if (!sourceLocation.exists()) {
-      return new LinkedList<>();
-    }
-
-    List<String> copiedFiles = new LinkedList<>();
-    Files.walkFileTree(
-        sourceLocation.toPath(),
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-
-            File originalFile = file.toFile();
-            Path localLocation = sourceLocation.toPath().relativize(file);
-            copiedFiles.add(localLocation.toString());
-            File newLocation = destination.toPath().resolve(localLocation).toFile();
-            File newDir = newLocation.getParentFile();
-
-            if (newDir.exists()) {
-              newDir.mkdirs();
-            }
-
-            try (FileOutputStream fos = new FileOutputStream(newLocation)) {
-              try (FileInputStream fis = new FileInputStream(originalFile)) {
-                IOUtils.copy(fis, fos);
-              }
-            }
-            return FileVisitResult.CONTINUE;
-          }
-        });
-    return copiedFiles;
+  public ImmutableList<String> copySkeleton(File destination) throws IOException {
+    return FileUtil.copyFilesRecursively(config.getSkeletonDir(copyId), destination);
   }
 
   public File getCompileRoot() {
@@ -172,10 +131,6 @@ public class TaskCopy implements AutoCloseable {
     return latch.acquire();
   }
 
-  public void release() {
-    latch.release();
-  }
-
   /** Delete this copy from the disk. */
   void destroy() throws IOException, InterruptedException {
     latch.await();
@@ -184,6 +139,6 @@ public class TaskCopy implements AutoCloseable {
 
   @Override
   public void close() {
-    release();
+    latch.release();
   }
 }

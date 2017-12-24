@@ -128,7 +128,7 @@ public class TaskCopyBuilder {
       throws InvalidTaskSpecificationException, TaskCopyNotFoundException, TaskStorageException {
     TaskCopyBuilder result = new TaskCopyBuilder(sha1, taskId, taskDefLocation, copyId, taskConfig);
     if (taskConfig.getTaskCopyDir(copyId).exists()) {
-      result.taskCopy = new TaskCopy(taskId, copyId, sha1, taskConfig);
+      result.taskCopy = new TaskCopy(taskId, copyId, taskConfig);
       result.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
     } else {
       throw new TaskCopyNotFoundException(
@@ -210,7 +210,7 @@ public class TaskCopyBuilder {
     }
 
     try {
-      taskCopy = new TaskCopy(taskId, copyId, sha1, taskConfig);
+      taskCopy = new TaskCopy(taskId, copyId, taskConfig);
     } catch (InvalidTaskSpecificationException | TaskStorageException e) {
       builderInfo.setException(e);
       return false;

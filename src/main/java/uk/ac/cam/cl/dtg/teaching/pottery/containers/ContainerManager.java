@@ -66,7 +66,7 @@ public class ContainerManager implements Stoppable {
   }
 
   public String getApiStatus() {
-    return containerBackend.getApiStatus().name()g;
+    return containerBackend.getApiStatus().name();
   }
 
   public long getSmoothedCallTime() {

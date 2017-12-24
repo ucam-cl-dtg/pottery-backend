@@ -18,13 +18,17 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
+import com.google.common.collect.ImmutableList;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import org.apache.commons.io.IOUtils;
 
 public class FileUtil {
 
@@ -83,12 +87,53 @@ public class FileUtil {
     return false;
   }
 
-
   public static AutoDelete mkdirWithAutoDelete(File dir) throws IOException {
     if (!dir.mkdirs()) {
       throw new IOException("Failed to create directory " + dir);
     }
     return new AutoDelete(dir);
+  }
+
+  public static AutoDelete createTempDirWithAutoDelete() throws IOException {
+    return new AutoDelete(com.google.common.io.Files.createTempDir());
+  }
+
+  /**
+   * Copies all the files in sourceDir to destinationDir recursively and returns a list of
+   * (relative) filenames copied.
+   */
+  public static ImmutableList<String> copyFilesRecursively(File sourceDir, File destinationDir)
+      throws IOException {
+    if (!sourceDir.exists()) {
+      return ImmutableList.of();
+    }
+    ImmutableList.Builder<String> copiedFiles = ImmutableList.builder();
+    Files.walkFileTree(
+        sourceDir.toPath(),
+        new SimpleFileVisitor<Path>() {
+          @Override
+          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+              throws IOException {
+
+            File originalFile = file.toFile();
+            Path localLocation = sourceDir.toPath().relativize(file);
+            copiedFiles.add(localLocation.toString());
+            File newLocation = destinationDir.toPath().resolve(localLocation).toFile();
+            File newDir = newLocation.getParentFile();
+
+            if (newDir.exists()) {
+              newDir.mkdirs();
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(newLocation)) {
+              try (FileInputStream fis = new FileInputStream(originalFile)) {
+                IOUtils.copy(fis, fos);
+              }
+            }
+            return FileVisitResult.CONTINUE;
+          }
+        });
+    return copiedFiles.build();
   }
 
   public static class AutoDelete implements AutoCloseable {
@@ -103,6 +148,10 @@ public class FileUtil {
 
     public void persist() {
       persist = true;
+    }
+
+    public File getParent() {
+      return parent;
     }
 
     @Override
