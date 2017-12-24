@@ -88,8 +88,12 @@ public class ContainerManager implements Stoppable {
   private AtomicInteger timeoutMultiplier = new AtomicInteger(1);
   private AtomicInteger tempDirCounter = new AtomicInteger(0);
 
+  /**
+   * Construct a new container manager and worker pool. The connection to the container backend is
+   * created lazily as needed.
+   */
   @Inject
-  public ContainerManager(ContainerEnvConfig config) throws IOException, ApiUnavailableException {
+  public ContainerManager(ContainerEnvConfig config) throws IOException {
     this.config = config;
     this.scheduler = Executors.newSingleThreadScheduledExecutor();
     FileUtil.mkdirIfNotExists(config.getLibRoot());
@@ -132,7 +136,7 @@ public class ContainerManager implements Stoppable {
         LOG.info("Connected to docker, API version: {}", v.getApiVersion());
       }
       SystemInfo info = docker.systemInfo();
-      if (info.getSwapLimit() == null || !info.getSwapLimit().booleanValue()) {
+      if (info.getSwapLimit() == null || !info.getSwapLimit()) {
         LOG.warn(
             "WARNING: swap limits are disabled for this kernel. Add \"cgroup_enable=memory "
                 + "swapaccount=1\" to your kernel command line");
@@ -356,6 +360,10 @@ public class ContainerManager implements Stoppable {
     return config;
   }
 
+  /**
+   * Compile the task and get the response. This is done by executing the compile-test.sh script in
+   * the task repo.
+   */
   public ContainerExecResponse<String> execTaskCompilation(
       File taskDirHost, String imageName, ContainerRestrictions restrictions)
       throws ApiUnavailableException {
@@ -371,6 +379,10 @@ public class ContainerManager implements Stoppable {
     }
   }
 
+  /**
+   * Compile the submission and get the response. This is done by executing
+   * compile/compile-solution.sh.
+   */
   public ContainerExecResponse<String> execCompilation(
       File codeDirHost,
       File compilationRecipeDirHost,
@@ -393,6 +405,7 @@ public class ContainerManager implements Stoppable {
     }
   }
 
+  /** Execute the test harness by running harness/run-harness.sh. */
   public ContainerExecResponse<HarnessResponse> execHarness(
       File codeDirHost,
       File harnessRecipeDirHost,
@@ -442,6 +455,7 @@ public class ContainerManager implements Stoppable {
     }
   }
 
+  /** Run the validator script by executing validator/run-validator.sh. */
   public ContainerExecResponse<ValidatorResponse> execValidator(
       File validatorDirectory,
       HarnessResponse harnessResponse,
@@ -461,7 +475,7 @@ public class ContainerManager implements Stoppable {
     File containerTempDir =
         new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
 
-    try (FileUtil.AutoDelete autoDelete = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
+    try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
       try (FileWriter w = new FileWriter(new File(containerTempDir, "input.json"))) {
         w.write(measurements.get());
       }
@@ -503,22 +517,22 @@ public class ContainerManager implements Stoppable {
     private File container;
     private boolean readWrite;
 
-    public PathPair(File host, String container, boolean readWrite) {
+    PathPair(File host, String container, boolean readWrite) {
       super();
       this.host = host;
       this.container = new File(container);
       this.readWrite = readWrite;
     }
 
-    public File getHost() {
+    File getHost() {
       return host;
     }
 
-    public File getContainer() {
+    File getContainer() {
       return container;
     }
 
-    public boolean isReadWrite() {
+    boolean isReadWrite() {
       return readWrite;
     }
   }
