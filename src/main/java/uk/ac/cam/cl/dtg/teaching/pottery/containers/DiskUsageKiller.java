@@ -29,18 +29,19 @@ public class DiskUsageKiller implements Runnable {
 
   protected static final Logger LOG = LoggerFactory.getLogger(DiskUsageKiller.class);
 
-  private final DockerApi docker;
   private final String containerId;
   private final int maxBytes;
+  private final ContainerManager containerManager;
 
   private boolean killed = false;
   private int bytesWritten = 0;
 
   private AttachListener attachListener;
 
-  public DiskUsageKiller(String containerId, DockerApi docker, int maxBytes, AttachListener l) {
+  public DiskUsageKiller(
+      String containerId, ContainerManager containerManager, int maxBytes, AttachListener l) {
     this.containerId = containerId;
-    this.docker = docker;
+    this.containerManager = containerManager;
     this.maxBytes = maxBytes;
     this.attachListener = l;
   }
@@ -48,6 +49,7 @@ public class DiskUsageKiller implements Runnable {
   @Override
   public void run() {
     try {
+      DockerApi docker = containerManager.getDockerApi();
       ContainerInfo i = docker.inspectContainer(containerId, true);
       if (i != null && i.getSizeRw() > this.maxBytes) {
         boolean killed = DockerUtil.killContainer(containerId, docker);

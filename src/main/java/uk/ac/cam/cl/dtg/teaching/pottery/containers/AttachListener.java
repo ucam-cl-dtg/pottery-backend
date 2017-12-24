@@ -22,12 +22,12 @@ import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketListener;
 
 class AttachListener implements WebSocketListener {
-  private StringBuffer output;
 
+  private final StringBuilder output = new StringBuilder();
   private boolean closed = false;
 
-  AttachListener(StringBuffer output) {
-    this.output = output;
+  public String getOutput() {
+    return output.toString();
   }
 
   @Override
@@ -56,15 +56,19 @@ class AttachListener implements WebSocketListener {
     output.append(message);
   }
 
-  synchronized boolean waitForClose(long timeoutMs) throws InterruptedException {
+  synchronized boolean waitForClose(long timeoutMs) {
     long startTime = System.currentTimeMillis();
-    while (!this.closed) {
-      this.wait(timeoutMs);
-      if (System.currentTimeMillis() - startTime >= timeoutMs) {
-        return false;
+    try {
+      while (!this.closed) {
+        this.wait(timeoutMs);
+        if (System.currentTimeMillis() - startTime >= timeoutMs) {
+          return false;
+        }
       }
+      return true;
+    } catch (InterruptedException e) {
+      return false;
     }
-    return true;
   }
 
   synchronized void notifyClose() {

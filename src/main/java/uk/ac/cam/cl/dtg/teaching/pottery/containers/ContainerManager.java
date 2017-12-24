@@ -18,6 +18,8 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -26,11 +28,8 @@ import com.google.inject.Singleton;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -41,10 +40,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.ac.cam.cl.dtg.teaching.docker.ApiListener;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerPatch;
@@ -52,7 +54,6 @@ import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Container;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
-import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerHostConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.docker.model.SystemInfo;
@@ -72,18 +73,24 @@ public class ContainerManager implements Stoppable {
 
   protected static final Logger LOG = LoggerFactory.getLogger(ContainerManager.class);
 
+  private enum ApiStatus {
+    OK,
+    UNINITIALISED,
+    FAILED,
+    SLOW_RESPONSE_TIME
+  }
+
   private ContainerEnvConfig config;
 
   // Lazy initialized - use getDockerApi to access this
   private DockerApi dockerApi;
 
-  private String apiStatus = "UNITITIALISED";
-
   private ScheduledExecutorService scheduler;
 
   private ConcurrentSkipListSet<String> runningContainers = new ConcurrentSkipListSet<>();
 
-  private long smoothedCallTime = 0;
+  private AtomicReference<ApiStatus> apiStatus = new AtomicReference<>(ApiStatus.UNINITIALISED);
+  private AtomicLong smoothedCallTime = new AtomicLong(0);
   private AtomicInteger containerNameCounter = new AtomicInteger(0);
   private AtomicInteger timeoutMultiplier = new AtomicInteger(1);
   private AtomicInteger tempDirCounter = new AtomicInteger(0);
@@ -100,73 +107,25 @@ public class ContainerManager implements Stoppable {
     FileUtil.mkdirIfNotExists(config.getTempRoot());
   }
 
-  public synchronized String getApiStatus() {
-    return apiStatus;
+  public String getApiStatus() {
+    return apiStatus.get().name();
   }
 
-  public synchronized long getSmoothedCallTime() {
-    return smoothedCallTime;
+  public long getSmoothedCallTime() {
+    return smoothedCallTime.get();
   }
 
   public synchronized String getDockerVersion() throws ApiUnavailableException {
-    DockerApi api = getDockerApi();
-    return api.getVersion().getApiVersion();
+    return getDockerApi().getVersion().getApiVersion();
   }
 
-  private synchronized DockerApi getDockerApi() throws ApiUnavailableException {
-    if (dockerApi == null) {
-      DockerApi docker =
-          new Docker("localhost", 2375, 1)
-              .api(
-                  (apiAvailable, timeTaken, methodName) -> {
-                    synchronized (ContainerManager.this) {
-                      smoothedCallTime =
-                          (timeTaken >> 3) + smoothedCallTime - (smoothedCallTime >> 3);
-                      if (!apiAvailable) {
-                        apiStatus = "FAILED";
-                      } else if (smoothedCallTime > 1000) {
-                        apiStatus = "SLOW_RESPONSE_TIME";
-                      } else {
-                        apiStatus = "OK";
-                      }
-                    }
-                  });
-      if (LOG.isInfoEnabled()) {
-        Version v = docker.getVersion();
-        LOG.info("Connected to docker, API version: {}", v.getApiVersion());
-      }
-      SystemInfo info = docker.systemInfo();
-      if (info.getSwapLimit() == null || !info.getSwapLimit()) {
-        LOG.warn(
-            "WARNING: swap limits are disabled for this kernel. Add \"cgroup_enable=memory "
-                + "swapaccount=1\" to your kernel command line");
-      }
-
-      for (Container i : docker.listContainers(true, null, null, null, null)) {
-        String matchedName = getPotteryTransientName(i);
-        if (matchedName != null) {
-          LOG.warn("Deleting old container named {}", matchedName);
-          try {
-            docker.deleteContainer(i.getId(), true, true);
-          } catch (RuntimeException e) {
-            LOG.error("Error deleting old container", e);
-          }
-        }
-      }
-      dockerApi = docker;
-      apiStatus = "OK";
-    }
-    return dockerApi;
-  }
-
-  private String getPotteryTransientName(Container i) {
-    final String prefix = "/" + config.getContainerPrefix();
-    for (String name : i.getNames()) {
-      if (name.startsWith(prefix)) {
-        return name;
-      }
-    }
-    return null;
+  /**
+   * Scale factor to apply to container timeouts given in container restrictions. If you are running
+   * with more worker threads than cores then you might find that containers are timing out because
+   * of contention. Use this method to increase all timeouts.
+   */
+  public void setTimeoutMultiplier(int multiplier) {
+    timeoutMultiplier.set(multiplier);
   }
 
   @Override
@@ -187,179 +146,6 @@ public class ContainerManager implements Stoppable {
     }
   }
 
-  private <T> ContainerExecResponse<T> exec_container(
-      PathPair[] mapping,
-      String[] command,
-      String imageName,
-      ContainerRestrictions restrictions,
-      Function<String, T> converter)
-      throws ContainerExecutionException, ApiUnavailableException {
-
-    String containerName =
-        this.config.getContainerPrefix() + containerNameCounter.incrementAndGet();
-    LOG.debug("Creating container {}", containerName);
-
-    DockerApi docker = getDockerApi();
-
-    long startTime = System.currentTimeMillis();
-    try {
-      ContainerConfig config = buildContainerConfig(mapping, command, imageName, restrictions);
-      ContainerResponse response = docker.createContainer(containerName, config);
-      final String containerId = response.getId();
-      runningContainers.add(containerId);
-      try {
-        docker.startContainer(containerId);
-        StringBuffer output = new StringBuffer();
-        AttachListener attachListener = new AttachListener(output);
-
-        ScheduledFuture<Boolean> timeoutKiller = null;
-        if (restrictions.getTimeoutSec() > 0) {
-          timeoutKiller =
-              scheduler.schedule(
-                  () -> {
-                    try {
-                      DockerUtil.killContainer(containerId, docker);
-                      attachListener.notifyClose();
-                      return true;
-                    } catch (RuntimeException e) {
-                      LOG.error("Caught exception killing container", e);
-                      return false;
-                    }
-                  },
-                  restrictions.getTimeoutSec() * timeoutMultiplier.get(),
-                  TimeUnit.SECONDS);
-        }
-
-        DiskUsageKiller diskUsageKiller =
-            new DiskUsageKiller(
-                containerId,
-                docker,
-                restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024,
-                attachListener);
-        ScheduledFuture<?> diskUsageKillerFuture =
-            scheduler.scheduleAtFixedRate(diskUsageKiller, 10L, 10L, TimeUnit.SECONDS);
-        try {
-          Future<Session> session =
-              docker.attach(containerId, true, true, true, true, true, attachListener);
-
-          // Wait for container to finish (or be killed)
-          boolean success = false;
-          boolean knownStopped = false;
-          boolean closed = false;
-
-          while (!closed) {
-            try {
-              closed = attachListener.waitForClose(60 * 1000);
-            } catch (InterruptedException e) {
-              // ignore
-            }
-            if (!closed) {
-              ContainerInfo i = docker.inspectContainer(containerId, false);
-              if (!i.getState().getRunning()) {
-                knownStopped = true;
-                closed = true;
-                success = i.getState().getExitCode() == 0;
-              }
-            }
-          }
-
-          // Check to make sure its really stopped the container
-          if (!knownStopped) {
-            ContainerInfo i = docker.inspectContainer(containerId, false);
-            if (i.getState().getRunning()) {
-              DockerUtil.killContainer(containerId, docker);
-              i = docker.inspectContainer(containerId, false);
-            }
-            success = i.getState().getExitCode() == 0;
-          }
-
-          if (timeoutKiller != null) {
-            timeoutKiller.cancel(false);
-            try {
-              if (timeoutKiller.get()) {
-                throw new ContainerExecutionException(
-                    "Timed out after " + restrictions.getTimeoutSec() + " seconds");
-              }
-            } catch (InterruptedException | ExecutionException | CancellationException e) {
-              // ignore
-            }
-          }
-          if (diskUsageKiller.isKilled()) {
-            throw new ContainerExecutionException(
-                "Excessive disk usage. Recorded "
-                    + diskUsageKiller.getBytesWritten()
-                    + " bytes written. Limit is "
-                    + restrictions.getDiskWriteLimitMegabytes() * 1024 * 1024);
-          }
-
-          try {
-            session.get().close();
-          } catch (InterruptedException e) {
-            // ignore
-          } catch (ExecutionException e) {
-            LOG.error(
-                "An exception occurred collecting the websocket session from the future",
-                e.getCause());
-          }
-
-          LOG.debug("Container response: {}", output.toString());
-          return new ContainerExecResponse<>(
-              success,
-              converter.apply(output.toString()),
-              output.toString(),
-              System.currentTimeMillis() - startTime);
-        } finally {
-          diskUsageKillerFuture.cancel(false);
-        }
-      } finally {
-        runningContainers.remove(containerId);
-        DockerPatch.deleteContainer(docker, containerId, true, true);
-      }
-    } catch (RuntimeException e) {
-      LOG.error("Error executing container", e);
-      throw new ContainerExecutionException(
-          "An error ("
-              + e.getClass().getName()
-              + ") occurred when executing container: "
-              + e.getMessage());
-    }
-  }
-
-  private ContainerConfig buildContainerConfig(
-      PathPair[] mapping, String[] command, String imageName, ContainerRestrictions restrictions) {
-    ContainerConfig config = new ContainerConfig();
-    config.setOpenStdin(true);
-    config.setEnv(
-        ImmutableList.of(
-            "LOCAL_USER_ID=" + this.config.getUid(),
-            "RAM_LIMIT_MEGABYTES=" + restrictions.getRamLimitMegabytes()));
-    config.setCmd(Arrays.asList(command));
-    config.setImage(imageName);
-    config.setNetworkDisabled(restrictions.isNetworkDisabled());
-    ContainerHostConfig hc = new ContainerHostConfig();
-    hc.setMemory(restrictions.getRamLimitMegabytes() * 1024 * 1024);
-    hc.setMemorySwap(hc.getMemory()); // disable swap
-    String[] binds = new String[mapping.length];
-    for (int i = 0; i < mapping.length; ++i) {
-      LOG.debug(
-          "Added mapping {} -> {} readWrite:{}",
-          mapping[i].getHost().getPath(),
-          mapping[i].getContainer().getPath(),
-          mapping[i].isReadWrite());
-      binds[i] =
-          DockerUtil.bind(
-              mapping[i].getHost(), mapping[i].getContainer(), !mapping[i].isReadWrite());
-    }
-    hc.setBinds(Arrays.asList(binds));
-    config.setHostConfig(hc);
-    Map<String, Map<String, String>> volumes = new HashMap<>();
-    for (PathPair p : mapping) {
-      volumes.put(p.getContainer().getPath(), new HashMap<>());
-    }
-    config.setVolumes(volumes);
-    return config;
-  }
-
   /**
    * Compile the task and get the response. This is done by executing the compile-test.sh script in
    * the task repo.
@@ -368,11 +154,17 @@ public class ContainerManager implements Stoppable {
       File taskDirHost, String imageName, ContainerRestrictions restrictions)
       throws ApiUnavailableException {
     try {
-      return exec_container(
-          new PathPair[] {new PathPair(taskDirHost, "/task", true)},
-          new String[] {"/task/compile-test.sh", "/task/test", "/task/harness", "/task/validator"},
-          imageName,
-          restrictions,
+      return executeContainer(
+          ExecutionConfig.builder()
+              .addPathSpecification(PathSpecification.create(taskDirHost, "/task", true))
+              .addCommand("/task/compile-test.sh")
+              .addCommand("/task/test")
+              .addCommand("/task/harness")
+              .addCommand("/task/validator")
+              .setImageName(imageName)
+              .setContainerRestrictions(restrictions)
+              .setLocalUserId(config.getUid())
+              .build(),
           Function.identity());
     } catch (ContainerExecutionException e) {
       return new ContainerExecResponse<>(false, e.getMessage(), e.getMessage(), -1);
@@ -390,15 +182,20 @@ public class ContainerManager implements Stoppable {
       ContainerRestrictions restrictions)
       throws ApiUnavailableException {
     try {
-      return exec_container(
-          new PathPair[] {
-            new PathPair(codeDirHost, "/code", true),
-            new PathPair(compilationRecipeDirHost, "/compile", false),
-            new PathPair(config.getLibRoot(), "/testlib", false)
-          },
-          new String[] {"/compile/compile-solution.sh", "/code", "/testlib"},
-          imageName,
-          restrictions,
+      return executeContainer(
+          ExecutionConfig.builder()
+              .addPathSpecification(PathSpecification.create(codeDirHost, "/code", true))
+              .addPathSpecification(
+                  PathSpecification.create(compilationRecipeDirHost, "/compile", false))
+              .addPathSpecification(
+                  PathSpecification.create(config.getLibRoot(), "/testlib", false))
+              .addCommand("/compile/compile-solution.sh")
+              .addCommand("/code")
+              .addCommand("/testlib")
+              .setImageName(imageName)
+              .setContainerRestrictions(restrictions)
+              .setLocalUserId(config.getUid())
+              .build(),
           Function.identity());
     } catch (ContainerExecutionException e) {
       return new ContainerExecResponse<>(false, e.getMessage(), e.getMessage(), -1);
@@ -413,45 +210,34 @@ public class ContainerManager implements Stoppable {
       ContainerRestrictions restrictions)
       throws ApiUnavailableException {
     try {
-      return exec_container(
-          new PathPair[] {
-            new PathPair(codeDirHost, "/code", true),
-            new PathPair(harnessRecipeDirHost, "/harness", false),
-            new PathPair(config.getLibRoot(), "/testlib", false)
-          },
-          new String[] {"/harness/run-harness.sh", "/code", "/harness", "/testlib"},
-          imageName,
-          restrictions,
-          t -> {
+      return executeContainer(
+          ExecutionConfig.builder()
+              .addPathSpecification(PathSpecification.create(codeDirHost, "/code", true))
+              .addPathSpecification(
+                  PathSpecification.create(harnessRecipeDirHost, "/harness", false))
+              .addPathSpecification(
+                  PathSpecification.create(config.getLibRoot(), "/testlib", false))
+              .addCommand("/harness/run-harness.sh")
+              .addCommand("/code")
+              .addCommand("/harness")
+              .addCommand("/testlib")
+              .setImageName(imageName)
+              .setContainerRestrictions(restrictions)
+              .setLocalUserId(config.getUid())
+              .build(),
+          containerOutput -> {
             try {
-              ObjectMapper o = new ObjectMapper();
-              return o.readValue(t, HarnessResponse.class);
+              return new ObjectMapper().readValue(containerOutput, HarnessResponse.class);
             } catch (IOException e) {
               return new HarnessResponse(
-                  "Failed to deserialise response from harness: "
-                      + e.getMessage()
-                      + ". Response was "
-                      + t);
+                  String.format(
+                      "Failed to deserialise response from harness: %s. Response was %s",
+                      e.getMessage(), containerOutput));
             }
           });
     } catch (ContainerExecutionException e) {
       return new ContainerExecResponse<>(
           false, new HarnessResponse(e.getMessage()), e.getMessage(), -1);
-    }
-  }
-
-  private static Optional<String> getMeasurements(HarnessResponse harnessResponse) {
-    ObjectMapper o = new ObjectMapper();
-    List<Measurement> m =
-        harnessResponse
-            .getTestParts()
-            .stream()
-            .map(HarnessPart::getMeasurements)
-            .collect(ArrayList::new, ArrayList::addAll, ArrayList::addAll);
-    try {
-      return Optional.of(o.writeValueAsString(m));
-    } catch (JsonProcessingException e) {
-      return Optional.empty();
     }
   }
 
@@ -479,27 +265,29 @@ public class ContainerManager implements Stoppable {
       try (FileWriter w = new FileWriter(new File(containerTempDir, "input.json"))) {
         w.write(measurements.get());
       }
-      return exec_container(
-          new PathPair[] {
-            new PathPair(containerTempDir, "/input", false),
-            new PathPair(validatorDirectory, "/validator", false),
-            new PathPair(config.getLibRoot(), "/testlib", false)
-          },
-          new String[] {
-            "/validator/run-validator.sh", "/validator", "/testlib", "/input/input.json"
-          },
-          imageName,
-          restrictions,
-          t -> {
+      return executeContainer(
+          ExecutionConfig.builder()
+              .addPathSpecification(PathSpecification.create(containerTempDir, "/input", false))
+              .addPathSpecification(
+                  PathSpecification.create(validatorDirectory, "/validator", false))
+              .addPathSpecification(
+                  PathSpecification.create(config.getLibRoot(), "/testlib", false))
+              .addCommand("/validator/run-validator.sh")
+              .addCommand("/validator")
+              .addCommand("/testlib")
+              .addCommand("/input/input.json")
+              .setImageName(imageName)
+              .setContainerRestrictions(restrictions)
+              .setLocalUserId(config.getUid())
+              .build(),
+          containerResponse -> {
             try {
-              ObjectMapper o1 = new ObjectMapper();
-              return o1.readValue(t, ValidatorResponse.class);
+              return new ObjectMapper().readValue(containerResponse, ValidatorResponse.class);
             } catch (IOException e) {
               return new ValidatorResponse(
-                  "Failed to deserialise response from validator: "
-                      + e.getMessage()
-                      + ". Response was "
-                      + t);
+                  String.format(
+                      "Failed to deserialise response from validator: %s. Response was %s.",
+                      e.getMessage(), containerResponse));
             }
           });
     } catch (ContainerExecutionException | IOException e) {
@@ -508,32 +296,213 @@ public class ContainerManager implements Stoppable {
     }
   }
 
-  public void setTimeoutMultiplier(int multiplier) {
-    timeoutMultiplier.set(multiplier);
+  private ScheduledFuture<Boolean> scheduleTimeoutKiller(
+      int timeoutSec, String containerId, AttachListener attachListener) {
+    if (timeoutSec <= 0) {
+      return new EmptyScheduledFuture<>();
+    }
+    return scheduler.schedule(
+        () -> {
+          try {
+            DockerUtil.killContainer(containerId, getDockerApi());
+            attachListener.notifyClose();
+            return true;
+          } catch (RuntimeException e) {
+            LOG.error("Caught exception killing container", e);
+            return false;
+          }
+        },
+        timeoutSec,
+        TimeUnit.SECONDS);
   }
 
-  static class PathPair {
-    private File host;
-    private File container;
-    private boolean readWrite;
+  private <T> ContainerExecResponse<T> executeContainer(
+      ExecutionConfig executionConfig, Function<String, T> converter)
+      throws ContainerExecutionException, ApiUnavailableException {
 
-    PathPair(File host, String container, boolean readWrite) {
-      super();
-      this.host = host;
-      this.container = new File(container);
-      this.readWrite = readWrite;
-    }
+    String containerName =
+        this.config.getContainerPrefix() + containerNameCounter.incrementAndGet();
+    LOG.debug("Creating container {}", containerName);
 
-    File getHost() {
-      return host;
-    }
+    DockerApi docker = getDockerApi();
 
-    File getContainer() {
-      return container;
-    }
+    long startTime = System.currentTimeMillis();
+    try {
+      ContainerConfig config = executionConfig.toContainerConfig();
+      ContainerResponse response = docker.createContainer(containerName, config);
+      final String containerId = response.getId();
+      runningContainers.add(containerId);
+      try {
+        docker.startContainer(containerId);
+        AttachListener attachListener = new AttachListener();
 
-    boolean isReadWrite() {
-      return readWrite;
+        ScheduledFuture<Boolean> timeoutKiller =
+            scheduleTimeoutKiller(
+                executionConfig.containerRestrictions().getTimeoutSec() * timeoutMultiplier.get(),
+                containerId,
+                attachListener);
+
+        DiskUsageKiller diskUsageKiller =
+            new DiskUsageKiller(
+                containerId,
+                this,
+                executionConfig.containerRestrictions().getDiskWriteLimitMegabytes() * 1024 * 1024,
+                attachListener);
+        ScheduledFuture<?> diskUsageKillerFuture =
+            scheduler.scheduleAtFixedRate(diskUsageKiller, 10L, 10L, TimeUnit.SECONDS);
+
+        try {
+          Future<Session> session =
+              docker.attach(containerId, true, true, true, true, true, attachListener);
+
+          // Wait for container to finish (or be killed)
+          boolean success = false;
+          boolean knownStopped = false;
+          boolean closed = false;
+
+          while (!closed) {
+            closed = attachListener.waitForClose(60 * 1000);
+            ContainerInfo i = docker.inspectContainer(containerId, false);
+            if (!i.getState().getRunning()) {
+              knownStopped = true;
+              closed = true;
+              success = i.getState().getExitCode() == 0;
+            }
+          }
+
+          // Check to make sure its really stopped the container
+          if (!knownStopped) {
+            ContainerInfo containerInfo = docker.inspectContainer(containerId, false);
+            if (containerInfo.getState().getRunning()) {
+              DockerUtil.killContainer(containerId, docker);
+              containerInfo = docker.inspectContainer(containerId, false);
+            }
+            success = containerInfo.getState().getExitCode() == 0;
+          }
+
+          timeoutKiller.cancel(false);
+          try {
+            if (timeoutKiller.get()) {
+              throw new ContainerExecutionException(
+                  String.format(
+                      "Timed out after %d seconds", System.currentTimeMillis() - startTime));
+            }
+          } catch (InterruptedException | ExecutionException | CancellationException e) {
+            // ignore
+          }
+
+          if (diskUsageKiller.isKilled()) {
+            throw new ContainerExecutionException(
+                String.format(
+                    "Excessive disk usage. Recorded %d bytes written. Limit is %d mb.",
+                    diskUsageKiller.getBytesWritten(),
+                    executionConfig.containerRestrictions().getDiskWriteLimitMegabytes()));
+          }
+
+          try {
+            session.get().close();
+          } catch (InterruptedException e) {
+            // ignore
+          } catch (ExecutionException e) {
+            LOG.error(
+                "An exception occurred collecting the websocket session from the future",
+                e.getCause());
+          }
+
+          LOG.debug("Container response: {}", attachListener.getOutput());
+          return new ContainerExecResponse<>(
+              success,
+              converter.apply(attachListener.getOutput()),
+              attachListener.getOutput(),
+              System.currentTimeMillis() - startTime);
+        } finally {
+          diskUsageKillerFuture.cancel(false);
+        }
+      } finally {
+        runningContainers.remove(containerId);
+        DockerPatch.deleteContainer(docker, containerId, true, true);
+      }
+    } catch (RuntimeException e) {
+      LOG.error("Error executing container", e);
+      throw new ContainerExecutionException(
+          String.format(
+              "An error (%s) occurred when executing container: %s",
+              e.getClass().getName(), e.getMessage()));
     }
+  }
+
+  synchronized DockerApi getDockerApi() throws ApiUnavailableException {
+    if (dockerApi == null) {
+      dockerApi = initializeDockerApi();
+    }
+    return dockerApi;
+  }
+
+  private class ApiPerformanceListener implements ApiListener {
+    @Override
+    public void callCompleted(boolean apiAvailable, long timeTaken, String methodName) {
+      long callTime = smoothedCallTime.get();
+      callTime = (timeTaken >> 3) + callTime - (callTime >> 3);
+      smoothedCallTime.set(callTime);
+      if (!apiAvailable) {
+        apiStatus.set(ApiStatus.FAILED);
+      } else if (callTime > 1000) {
+        apiStatus.set(ApiStatus.SLOW_RESPONSE_TIME);
+      } else {
+        apiStatus.set(ApiStatus.OK);
+      }
+    }
+  }
+
+  private synchronized DockerApi initializeDockerApi() throws ApiUnavailableException {
+    DockerApi docker = new Docker("localhost", 2375, 1).api(new ApiPerformanceListener());
+    if (LOG.isInfoEnabled()) {
+      Version v = docker.getVersion();
+      LOG.info("Connected to docker, API version: {}", v.getApiVersion());
+    }
+    SystemInfo info = docker.systemInfo();
+    if (info.getSwapLimit() == null || !info.getSwapLimit()) {
+      LOG.warn(
+          "WARNING: swap limits are disabled for this kernel. Add \"cgroup_enable=memory "
+              + "swapaccount=1\" to your kernel command line");
+    }
+    deleteOldContainers(config.getContainerPrefix(), docker);
+    apiStatus.set(ApiStatus.OK);
+    return docker;
+  }
+
+  private static Optional<String> getMeasurements(HarnessResponse harnessResponse) {
+    ImmutableList<Measurement> m =
+        harnessResponse
+            .getTestParts()
+            .stream()
+            .map(HarnessPart::getMeasurements)
+            .flatMap(List::stream)
+            .collect(toImmutableList());
+    try {
+      return Optional.of(new ObjectMapper().writeValueAsString(m));
+    } catch (JsonProcessingException e) {
+      return Optional.empty();
+    }
+  }
+
+  private static void deleteOldContainers(String containerPrefix, DockerApi docker)
+      throws ApiUnavailableException {
+    for (Container i : docker.listContainers(true, null, null, null, null)) {
+      Optional<String> matchedName = getPotteryTransientName(containerPrefix, i);
+      if (matchedName.isPresent()) {
+        LOG.warn("Deleting old container named {}", matchedName.get());
+        try {
+          docker.deleteContainer(i.getId(), true, true);
+        } catch (RuntimeException e) {
+          LOG.error("Error deleting old container", e);
+        }
+      }
+    }
+  }
+
+  private static Optional<String> getPotteryTransientName(String containerPrefix, Container i) {
+    final String prefix = "/" + containerPrefix;
+    return Arrays.stream(i.getNames()).filter(name -> name.startsWith(prefix)).findAny();
   }
 }
