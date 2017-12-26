@@ -28,6 +28,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationExce
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 
 public class TaskInfos {
+
+  /** Read the json file specifying this TaskInfo from disk and parse it into an object. */
   public static TaskInfo load(String taskId, File taskDirectory, List<String> skeletonFiles)
       throws InvalidTaskSpecificationException {
     ObjectMapper o = new ObjectMapper();
@@ -44,6 +46,7 @@ public class TaskInfos {
     }
   }
 
+  /** Write this task info back to disk. */
   public static void save(TaskInfo taskInfo, File taskDirectory) throws IOException {
     ObjectMapper o = new ObjectMapper();
     o.writeValue(new File(taskDirectory, "task.json"), taskInfo);

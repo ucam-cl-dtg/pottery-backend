@@ -18,6 +18,8 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -27,7 +29,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
@@ -44,6 +45,7 @@ public class TaskIndex {
 
   private Map<String, Task> definedTasks;
 
+  /** Create a new TaskIndex. */
   @Inject
   public TaskIndex(TaskFactory taskFactory, Database database) throws TaskStorageException {
     this.definedTasks = new ConcurrentHashMap<>();
@@ -57,6 +59,7 @@ public class TaskIndex {
     }
   }
 
+  /** Get the testing version of all non-retired tasks. */
   public Collection<TaskInfo> getTestingTasks() {
     List<TaskInfo> r = new LinkedList<>();
     for (Task t : definedTasks.values()) {
@@ -71,6 +74,7 @@ public class TaskIndex {
     return r;
   }
 
+  /** Get the registered version (if registered) of all non-retired tasks. */
   public Collection<TaskInfo> getRegisteredTasks() {
     List<TaskInfo> r = new LinkedList<>();
     for (Task t : definedTasks.values()) {
@@ -85,18 +89,21 @@ public class TaskIndex {
     return r;
   }
 
+  /** Get the TaskInfo for the testing version of this task. */
   public TaskInfo getTestingTaskInfo(String taskId) throws TaskNotFoundException {
     try (TaskCopy t = getTask(taskId).acquireTestingCopy()) {
       return t.getInfo();
     }
   }
 
+  /** Get the TaskInfo for the registered version of this task. */
   public TaskInfo getRegisteredTaskInfo(String taskId) throws TaskNotFoundException {
     try (TaskCopy t = getTask(taskId).acquireRegisteredCopy()) {
       return t.getInfo();
     }
   }
 
+  /** Get the Task definition object for this task. */
   public Task getTask(String taskId) throws TaskNotFoundException {
     Task t = definedTasks.get(taskId);
     if (t == null) {
@@ -105,22 +112,24 @@ public class TaskIndex {
     return t;
   }
 
+  /** Return a list of non-retired tasks. */
   public Collection<String> getAllTasks() {
     return definedTasks
         .values()
         .stream()
         .filter(t -> !t.isRetired())
-        .map(t -> t.getTaskId())
-        .collect(Collectors.toList());
+        .map(Task::getTaskId)
+        .collect(toImmutableList());
   }
 
+  /** Return a list of retired tasks. */
   public Collection<String> getRetiredTasks() {
     return definedTasks
         .values()
         .stream()
-        .filter(t -> t.isRetired())
-        .map(t -> t.getTaskId())
-        .collect(Collectors.toList());
+        .filter(Task::isRetired)
+        .map(Task::getTaskId)
+        .collect(toImmutableList());
   }
 
   public void add(Task newTask) {
