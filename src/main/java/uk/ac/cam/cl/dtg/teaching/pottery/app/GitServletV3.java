@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Collection;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebInitParam;
@@ -32,8 +31,6 @@ import javax.servlet.http.HttpServletRequest;
 import org.eclipse.jgit.http.server.GitServlet;
 import org.eclipse.jgit.http.server.resolver.DefaultReceivePackFactory;
 import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.transport.PostReceiveHook;
-import org.eclipse.jgit.transport.ReceiveCommand;
 import org.eclipse.jgit.transport.ReceivePack;
 import org.eclipse.jgit.transport.resolver.ServiceNotAuthorizedException;
 import org.eclipse.jgit.transport.resolver.ServiceNotEnabledException;
@@ -68,85 +65,80 @@ public class GitServletV3 extends GitServlet {
               throws ServiceNotEnabledException, ServiceNotAuthorizedException {
             ReceivePack pack = super.create(req, db);
             pack.setPostReceiveHook(
-                new PostReceiveHook() {
-                  @Override
-                  public void onPostReceive(ReceivePack rp, Collection<ReceiveCommand> commands) {
-                    String repoName = req.getPathInfo().substring(1);
-                    LOG.info("Received push to {}", repoName);
-                    TaskIndex t =
-                        GuiceResteasyBootstrapServletContextListenerV3.getInjector()
-                            .getInstance(TaskIndex.class);
-                    Worker w =
-                        GuiceResteasyBootstrapServletContextListenerV3.getInjector()
-                            .getInstance(Worker.class);
-                    try (PrintWriter output =
-                        new PrintWriter(pack.getMessageOutputStream(), true)) {
-                      try {
-                        Task task = t.getTask(repoName);
-                        BuilderInfo b = task.scheduleBuildTestingCopy(w);
-                        output.println("Waiting for testing build of task...");
-                        int previousStatus = 0;
+                (rp, commands) -> {
+                  String repoName = req.getPathInfo().substring(1);
+                  LOG.info("Received push to {}", repoName);
+                  TaskIndex t =
+                      GuiceResteasyBootstrapServletContextListenerV3.getInjector()
+                          .getInstance(TaskIndex.class);
+                  Worker w =
+                      GuiceResteasyBootstrapServletContextListenerV3.getInjector()
+                          .getInstance(Worker.class);
+                  try (PrintWriter output = new PrintWriter(pack.getMessageOutputStream(), true)) {
+                    try {
+                      Task task = t.getTask(repoName);
+                      BuilderInfo b = task.scheduleBuildTestingCopy(w);
+                      output.println("Waiting for testing build of task...");
+                      int previousStatus = 0;
 
-                        while (previousStatus < 6) {
-                          int currentStatus = BuilderInfo.statusToInt(b.getStatus());
+                      while (previousStatus < 6) {
+                        int currentStatus = BuilderInfo.statusToInt(b.getStatus());
 
-                          if (currentStatus >= 2 && previousStatus < 2) {
-                            output.println("Copying files");
-                          }
-
-                          if (currentStatus >= 3 && previousStatus < 3) {
-                            output.println("Compiling test");
-                          }
-
-                          if (currentStatus >= 4 && previousStatus < 4) {
-                            output.println(b.getTestCompileResponse());
-                            output.println("Compiling solution");
-                          }
-
-                          if (currentStatus >= 5 && previousStatus < 5) {
-                            output.println(b.getSolutionCompileResponse());
-                            output.println("Testing solution");
-                          }
-
-                          if (currentStatus >= 6 && previousStatus < 6) {
-                            ObjectMapper o = new ObjectMapper();
-                            o.configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
-                            ObjectWriter writer = o.writerWithDefaultPrettyPrinter();
-                            try {
-                              writer.writeValue(output, b.getHarnessResponse());
-                            } catch (IOException e) {
-                              output.println(
-                                  "Failed to serialise harness output: " + e.getMessage());
-                            }
-                            try {
-                              writer.writeValue(output, b.getValidatorResponse());
-                            } catch (IOException e) {
-                              output.println(
-                                  "Failed to serialise validator output: " + e.getMessage());
-                            }
-                          }
-                          previousStatus = currentStatus;
-                          Thread.sleep(1000);
+                        if (currentStatus >= 2 && previousStatus < 2) {
+                          output.println("Copying files");
                         }
 
-                        if (b.getStatus().equals(BuilderInfo.STATUS_FAILURE)) {
-                          output.println("Failed");
-                          if (b.getException() != null) {
-                            output.println(b.getException());
-                          }
-                        } else {
-                          output.println("Success");
+                        if (currentStatus >= 3 && previousStatus < 3) {
+                          output.println("Compiling test");
                         }
-                      } catch (TaskNotFoundException e) {
-                        output.println("Task " + repoName + " not found");
-                      } catch (RetiredTaskException e) {
-                        output.println(
-                            "Did not schedule build of testing copy - task "
-                                + repoName
-                                + " is retired");
-                      } catch (InterruptedException e1) {
-                        output.println("Interrupted waiting for completion");
+
+                        if (currentStatus >= 4 && previousStatus < 4) {
+                          output.println(b.getTestCompileResponse());
+                          output.println("Compiling solution");
+                        }
+
+                        if (currentStatus >= 5 && previousStatus < 5) {
+                          output.println(b.getSolutionCompileResponse());
+                          output.println("Testing solution");
+                        }
+
+                        if (currentStatus >= 6) {
+                          ObjectMapper o = new ObjectMapper();
+                          o.configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
+                          ObjectWriter writer = o.writerWithDefaultPrettyPrinter();
+                          try {
+                            writer.writeValue(output, b.getHarnessResponse());
+                          } catch (IOException e) {
+                            output.println("Failed to serialise harness output: " + e.getMessage());
+                          }
+                          try {
+                            writer.writeValue(output, b.getValidatorResponse());
+                          } catch (IOException e) {
+                            output.println(
+                                "Failed to serialise validator output: " + e.getMessage());
+                          }
+                        }
+                        previousStatus = currentStatus;
+                        Thread.sleep(1000);
                       }
+
+                      if (b.getStatus().equals(BuilderInfo.STATUS_FAILURE)) {
+                        output.println("Failed");
+                        if (b.getException() != null) {
+                          output.println(b.getException());
+                        }
+                      } else {
+                        output.println("Success");
+                      }
+                    } catch (TaskNotFoundException e) {
+                      output.println("Task " + repoName + " not found");
+                    } catch (RetiredTaskException e) {
+                      output.println(
+                          "Did not schedule build of testing copy - task "
+                              + repoName
+                              + " is retired");
+                    } catch (InterruptedException e1) {
+                      output.println("Interrupted waiting for completion");
                     }
                   }
                 });

@@ -18,7 +18,6 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
-import java.io.IOException;
 import java.security.Principal;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
@@ -37,12 +36,12 @@ public class AuthenticationPrincipalInterceptor implements ContainerRequestFilte
       LoggerFactory.getLogger(AuthenticationPrincipalInterceptor.class);
 
   @Override
-  public void filter(ContainerRequestContext requestContext) throws IOException {
+  public void filter(ContainerRequestContext requestContext) {
     SecurityContext securityContext = requestContext.getSecurityContext();
     if (securityContext != null) {
       Principal userPrincipal = securityContext.getUserPrincipal();
       if (userPrincipal != null) {
-        LOG.info("User principle {}", userPrincipal.getName());
+        LOG.info("User principal {}", userPrincipal.getName());
         ResteasyProviderFactory.pushContext(Principal.class, userPrincipal);
       }
     }

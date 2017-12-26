@@ -42,7 +42,6 @@ import org.eclipse.jgit.util.FS;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
-import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
@@ -67,7 +66,7 @@ public class ApplicationModule implements Module {
 
   private ServletContext context;
 
-  public ApplicationModule(ServletContext context) {
+  ApplicationModule(ServletContext context) {
     this.context = context;
     BeanConfig beanConfig = new BeanConfig();
     beanConfig.setVersion("1.0.0");
@@ -126,18 +125,19 @@ public class ApplicationModule implements Module {
             defaultJSch.addIdentity(context.getInitParameter("sshPrivateKey"));
             Properties config = new Properties();
             config.put("StrictHostKeyChecking", "no");
-            defaultJSch.setConfig(config);
+            JSch.setConfig(config);
             return defaultJSch;
           }
         });
   }
 
+  /** Stop the various worker and manager threads. */
   @PreDestroy
   public void preDestroy() {
     Injector injector = GuiceResteasyBootstrapServletContextListenerV3.getInjector();
-    ((Stoppable) injector.getInstance(Worker.class)).stop();
-    ((Stoppable) injector.getInstance(ContainerManager.class)).stop();
-    ((Stoppable) injector.getInstance(Database.class)).stop();
+    injector.getInstance(Worker.class).stop();
+    injector.getInstance(ContainerManager.class).stop();
+    injector.getInstance(Database.class).stop();
 
     // TODO: this is plausible but needs one of two possible fixes:
     // 1) we need to avoid instantiating things that are not instanatiated already
