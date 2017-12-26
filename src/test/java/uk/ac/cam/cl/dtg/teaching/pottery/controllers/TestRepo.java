@@ -34,7 +34,6 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
@@ -58,8 +57,8 @@ public class TestRepo {
   @Before
   public void setup()
       throws IOException, GitAPIException, TaskStorageException, SQLException,
-          TaskNotFoundException, CriterionNotFoundException, ApiUnavailableException,
-          RetiredTaskException, RepoExpiredException, RepoNotFoundException, RepoStorageException {
+          TaskNotFoundException, CriterionNotFoundException, RetiredTaskException,
+          RepoExpiredException, RepoNotFoundException, RepoStorageException {
 
     this.testRootDir = Files.createTempDir().getCanonicalFile();
     this.testEnvironment = new TestEnvironment(testRootDir.getPath());
@@ -75,9 +74,8 @@ public class TestRepo {
 
   @Test
   public void readFile_getsCorrectContents()
-      throws TaskNotFoundException, RepoExpiredException, RepoNotFoundException,
-          RetiredTaskException, RepoStorageException, TaskStorageException,
-          RepoFileNotFoundException, RepoTagNotFoundException, JsonProcessingException {
+      throws RepoStorageException, RepoFileNotFoundException, RepoTagNotFoundException,
+          JsonProcessingException {
 
     // ARRANGE
     String expectedContents = TestEnvironment.getScriptContents("Skeleton");
