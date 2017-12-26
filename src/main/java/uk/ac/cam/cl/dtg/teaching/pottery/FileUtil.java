@@ -32,6 +32,7 @@ import org.apache.commons.io.IOUtils;
 
 public class FileUtil {
 
+  /** Create the chosen directory (and any missing parent directories) if it doesn't exist. */
   public static void mkdirIfNotExists(File dir) throws IOException {
     if (!dir.exists()) {
       if (!dir.mkdirs()) {
@@ -40,6 +41,7 @@ public class FileUtil {
     }
   }
 
+  /** Delete everything in the given directory tree. */
   public static void deleteRecursive(File rootDirectory) throws IOException {
     if (!rootDirectory.exists()) {
       return;
@@ -89,15 +91,15 @@ public class FileUtil {
     return false;
   }
 
+  /**
+   * Creates the specified directory and returns a Closeable object for use in try-with-resources
+   * which will delete the whole tree.
+   */
   public static AutoDelete mkdirWithAutoDelete(File dir) throws IOException {
     if (!dir.mkdirs()) {
       throw new IOException("Failed to create directory " + dir);
     }
     return new AutoDelete(dir);
-  }
-
-  public static AutoDelete createTempDirWithAutoDelete() throws IOException {
-    return new AutoDelete(com.google.common.io.Files.createTempDir());
   }
 
   /**
@@ -122,11 +124,7 @@ public class FileUtil {
             copiedFiles.add(localLocation.toString());
             File newLocation = destinationDir.toPath().resolve(localLocation).toFile();
             File newDir = newLocation.getParentFile();
-
-            if (newDir.exists()) {
-              newDir.mkdirs();
-            }
-
+            mkdirIfNotExists(newDir);
             try (FileOutputStream fos = new FileOutputStream(newLocation)) {
               try (FileInputStream fis = new FileInputStream(originalFile)) {
                 IOUtils.copy(fis, fos);
@@ -150,10 +148,6 @@ public class FileUtil {
 
     public void persist() {
       persist = true;
-    }
-
-    public File getParent() {
-      return parent;
     }
 
     @Override
