@@ -200,7 +200,7 @@ public class Repo {
   public void copyFiles(TaskCopy task) throws RepoStorageException, RepoExpiredException {
     throwIfRepoExpired();
     throwIfRemote();
-    try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+    try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         try {
           List<String> copiedFiles = task.copySkeleton(repoDirectory);
@@ -268,8 +268,7 @@ public class Repo {
 
   /** Schedule a particular version of the repo for testing later. */
   public Submission scheduleSubmission(String tag, Worker w, Database db)
-      throws RepoExpiredException, SubmissionStorageException, RepoTagNotFoundException,
-          RepoStorageException {
+      throws RepoExpiredException, SubmissionStorageException, RepoStorageException {
     throwIfRepoExpired();
 
     if (tag.equals("HEAD")) {
@@ -310,7 +309,7 @@ public class Repo {
                   repoInfo.isUsingTestingVersion()
                       ? t.acquireTestingCopy()
                       : t.acquireRegisteredCopy()) {
-                try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+                try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
                   try {
                     setVersionToTest(tag);
                   } catch (RepoStorageException e) {
@@ -472,6 +471,7 @@ public class Repo {
     }
   }
 
+  /** Find the SHA hash for the head of the master branch. */
   public String resolveHeadSha() throws RepoStorageException {
     try {
       return Git.lsRemoteRepository()
@@ -511,7 +511,7 @@ public class Repo {
    * @throws RepoStorageException if something goes wrong
    */
   private void setVersionToTest(String tag) throws RepoStorageException {
-    try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+    try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
       if (repoTestingDirectory.exists()) {
         try {
           FileUtil.deleteRecursive(repoTestingDirectory);
@@ -545,7 +545,7 @@ public class Repo {
    * @throws RepoStorageException if something goes wrong
    */
   public boolean existsTag(String tag) throws RepoStorageException {
-    try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
+    try (AutoCloseableLock ignored = lock.takeGitDbOpLock()) {
       try (Git git = Git.open(repoDirectory)) {
         return git.getRepository().resolve(Constants.R_TAGS + tag) != null;
       } catch (IOException e) {
@@ -566,7 +566,7 @@ public class Repo {
   public ImmutableList<String> listFiles(String tag)
       throws RepoStorageException, RepoTagNotFoundException {
     throwIfRemote();
-    try (AutoCloseableLock l = lock.takeFileReadingLock()) {
+    try (AutoCloseableLock ignored = lock.takeFileReadingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository repo = git.getRepository();
         RevWalk revWalk = new RevWalk(repo);
@@ -604,7 +604,7 @@ public class Repo {
   public String createNewTag() throws RepoStorageException, RepoExpiredException {
     throwIfRepoExpired();
     throwIfRemote();
-    try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
+    try (AutoCloseableLock ignored = lock.takeGitDbOpLock()) {
       try (Git git = Git.open(repoDirectory)) {
         List<Ref> tagList;
         try {
@@ -656,7 +656,7 @@ public class Repo {
   public List<String> listTags() throws RepoStorageException {
     throwIfRemote();
     String prefix = Constants.R_TAGS + webtagPrefix;
-    try (AutoCloseableLock l = lock.takeGitDbOpLock()) {
+    try (AutoCloseableLock ignored = lock.takeGitDbOpLock()) {
       try (Git g = Git.open(repoDirectory)) {
         return g.tagList()
             .call()
@@ -682,7 +682,7 @@ public class Repo {
       throws RepoStorageException, RepoExpiredException, RepoTagNotFoundException {
     throwIfRepoExpired();
     throwIfRemote();
-    try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+    try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository r = git.getRepository();
         Ref tagRef = r.findRef(tag);
@@ -716,7 +716,7 @@ public class Repo {
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException {
     throwIfRepoExpired();
     throwIfRemote();
-    try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+    try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
       File f = new File(repoDirectory, fileName);
       try {
         if (!FileUtil.isParent(repoDirectory, f)) {
@@ -766,7 +766,7 @@ public class Repo {
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException {
     throwIfRepoExpired();
     throwIfRemote();
-    try (AutoCloseableLock l = lock.takeFileWritingLock()) {
+    try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
       File f = new File(repoDirectory, fileName);
       try {
         if (!FileUtil.isParent(repoDirectory, f)) {
@@ -824,7 +824,7 @@ public class Repo {
   public byte[] readFile(String tag, String fileName)
       throws RepoStorageException, RepoFileNotFoundException, RepoTagNotFoundException {
     throwIfRemote();
-    try (AutoCloseableLock l = lock.takeFileReadingLock()) {
+    try (AutoCloseableLock ignored = lock.takeFileReadingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository repo = git.getRepository();
         RevWalk revWalk = new RevWalk(repo);

@@ -25,6 +25,8 @@ import org.apache.commons.dbutils.QueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 
 public class RepoInfos {
+
+  /** Look up a repo from the database by its repoId. */
   public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
     return q.query(
         "SELECT repoid,taskid,using_testing_version,expiryDate,remote from repos where repoid=?",
@@ -40,6 +42,7 @@ public class RepoInfos {
         repoId);
   }
 
+  /** Insert this repo in to the database. */
   public static void insert(RepoInfo repoInfo, QueryRunner q) throws SQLException {
     q.update(
         "INSERT INTO repos(repoid,taskid,using_testing_version,expiryDate, remote) "

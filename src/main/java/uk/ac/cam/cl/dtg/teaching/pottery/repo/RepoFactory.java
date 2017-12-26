@@ -57,6 +57,7 @@ public class RepoFactory {
                 }
               });
 
+  /** Construct a new RepoFactory object. */
   @Inject
   public RepoFactory(RepoConfig config, Database database) throws IOException {
     this.database = database;
@@ -72,6 +73,7 @@ public class RepoFactory {
     }
   }
 
+  /** Lookup a repo by its repoId. */
   public Repo getInstance(String repoId) throws RepoStorageException, RepoNotFoundException {
     try {
       return cache.get(repoId);
@@ -81,6 +83,7 @@ public class RepoFactory {
     }
   }
 
+  /** Create a new repo for this task and return it. */
   public Repo createInstance(
       String taskId, boolean usingTestingVersion, Date expiryDate, String remote)
       throws RepoStorageException, RepoNotFoundException {
