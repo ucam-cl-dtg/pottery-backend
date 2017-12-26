@@ -18,56 +18,88 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
 import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.handlers.BeanHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 
-public class TaskDefInfo {
+@AutoValue
+abstract class TaskDefInfo {
 
-  public static final String REMOTE_UNSET = "";
+  static final String UNSET = "";
 
-  private String taskId;
+  abstract String taskId();
 
-  private String registeredTag;
+  abstract String registeredTag();
 
-  private String testingCopyId;
+  abstract String testingCopyId();
 
-  private String registeredCopyId;
+  abstract String registeredCopyId();
 
-  private boolean retired;
+  abstract boolean retired();
 
   /**
    * If this is non-empty then read the task definition from here rather than using local storage.
    */
-  private String remote;
+  abstract String remote();
 
-  public TaskDefInfo() {}
-
-  public TaskDefInfo(
-      String taskId,
-      String registeredTag,
-      String testingCopyId,
-      String registeredCopyId,
-      boolean retired,
-      String remote) {
-    super();
-    this.taskId = taskId;
-    this.registeredTag = registeredTag;
-    this.testingCopyId = testingCopyId;
-    this.registeredCopyId = registeredCopyId;
-    this.retired = retired;
-    this.remote = remote;
+  static Builder builder() {
+    return new AutoValue_TaskDefInfo.Builder();
   }
 
+  @AutoValue.Builder
+  abstract static class Builder {
+
+    abstract Builder setTaskId(String taskId);
+
+    abstract Builder setRegisteredTag(String registeredTag);
+
+    abstract Builder setTestingCopyId(String testingCopyId);
+
+    abstract Builder setRegisteredCopyId(String registeredCopyId);
+
+    abstract Builder setRetired(boolean retired);
+
+    abstract Builder setRemote(String remote);
+
+    abstract TaskDefInfo build();
+  }
+
+  /** Lookup the TaskDefInfo object for this taskId. */
   public static TaskDefInfo getByTaskId(String taskId, QueryRunner q) throws SQLException {
     return q.query(
-        "SELECT * from tasks where taskid=?", new BeanHandler<>(TaskDefInfo.class), taskId);
+        "SELECT "
+            + "registeredtag, "
+            + "testingCopyId, "
+            + "registeredCopyId, "
+            + "retired, "
+            + "remote from tasks where taskid=?",
+        rs -> {
+          if (rs.next()) {
+
+            String registeredTag = rs.getString(2);
+            String testingCopyId = rs.getString(3);
+            String registeredCopyId = rs.getString(4);
+            boolean retired = rs.getBoolean(5);
+            String remote = rs.getString(6);
+            return TaskDefInfo.builder()
+                .setTaskId(taskId)
+                .setRegisteredTag(registeredTag == null ? UNSET : registeredTag)
+                .setTestingCopyId(testingCopyId == null ? UNSET : testingCopyId)
+                .setRegisteredCopyId(registeredCopyId == null ? UNSET : registeredCopyId)
+                .setRetired(retired)
+                .setRemote(remote == null ? UNSET : remote)
+                .build();
+          }
+          return null;
+        },
+        taskId);
   }
 
+  /** Return a list of all the taskIds which exist in the database. */
   public static ImmutableList<String> getAllTaskIds(QueryRunner q) throws SQLException {
     return q.query(
         "Select taskId from tasks",
@@ -80,6 +112,7 @@ public class TaskDefInfo {
         });
   }
 
+  /** Update the sha hash for the registered copy for this task. */
   public static void updateRegisteredCopy(String taskId, String tag, String copyId, QueryRunner q)
       throws SQLException {
     q.update(
@@ -99,92 +132,25 @@ public class TaskDefInfo {
     q.update("UPDATE tasks set retired=? where taskid = ?", retired, taskId);
   }
 
+  /**
+   * Lookup the location of the task definition.This might be a local directory or a remote
+   * repository.
+   */
   public URI getTaskDefLocation(TaskConfig taskConfig) throws URISyntaxException {
-    if (getRemote().equals(REMOTE_UNSET)) {
+    if (remote().equals(UNSET)) {
       return new URI(
-          String.format("file://%s", taskConfig.getLocalTaskDefinitionDir(getTaskId()).getPath()));
+          String.format("file://%s", taskConfig.getLocalTaskDefinitionDir(taskId()).getPath()));
     } else {
-      return new URI(getRemote());
+      return new URI(remote());
     }
-  }
-
-  public String getTestingCopyId() {
-    return testingCopyId;
-  }
-
-  public void setTestingCopyId(String testingCopyId) {
-    this.testingCopyId = testingCopyId;
-  }
-
-  public String getRegisteredCopyId() {
-    return registeredCopyId;
-  }
-
-  public void setRegisteredCopyId(String registeredCopyId) {
-    this.registeredCopyId = registeredCopyId;
-  }
-
-  public boolean isRetired() {
-    return retired;
-  }
-
-  public void setRetired(boolean retired) {
-    this.retired = retired;
-  }
-
-  public String getTaskId() {
-    return taskId;
-  }
-
-  public void setTaskId(String taskId) {
-    this.taskId = taskId;
-  }
-
-  public String getRegisteredTag() {
-    return registeredTag;
-  }
-
-  public void setRegisteredTag(String registeredTag) {
-    this.registeredTag = registeredTag;
-  }
-
-  public String getRemote() {
-    return remote;
-  }
-
-  public void setRemote(String remote) {
-    this.remote = remote;
   }
 
   public void insert(QueryRunner q) throws SQLException {
     q.update(
         "INSERT INTO tasks(taskid,registeredtag,retired,remote) values (?,?,?,?)",
-        taskId,
-        registeredTag,
-        retired,
-        remote);
-  }
-
-  @Override
-  public String toString() {
-    return "TaskDefInfo{"
-        + "taskId='"
-        + taskId
-        + '\''
-        + ", registeredTag='"
-        + registeredTag
-        + '\''
-        + ", testingCopyId='"
-        + testingCopyId
-        + '\''
-        + ", registeredCopyId='"
-        + registeredCopyId
-        + '\''
-        + ", retired="
-        + retired
-        + ", remote='"
-        + remote
-        + '\''
-        + '}';
+        taskId(),
+        registeredTag(),
+        retired(),
+        remote());
   }
 }

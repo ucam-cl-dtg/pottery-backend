@@ -153,28 +153,24 @@ public class Task {
         URI taskDefLocation = info.getTaskDefLocation(config);
 
         TaskCopyBuilder testingBuilder =
-            info.getTestingCopyId() == null
-                ? TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config)
+            info.testingCopyId() == null
+                ? TaskCopyBuilder.createSuccessPlaceholder(taskId, config)
                 : TaskCopyBuilder.createForExisting(
-                    "HEAD", taskId, taskDefLocation, info.getTestingCopyId(), config);
+                    "HEAD", taskId, taskDefLocation, info.testingCopyId(), config);
         TaskCopyBuilder registeredBuilder =
-            info.getRegisteredCopyId() == null
-                ? TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config)
+            info.registeredCopyId() == null
+                ? TaskCopyBuilder.createSuccessPlaceholder(taskId, config)
                 : TaskCopyBuilder.createForExisting(
-                    info.getRegisteredTag(),
-                    taskId,
-                    taskDefLocation,
-                    info.getRegisteredCopyId(),
-                    config);
+                    info.registeredTag(), taskId, taskDefLocation, info.registeredCopyId(), config);
 
         return new Task(
-            info.getTaskId(),
+            info.taskId(),
             taskDefLocation,
             testingBuilder,
             testingBuilder.getTaskCopy(),
             registeredBuilder,
             registeredBuilder.getTaskCopy(),
-            info.isRetired(),
+            info.retired(),
             config,
             uuidGenerator);
       } else {
@@ -204,7 +200,7 @@ public class Task {
         throw new TaskStorageException("Failed to initialize git repository", e);
       }
       createdDirectory.persist();
-      return storeTask(taskId, "", uuidGenerator, config, database);
+      return storeTask(taskId, TaskDefInfo.UNSET, uuidGenerator, config, database);
     } catch (IOException e) {
       throw new TaskStorageException("Failed to create local definition directory");
     }
@@ -239,11 +235,17 @@ public class Task {
       TaskConfig config,
       Database database)
       throws TaskStorageException {
-    TaskDefInfo info = new TaskDefInfo(taskId, null, null, null, false, remote);
-    TaskCopyBuilder testingBuilder =
-        TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config);
-    TaskCopyBuilder registeredBuilder =
-        TaskCopyBuilder.createSuccessPlaceholder("HEAD", taskId, config);
+    TaskDefInfo info =
+        TaskDefInfo.builder()
+            .setTaskId(taskId)
+            .setRegisteredCopyId(TaskDefInfo.UNSET)
+            .setRegisteredTag(TaskDefInfo.UNSET)
+            .setTestingCopyId(TaskDefInfo.UNSET)
+            .setRetired(false)
+            .setRemote(remote)
+            .build();
+    TaskCopyBuilder testingBuilder = TaskCopyBuilder.createSuccessPlaceholder(taskId, config);
+    TaskCopyBuilder registeredBuilder = TaskCopyBuilder.createSuccessPlaceholder(taskId, config);
     // Mark status as success so that we don't try to compile these
     testingBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
     registeredBuilder.getBuilderInfo().setStatus(BuilderInfo.STATUS_SUCCESS);
@@ -283,6 +285,7 @@ public class Task {
 
   // *** BEGIN METHODS FOR MANAGING THE TESTING COPY OF THE TASK ***
 
+  /** Mark this task as retired in the database. */
   public void setRetired(Database database) throws RetiredTaskException, TaskStorageException {
     if (retired.getAndSet(true)) {
       throw new RetiredTaskException("Cannot retire task " + taskId);
@@ -312,6 +315,10 @@ public class Task {
     return registeredBuilder.getBuilderInfo();
   }
 
+  /**
+   * Begin building (in another thread) the registered version of this task, if it succeeds then
+   * update the registered version.
+   */
   public BuilderInfo scheduleBuildRegisteredCopy(String sha1, Worker w)
       throws RetiredTaskException {
     if (retired.get()) {
@@ -389,6 +396,10 @@ public class Task {
     }
   }
 
+  /**
+   * Get the testing copy of the task and reserve it so that it can't be deleted. The TaskCopy
+   * object must be closed after use to release the lock.
+   */
   public TaskCopy acquireTestingCopy() throws TaskNotFoundException {
     TaskCopy tc = testingCopy;
     if (tc != null && tc.acquire()) {
@@ -405,6 +416,7 @@ public class Task {
 
   // *** END METHODS FOR MANAGING TEST COPY ***
 
+  /** Schedule (in another thread) building the testing version of this task. */
   public BuilderInfo scheduleBuildTestingCopy(Worker w) throws RetiredTaskException {
     if (retired.get()) {
       throw new RetiredTaskException("Cannot schedule registration for task " + taskId);

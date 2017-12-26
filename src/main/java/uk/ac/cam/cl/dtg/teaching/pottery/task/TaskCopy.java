@@ -37,7 +37,10 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 
 /**
  * A task copy is a checkout of a task. Its made by copying files out of the taskdef git repo. Task
- * copies are readonly - you can't change the files in them.
+ * copies are readonly - you can't change the files in them. A task copy contains a TwoPhaseLatch,
+ * when you start using a TaskCopy you acquire access through the latch and release it when you call
+ * close (use try with resources). Anyone who wants to replace this TaskCopy with another one must
+ * wait until all the latches are released.
  *
  * @author acr31
  */

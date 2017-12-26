@@ -138,9 +138,8 @@ public class TaskCopyBuilder {
   }
 
   /** Create a placeholder TaskCopyBuilder to represent that no TaskCopy has been built. */
-  static TaskCopyBuilder createSuccessPlaceholder(
-      String sha1, String taskId, TaskConfig taskConfig) {
-    TaskCopyBuilder result = new TaskCopyBuilder(sha1, taskId, null, null, taskConfig);
+  static TaskCopyBuilder createSuccessPlaceholder(String taskId, TaskConfig taskConfig) {
+    TaskCopyBuilder result = new TaskCopyBuilder("HEAD", taskId, null, null, taskConfig);
     result.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
     return result;
   }
