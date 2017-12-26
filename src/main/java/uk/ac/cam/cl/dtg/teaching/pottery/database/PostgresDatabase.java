@@ -44,6 +44,7 @@ public class PostgresDatabase implements Database {
       connectionPool.setJdbcUrl("jdbc:postgresql://localhost/pottery");
       connectionPool.setUser("pottery");
       connectionPool.setPassword("pottery");
+      connectionPool.setTestConnectionOnCheckout(true);
 
     } catch (PropertyVetoException e) {
       LOG.error("Failed to open database", e);
