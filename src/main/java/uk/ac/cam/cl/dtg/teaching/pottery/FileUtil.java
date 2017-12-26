@@ -40,17 +40,19 @@ public class FileUtil {
     }
   }
 
-  public static void deleteRecursive(final File dir) throws IOException {
-    if (!dir.exists()) {
+  public static void deleteRecursive(File rootDirectory) throws IOException {
+    if (!rootDirectory.exists()) {
       return;
     }
+    File canonicalRoot = rootDirectory.getCanonicalFile();
+
     Files.walkFileTree(
-        dir.toPath(),
+        canonicalRoot.toPath(),
         new SimpleFileVisitor<Path>() {
           @Override
           public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
               throws IOException {
-            if (FileUtil.isParent(dir, file.toFile())) {
+            if (FileUtil.isParent(canonicalRoot, file.toFile())) {
               Files.delete(file);
               return FileVisitResult.CONTINUE;
             } else {

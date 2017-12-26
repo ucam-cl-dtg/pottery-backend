@@ -22,13 +22,11 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Function;
 import org.apache.commons.io.IOUtils;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
-import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 
 public class UncontainerImpl implements ContainerBackend {
 
@@ -54,14 +52,7 @@ public class UncontainerImpl implements ContainerBackend {
   public <T> ContainerExecResponse<T> executeContainer(
       ExecutionConfig executionConfig, Function<String, T> converter)
       throws ApiUnavailableException {
-
-    try (FileUtil.AutoDelete tempDir = FileUtil.createTempDirWithAutoDelete()) {
-      for (PathSpecification pathSpecification : executionConfig.pathSpecification()) {
-        File mountPoint = new File(tempDir.getParent(), pathSpecification.container().getPath());
-        FileUtil.mkdirIfNotExists(mountPoint);
-        FileUtil.copyFilesRecursively(pathSpecification.host(), mountPoint);
-      }
-
+    try {
       ImmutableList<String> commands =
           executionConfig
               .command()
@@ -70,11 +61,12 @@ public class UncontainerImpl implements ContainerBackend {
                   command -> {
                     for (PathSpecification pathSpecification :
                         executionConfig.pathSpecification()) {
-                      command =
-                          command.replace(
-                              pathSpecification.container().getPath(),
-                              new File(tempDir.getParent(), pathSpecification.container().getPath())
-                                  .getPath());
+                      if (command.startsWith(pathSpecification.container().getPath())) {
+                        command =
+                            pathSpecification.host().getPath()
+                                + command.substring(
+                                    pathSpecification.container().getPath().length());
+                      }
                     }
                     return command;
                   })
@@ -85,14 +77,24 @@ public class UncontainerImpl implements ContainerBackend {
       env.put(
           "RAM_LIMIT_MEGABYTES",
           String.valueOf(executionConfig.containerRestrictions().getDiskWriteLimitMegabytes()));
-      processBuilder.directory(tempDir.getParent());
       Process process = processBuilder.start();
       ByteArrayOutputStream bos = new ByteArrayOutputStream();
-      IOUtils.copy(process.getInputStream(), bos);
+      Thread copyThread =
+          new Thread(
+              () -> {
+                try {
+                  IOUtils.copy(process.getInputStream(), bos);
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
+                }
+              });
+      copyThread.start();
+      process.waitFor();
+      copyThread.join();
       String output = new String(bos.toByteArray());
       return new ContainerExecResponse<>(
           process.exitValue() == 0, converter.apply(output), output, 0);
-    } catch (IOException e) {
+    } catch (IOException | InterruptedException e) {
       throw new ApiUnavailableException(e);
     }
   }

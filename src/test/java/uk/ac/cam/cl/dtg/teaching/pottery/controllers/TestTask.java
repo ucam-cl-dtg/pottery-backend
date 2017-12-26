@@ -44,8 +44,8 @@ public class TestTask {
   private File testRootDir;
 
   @Before
-  public void setup() {
-    this.testRootDir = Files.createTempDir();
+  public void setup() throws IOException {
+    this.testRootDir = Files.createTempDir().getCanonicalFile();
   }
 
   @After

@@ -27,7 +27,6 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
-
 import org.apache.commons.io.Charsets;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -62,7 +61,7 @@ public class TestRepo {
           TaskNotFoundException, CriterionNotFoundException, ApiUnavailableException,
           RetiredTaskException, RepoExpiredException, RepoNotFoundException, RepoStorageException {
 
-    this.testRootDir = Files.createTempDir();
+    this.testRootDir = Files.createTempDir().getCanonicalFile();
     this.testEnvironment = new TestEnvironment(testRootDir.getPath());
 
     Task task = testEnvironment.createNoOpTask();
@@ -140,7 +139,7 @@ public class TestRepo {
     try (Git g = Git.open(repoDir)) {
       Files.write(new byte[] {0}, new File(repoDir, "text.txt"));
       g.add().addFilepattern("test.txt").call();
-      RevCommit commit = g.commit().call();
+      RevCommit commit = g.commit().setMessage("test commit").call();
       headSha = commit.getName();
     }
 
