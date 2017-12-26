@@ -35,6 +35,7 @@ public class WorkerController implements uk.ac.cam.cl.dtg.teaching.pottery.api.W
 
   private ContainerManager containerManager;
 
+  /** Create a new WorkerController. */
   @Inject
   public WorkerController(Worker worker, ContainerManager containerManager) {
     super();

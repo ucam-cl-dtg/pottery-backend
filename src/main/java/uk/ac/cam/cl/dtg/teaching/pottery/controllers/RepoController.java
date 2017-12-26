@@ -19,12 +19,9 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.google.inject.Inject;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -53,6 +50,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   private RepoFactory repoFactory;
   private TaskIndex taskIndex;
 
+  /** Create a new RepoController. */
   @Inject
   public RepoController(RepoFactory repoFactory, TaskIndex taskIndex) {
     super();

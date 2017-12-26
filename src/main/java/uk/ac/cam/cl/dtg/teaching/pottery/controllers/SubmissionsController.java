@@ -25,7 +25,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
@@ -44,6 +43,7 @@ public class SubmissionsController
 
   private RepoFactory repoFactory;
 
+  /** Create a new SubmissionController. */
   @Inject
   public SubmissionsController(Worker worker, Database database, RepoFactory repoFactory) {
     super();
@@ -54,8 +54,8 @@ public class SubmissionsController
 
   @Override
   public Submission scheduleTest(String repoId, String tag)
-      throws SubmissionNotFoundException, RepoStorageException, RepoExpiredException,
-          SubmissionStorageException, RepoNotFoundException, RepoTagNotFoundException {
+      throws RepoStorageException, RepoExpiredException, SubmissionStorageException,
+          RepoNotFoundException {
     Repo r = repoFactory.getInstance(repoId);
     return r.scheduleSubmission(tag, worker, database);
   }

@@ -42,10 +42,7 @@ public class TransactionQueryRunner extends QueryRunner implements Closeable {
     db.commit();
   }
 
-  public void rollback() throws SQLException {
-    db.rollback();
-  }
-
+  /** Closes the connection held in the query runner. */
   public void close() {
     try {
       db.close();

@@ -35,6 +35,7 @@ public class StatusController implements uk.ac.cam.cl.dtg.teaching.pottery.api.S
 
   private ContainerManager containerManager;
 
+  /** Create a new StatusController. */
   @Inject
   public StatusController(Worker worker, ContainerManager containerManager) {
     super();

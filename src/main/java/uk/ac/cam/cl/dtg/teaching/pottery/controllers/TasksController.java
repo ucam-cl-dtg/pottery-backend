@@ -56,6 +56,7 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
 
   private Database database;
 
+  /** Create a new TasksController. */
   @Inject
   public TasksController(
       TaskFactory taskFactory, TaskIndex taskIndex, Worker worker, Database database) {

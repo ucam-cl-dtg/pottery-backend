@@ -18,7 +18,6 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery;
 
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -35,10 +34,7 @@ public class UuidGenerator {
     allocated.add(uuid);
   }
 
-  public synchronized void reserveAll(Collection<String> uuids) {
-    allocated.addAll(uuids);
-  }
-
+  /** Generate a new unique UUID. */
   public synchronized String generate() {
     while (true) {
       String result = UUID.randomUUID().toString();

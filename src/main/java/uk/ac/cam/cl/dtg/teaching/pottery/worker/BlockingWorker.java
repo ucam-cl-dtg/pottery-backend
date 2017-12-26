@@ -26,6 +26,10 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
+/**
+ * BlockingWorker does one task at a time in the in the same thread. i.e. when you call schedule it
+ * won't return until the task is complete.
+ */
 public class BlockingWorker implements Worker {
 
   private final TaskIndex taskIndex;
@@ -33,6 +37,7 @@ public class BlockingWorker implements Worker {
   private final ContainerManager containerManager;
   private final Database database;
 
+  /** Create a new BlockingWorker. */
   public BlockingWorker(
       TaskIndex taskIndex,
       RepoFactory repoFactory,

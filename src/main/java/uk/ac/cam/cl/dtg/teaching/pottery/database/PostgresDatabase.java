@@ -36,6 +36,7 @@ public class PostgresDatabase implements Database {
   protected static final Logger LOG = LoggerFactory.getLogger(PostgresDatabase.class);
   private ComboPooledDataSource connectionPool;
 
+  /** Create a new connection pool for connecting to the database. */
   public PostgresDatabase() {
     try {
       connectionPool = new ComboPooledDataSource();

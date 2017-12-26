@@ -31,6 +31,7 @@ public class InMemoryDatabase implements Database {
   private DataSource dataSource;
   private SQLException connectionException;
 
+  /** Create a new instance (independent of all others). */
   public InMemoryDatabase() {
     try {
       dataSource =

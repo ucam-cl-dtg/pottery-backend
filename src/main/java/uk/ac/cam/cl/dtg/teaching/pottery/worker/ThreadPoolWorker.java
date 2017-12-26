@@ -39,16 +39,19 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 public class ThreadPoolWorker implements Worker {
 
   protected static final Logger LOG = LoggerFactory.getLogger(ThreadPoolWorker.class);
-  private final SortedSet<JobStatus> queue = new TreeSet<JobStatus>();
+
+  private final SortedSet<JobStatus> queue = new TreeSet<>();
+  private final TaskIndex taskIndex;
+  private final RepoFactory repoFactory;
+  private final ContainerManager containerManager;
+  private final Database database;
+  private final Object smoothedWaitTimeMutex = new Object();
+
   private ExecutorService threadPool;
-  private TaskIndex taskIndex;
-  private RepoFactory repoFactory;
-  private ContainerManager containerManager;
-  private Database database;
   private int numThreads;
   private long smoothedWaitTime = 0;
-  private Object smoothedWaitTimeMutex = new Object();
 
+  /** Creates a new ThreadPoolWorker with one thread in the pool. */
   @Inject
   public ThreadPoolWorker(
       TaskIndex taskIndex,
@@ -129,7 +132,7 @@ public class ThreadPoolWorker implements Worker {
      * @param withPause set to true if you want a 2 second pause before running the job (e.g. for
      *     retries)
      */
-    public JobIteration(Job[] jobs, int index, boolean withPause, long enqeueTime) {
+    JobIteration(Job[] jobs, int index, boolean withPause, long enqeueTime) {
       super();
       this.jobs = jobs;
       this.index = index;

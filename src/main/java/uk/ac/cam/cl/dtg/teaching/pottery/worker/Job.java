@@ -25,9 +25,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
 public interface Job {
 
-  public static final int STATUS_OK = 0;
-  public static final int STATUS_FAILED = 1;
-  public static final int STATUS_RETRY = 2;
+  int STATUS_OK = 0;
+  int STATUS_FAILED = 1;
+  int STATUS_RETRY = 2;
 
   /**
    * Run the required task.
@@ -37,9 +37,8 @@ public interface Job {
    * @param containerManager manager for container engine
    * @param database class for database instance
    * @return a status code indicating what should be done
-   * @throws Exception if something goes wrong
    */
-  public int execute(
+  int execute(
       TaskIndex taskIndex,
       RepoFactory repoFactory,
       ContainerManager containerManager,
@@ -50,5 +49,5 @@ public interface Job {
    *
    * @return the job description
    */
-  public String getDescription();
+  String getDescription();
 }
