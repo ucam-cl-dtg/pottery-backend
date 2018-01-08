@@ -68,6 +68,10 @@ abstract class TaskDefInfo {
     abstract TaskDefInfo build();
   }
 
+  public static boolean isUnset(String value) {
+    return value == null || value.equals(UNSET);
+  }
+
   /** Lookup the TaskDefInfo object for this taskId. */
   public static TaskDefInfo getByTaskId(String taskId, QueryRunner q) throws SQLException {
     return q.query(
