@@ -153,12 +153,12 @@ public class Task {
         URI taskDefLocation = info.getTaskDefLocation(config);
 
         TaskCopyBuilder testingBuilder =
-            info.testingCopyId() == null
+            TaskDefInfo.isUnset(info.testingCopyId())
                 ? TaskCopyBuilder.createSuccessPlaceholder(taskId, config)
                 : TaskCopyBuilder.createForExisting(
                     "HEAD", taskId, taskDefLocation, info.testingCopyId(), config);
         TaskCopyBuilder registeredBuilder =
-            info.registeredCopyId() == null
+            TaskDefInfo.isUnset(info.registeredCopyId())
                 ? TaskCopyBuilder.createSuccessPlaceholder(taskId, config)
                 : TaskCopyBuilder.createForExisting(
                     info.registeredTag(), taskId, taskDefLocation, info.registeredCopyId(), config);
