@@ -79,12 +79,11 @@ abstract class TaskDefInfo {
             + "remote from tasks where taskid=?",
         rs -> {
           if (rs.next()) {
-
-            String registeredTag = rs.getString(2);
-            String testingCopyId = rs.getString(3);
-            String registeredCopyId = rs.getString(4);
-            boolean retired = rs.getBoolean(5);
-            String remote = rs.getString(6);
+            String registeredTag = rs.getString(1);
+            String testingCopyId = rs.getString(2);
+            String registeredCopyId = rs.getString(3);
+            boolean retired = rs.getBoolean(4);
+            String remote = rs.getString(5);
             return TaskDefInfo.builder()
                 .setTaskId(taskId)
                 .setRegisteredTag(registeredTag == null ? UNSET : registeredTag)
