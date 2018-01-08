@@ -531,6 +531,8 @@ public class Repo {
         g.checkout().setName(tag).call();
       } catch (GitAPIException e) {
         throw new RepoStorageException("Failed to clone repository", e);
+      } catch (JGitInternalException e) {
+        throw new RepoStorageException("Failed to clone repository", e.getCause());
       }
     } catch (InterruptedException e) {
       throw new RepoStorageException("Interrupted whilst waiting for file writing lock", e);
