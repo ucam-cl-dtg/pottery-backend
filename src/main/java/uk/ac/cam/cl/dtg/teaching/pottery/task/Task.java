@@ -287,16 +287,42 @@ public class Task {
 
   /** Mark this task as retired in the database. */
   public void setRetired(Database database) throws RetiredTaskException, TaskStorageException {
-    if (retired.getAndSet(true)) {
-      throw new RetiredTaskException("Cannot retire task " + taskId);
+    if (retired.get()) {
+      throw new RetiredTaskException("Cannot retire task " + taskId + ". It is already retired.");
     }
     try (TransactionQueryRunner q = database.getQueryRunner()) {
       TaskDefInfo.updateRetired(taskId, true, q);
       q.commit();
     } catch (SQLException e) {
-      retired.set(false);
       throw new TaskStorageException(
           "Failed to update database with task retirement status for taskId " + taskId, e);
+    } finally {
+      updateRetiredFromDatabase(database);
+    }
+  }
+
+  /** Restore a retired task. */
+  public void setUnretired(Database database) throws RetiredTaskException, TaskStorageException {
+    if (!retired.get()) {
+      throw new RetiredTaskException(
+          "Cannot unretire task " + taskId + ". It is not currently in a retired state.");
+    }
+    try (TransactionQueryRunner q = database.getQueryRunner()) {
+      TaskDefInfo.updateRetired(taskId, false, q);
+      q.commit();
+    } catch (SQLException e) {
+      throw new TaskStorageException(
+          "Failed to update database with task retirement status for taskId " + taskId, e);
+    } finally {
+      updateRetiredFromDatabase(database);
+    }
+  }
+
+  private void updateRetiredFromDatabase(Database database) throws TaskStorageException {
+    try (TransactionQueryRunner q = database.getQueryRunner()) {
+      retired.set(TaskDefInfo.isRetired(taskId, q));
+    } catch (SQLException e) {
+      throw new TaskStorageException(e);
     }
   }
 

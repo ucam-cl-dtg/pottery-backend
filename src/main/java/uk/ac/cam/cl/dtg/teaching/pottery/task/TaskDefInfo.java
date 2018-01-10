@@ -135,6 +135,18 @@ abstract class TaskDefInfo {
     q.update("UPDATE tasks set retired=? where taskid = ?", retired, taskId);
   }
 
+  public static boolean isRetired(String taskId, QueryRunner q) throws SQLException {
+    return q.query(
+        "SELECT retired from tasks where taskId =?",
+        rs -> {
+          if (!rs.next()) {
+            throw new SQLException("Failed to find task " + taskId);
+          }
+          return rs.getBoolean(1);
+        },
+        taskId);
+  }
+
   /**
    * Lookup the location of the task definition.This might be a local directory or a remote
    * repository.

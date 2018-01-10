@@ -130,6 +130,13 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
   }
 
   @Override
+  public Response unretireTask(String taskId)
+      throws TaskNotFoundException, TaskStorageException, RetiredTaskException {
+    taskIndex.getTask(taskId).setUnretired(database);
+    return Response.ok().entity("{\"message\":\"OK\"}").build();
+  }
+
+  @Override
   public BuilderInfo scheduleTaskRegistration(String taskId, String sha1)
       throws TaskNotFoundException, RetiredTaskException {
     return taskIndex.getTask(taskId).scheduleBuildRegisteredCopy(sha1, worker);

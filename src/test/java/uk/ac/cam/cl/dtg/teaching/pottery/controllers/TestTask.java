@@ -25,6 +25,7 @@ import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Collection;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Constants;
@@ -35,22 +36,26 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.InMemoryDatabase;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
 public class TestTask {
 
   private File testRootDir;
-  private Task task;
+  private TaskIndex taskIndex;
+  private Database database;
+  private TaskFactory taskFactory;
 
   @Before
   public void setup() throws IOException, GitAPIException, SQLException, TaskStorageException {
     this.testRootDir = Files.createTempDir().getCanonicalFile();
-    Database database = new InMemoryDatabase();
+    database = new InMemoryDatabase();
     TaskConfig taskConfig = new TaskConfig(testRootDir.getPath());
-    TaskFactory taskFactory = new TaskFactory(taskConfig, database);
-    task = taskFactory.createInstance();
+    taskFactory = new TaskFactory(taskConfig, database);
+    taskIndex = new TaskIndex(taskFactory, database);
   }
 
   @After
@@ -62,6 +67,7 @@ public class TestTask {
   public void getHeadSha_returnsMostRecentCommit()
       throws GitAPIException, IOException, TaskStorageException {
     // ARRANGE
+    Task task = taskFactory.createInstance();
     String cloneHeadSha;
     File clone = new File(testRootDir, "clone");
     try (Git g =
@@ -81,5 +87,32 @@ public class TestTask {
 
     // ASSERT
     assertThat(headSha).isEqualTo(cloneHeadSha);
+  }
+
+  @Test
+  public void getAllTasks_containsTaskId_whenTaskCreated() throws TaskStorageException {
+    // ARRANGE
+    Task newTask = taskFactory.createInstance();
+    taskIndex.add(newTask);
+
+    // ACT
+    Collection<String> allTasks = taskIndex.getAllTasks();
+
+    // ASSERT
+    assertThat(allTasks).contains(newTask.getTaskId());
+  }
+
+  @Test
+  public void retireTask_removesTaskFromActiveList()
+      throws RetiredTaskException, TaskStorageException {
+    // ARRANGE
+    Task newTask = taskFactory.createInstance();
+    taskIndex.add(newTask);
+
+    // ACT
+    newTask.setRetired(database);
+
+    // ASSERT
+    assertThat(taskIndex.getAllTasks()).doesNotContain(newTask.getTaskId());
   }
 }
