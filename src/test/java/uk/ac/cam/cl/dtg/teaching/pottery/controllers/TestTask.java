@@ -42,10 +42,15 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 public class TestTask {
 
   private File testRootDir;
+  private Task task;
 
   @Before
-  public void setup() throws IOException {
+  public void setup() throws IOException, GitAPIException, SQLException, TaskStorageException {
     this.testRootDir = Files.createTempDir().getCanonicalFile();
+    Database database = new InMemoryDatabase();
+    TaskConfig taskConfig = new TaskConfig(testRootDir.getPath());
+    TaskFactory taskFactory = new TaskFactory(taskConfig, database);
+    task = taskFactory.createInstance();
   }
 
   @After
@@ -55,12 +60,8 @@ public class TestTask {
 
   @Test
   public void getHeadSha_returnsMostRecentCommit()
-      throws GitAPIException, SQLException, IOException, TaskStorageException {
-    Database database = new InMemoryDatabase();
-    TaskConfig taskConfig = new TaskConfig(testRootDir.getPath());
-    TaskFactory taskFactory = new TaskFactory(taskConfig, database);
-    Task task = taskFactory.createInstance();
-
+      throws GitAPIException, IOException, TaskStorageException {
+    // ARRANGE
     String cloneHeadSha;
     File clone = new File(testRootDir, "clone");
     try (Git g =
@@ -75,6 +76,10 @@ public class TestTask {
       g.push().call();
     }
 
-    assertThat(task.getHeadSha()).isEqualTo(cloneHeadSha);
+    // ACT
+    String headSha = task.getHeadSha();
+
+    // ASSERT
+    assertThat(headSha).isEqualTo(cloneHeadSha);
   }
 }
