@@ -158,6 +158,7 @@ class TestEnvironment {
               ContainerRestrictions.candidateRestriction(null),
               ContainerRestrictions.candidateRestriction(null),
               ContainerRestrictions.authorRestriction(null),
+              ImmutableList.of(),
               ImmutableList.of());
       TaskInfos.save(i, copyRoot);
       g.add().addFilepattern("task.json").call();
