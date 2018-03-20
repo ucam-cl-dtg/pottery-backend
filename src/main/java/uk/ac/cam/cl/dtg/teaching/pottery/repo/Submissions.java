@@ -147,4 +147,11 @@ public class Submissions {
     }
     q.commit();
   }
+
+  public static void delete(Submission submission, TransactionQueryRunner q) throws SQLException {
+    q.update(
+        "DELETE from submissions where repoId=? and tag=?",
+        submission.getRepoId(),
+        submission.getTag());
+  }
 }

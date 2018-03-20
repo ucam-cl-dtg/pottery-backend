@@ -30,6 +30,10 @@ import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 
 public class UncontainerImpl implements ContainerBackend {
 
+  private volatile boolean block = false;
+
+  private volatile boolean blocked = true;
+
   @Override
   public ApiStatus getApiStatus() {
     return ApiStatus.OK;
@@ -92,10 +96,38 @@ public class UncontainerImpl implements ContainerBackend {
       process.waitFor();
       copyThread.join();
       String output = new String(bos.toByteArray());
+      synchronized (this) {
+        while (block) {
+          blocked = true;
+          this.notifyAll();
+          this.wait();
+        }
+        blocked = false;
+        this.notifyAll();
+      }
       return new ContainerExecResponse<>(
           process.exitValue() == 0, converter.apply(output), output, 0);
     } catch (IOException | InterruptedException e) {
       throw new ApiUnavailableException(e);
+    }
+  }
+
+  public synchronized void block() {
+    block = true;
+  }
+
+  public synchronized void unblock() {
+    block = false;
+    this.notifyAll();
+  }
+
+  public synchronized void waitForBlocked() {
+    while (!blocked && block) {
+      try {
+        this.wait();
+      } catch (InterruptedException e) {
+        // ignore
+      }
     }
   }
 

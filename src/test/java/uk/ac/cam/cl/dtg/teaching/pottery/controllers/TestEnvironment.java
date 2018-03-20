@@ -72,24 +72,38 @@ class TestEnvironment {
   private final TaskIndex taskIndex;
   private final Worker worker;
   private final RepoConfig repoConfig;
+  private final UncontainerImpl containerBackend;
+  private final Database database;
 
   TestEnvironment(String testRootDir)
       throws GitAPIException, SQLException, IOException, TaskStorageException {
     this.testRootDir = testRootDir;
-    Database database = new InMemoryDatabase();
+    this.database = new InMemoryDatabase();
     TaskConfig taskConfig = new TaskConfig(testRootDir);
     this.taskFactory = new TaskFactory(taskConfig, database);
     this.repoConfig = new RepoConfig(testRootDir);
     this.repoFactory = new RepoFactory(repoConfig, database);
     this.taskIndex = new TaskIndex(taskFactory, database);
     ContainerEnvConfig containerEnvConfig = new ContainerEnvConfig(testRootDir);
-    ContainerManager containerManager =
-        new ContainerManager(containerEnvConfig, new UncontainerImpl());
+    this.containerBackend = new UncontainerImpl();
+    ContainerManager containerManager = new ContainerManager(containerEnvConfig, containerBackend);
     this.worker = new BlockingWorker(taskIndex, repoFactory, containerManager, database);
   }
 
   RepoConfig getRepoConfig() {
     return repoConfig;
+  }
+
+  Worker getWorker() {
+    return worker;
+  }
+
+  Database getDatabase() {
+    return database;
+  }
+
+  UncontainerImpl getContainerBackend() {
+    return containerBackend;
   }
 
   Repo createRepo(Task task)

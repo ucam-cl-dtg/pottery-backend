@@ -62,6 +62,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
@@ -275,7 +276,11 @@ public class Repo {
       return scheduleSubmission(resolveHeadSha(), w, db);
     }
 
+    Submission currentSubmission;
+    Submission.Builder builder;
     synchronized (lockFields) {
+      // lock here to allow us to notice that there is no submission and start a new
+      // one atomically.
       try {
         // Means we've already scheduled (and possibly already run) the test for this tag
         return getSubmission(tag, db);
@@ -283,192 +288,189 @@ public class Repo {
         // Lets make one
       }
 
-      Submission.Builder builder = Submission.builder(repoInfo.getRepoId(), tag);
-
-      Submission currentSubmission = builder.build();
+      builder = Submission.builder(repoInfo.getRepoId(), tag);
+      currentSubmission = builder.build();
       updateSubmission(currentSubmission);
+    }
 
-      w.schedule(
-          new Job() {
-            @Override
-            public int execute(
-                TaskIndex taskIndex,
-                RepoFactory repoFactory,
-                ContainerManager containerManager,
-                Database database) {
-              updateSubmission(builder.setStarted());
-              Task t;
-              try {
-                t = taskIndex.getTask(repoInfo.getTaskId());
-              } catch (TaskNotFoundException e1) {
-                updateSubmission(
-                    builder.setCompilationResponse("Task no longer available", false, 0));
-                return STATUS_FAILED;
-              }
-              try (TaskCopy c =
-                  repoInfo.isUsingTestingVersion()
-                      ? t.acquireTestingCopy()
-                      : t.acquireRegisteredCopy()) {
-                try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
-                  try {
-                    setVersionToTest(tag);
-                  } catch (RepoStorageException e) {
-                    updateSubmission(
-                        builder.addErrorMessage(
-                            "Failed to reset repository to requested tag (" + tag + ")"));
-                    return STATUS_FAILED;
-                  }
-
-                  File codeDir = repoTestingDirectory;
-                  TaskInfo taskInfo = c.getInfo();
-                  String image = taskInfo.getImage();
-                  updateSubmission(builder.setStatus(Submission.STATUS_COMPILATION_RUNNING));
-                  ContainerExecResponse<String> compilationResponse;
-                  try {
-                    compilationResponse =
-                        containerManager.execCompilation(
-                            codeDir,
-                            c.getCompileRoot(),
-                            image,
-                            taskInfo.getCompilationRestrictions());
-                  } catch (ApiUnavailableException e) {
-                    LOG.warn(
-                        "Docker API unavailable when trying to execute compilation step. Retrying",
-                        e);
-                    updateSubmission(
-                        builder
-                            .addErrorMessage(
-                                "Compilation failed, unable to contact the container API. "
-                                    + "Retrying...")
-                            .setRetry());
-                    return STATUS_RETRY;
-                  }
+    w.schedule(
+        new Job() {
+          @Override
+          public int execute(
+              TaskIndex taskIndex,
+              RepoFactory repoFactory,
+              ContainerManager containerManager,
+              Database database) {
+            updateSubmission(builder.setStarted());
+            Task t;
+            try {
+              t = taskIndex.getTask(repoInfo.getTaskId());
+            } catch (TaskNotFoundException e1) {
+              updateSubmission(
+                  builder.setCompilationResponse("Task no longer available", false, 0));
+              return STATUS_FAILED;
+            }
+            try (TaskCopy c =
+                repoInfo.isUsingTestingVersion()
+                    ? t.acquireTestingCopy()
+                    : t.acquireRegisteredCopy()) {
+              try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
+                try {
+                  setVersionToTest(tag);
+                } catch (RepoStorageException e) {
                   updateSubmission(
-                      builder.setCompilationResponse(
-                          compilationResponse.getResponse(),
-                          compilationResponse.isSuccess(),
-                          compilationResponse.getExecutionTimeMs()));
-                  if (!compilationResponse.isSuccess()) {
-                    updateSubmission(
-                        builder.addErrorMessage("Compilation failed, no tests were run"));
-                    return STATUS_FAILED;
-                  }
+                      builder.addErrorMessage(
+                          "Failed to reset repository to requested tag (" + tag + ")"));
+                  return STATUS_FAILED;
+                }
 
-                  updateSubmission(builder.setStatus(Submission.STATUS_HARNESS_RUNNING));
-                  ContainerExecResponse<HarnessResponse> harnessResponse;
-                  try {
-                    harnessResponse =
-                        containerManager.execHarness(
-                            codeDir, c.getHarnessRoot(), image, taskInfo.getHarnessRestrictions());
-                  } catch (ApiUnavailableException e) {
-                    LOG.warn("Docker API unavailable when trying to run harness step. Retrying", e);
-                    updateSubmission(
-                        builder
-                            .addErrorMessage(
-                                "Harness failed, unable to contact the container API. Retrying...")
-                            .setRetry());
-                    return STATUS_RETRY;
-                  }
-                  updateSubmission(
-                      builder.setHarnessResponse(
-                          harnessResponse.getResponse(), harnessResponse.getExecutionTimeMs()));
-                  updateSubmission(
-                      builder.addErrorMessage(harnessResponse.getResponse().getErrorMessage()));
-                  if (!harnessResponse.getResponse().isCompleted()) {
-                    return STATUS_FAILED;
-                  }
-
-                  updateSubmission(builder.setStatus(Submission.STATUS_VALIDATOR_RUNNING));
-
-                  ContainerExecResponse<ValidatorResponse> validatorResponse;
-                  try {
-                    validatorResponse =
-                        containerManager.execValidator(
-                            c.getValidatorRoot(),
-                            harnessResponse.getResponse(),
-                            image,
-                            taskInfo.getValidatorRestrictions());
-                  } catch (ApiUnavailableException e) {
-                    LOG.warn(
-                        "Docker API unavailable when trying to run validator step. Retrying", e);
-                    updateSubmission(
-                        builder
-                            .addErrorMessage(
-                                "Validation failed, unable to contact the container API. "
-                                    + "Retrying...")
-                            .setRetry());
-                    return STATUS_RETRY;
-                  }
-
-                  boolean acceptableFound = false;
-                  String errorMessage = validatorResponse.getResponse().getErrorMessage();
-                  boolean badFound = errorMessage != null && !errorMessage.trim().equals("");
-                  for (Interpretation i : validatorResponse.getResponse().getInterpretations()) {
-                    if (i.getResult().equals(Interpretation.INTERPRETED_ACCEPTABLE)) {
-                      acceptableFound = true;
-                    } else if (i.getResult().equals(Interpretation.INTERPRETED_FAILED)) {
-                      badFound = true;
-                    }
-                  }
-
-                  String interpretation;
-                  if (badFound) {
-                    interpretation = Submission.INTERPRETATION_BAD;
-                  } else if (acceptableFound) {
-                    interpretation = Submission.INTERPRETATION_ACCEPTABLE;
-                  } else {
-                    interpretation = Submission.INTERPRETATION_EXCELLENT;
-                  }
-
+                File codeDir = repoTestingDirectory;
+                TaskInfo taskInfo = c.getInfo();
+                String image = taskInfo.getImage();
+                updateSubmission(builder.setStatus(Submission.STATUS_COMPILATION_RUNNING));
+                ContainerExecResponse<String> compilationResponse;
+                try {
+                  compilationResponse =
+                      containerManager.execCompilation(
+                          codeDir,
+                          c.getCompileRoot(),
+                          image,
+                          taskInfo.getCompilationRestrictions());
+                } catch (ApiUnavailableException e) {
+                  LOG.warn(
+                      "Docker API unavailable when trying to execute compilation step. Retrying",
+                      e);
                   updateSubmission(
                       builder
-                          .setValidatorResponse(
-                              validatorResponse.getResponse(),
-                              validatorResponse.getExecutionTimeMs())
-                          .setInterpretation(interpretation)
-                          .addErrorMessage(errorMessage));
-                  if (!validatorResponse.getResponse().isCompleted()) {
+                          .addErrorMessage(
+                              "Compilation failed, unable to contact the container API. "
+                                  + "Retrying...")
+                          .setRetry());
+                  return STATUS_RETRY;
+                }
+                updateSubmission(
+                    builder.setCompilationResponse(
+                        compilationResponse.getResponse(),
+                        compilationResponse.isSuccess(),
+                        compilationResponse.getExecutionTimeMs()));
+                if (!compilationResponse.isSuccess()) {
+                  updateSubmission(
+                      builder.addErrorMessage("Compilation failed, no tests were run"));
+                  return STATUS_FAILED;
+                }
+
+                updateSubmission(builder.setStatus(Submission.STATUS_HARNESS_RUNNING));
+                ContainerExecResponse<HarnessResponse> harnessResponse;
+                try {
+                  harnessResponse =
+                      containerManager.execHarness(
+                          codeDir, c.getHarnessRoot(), image, taskInfo.getHarnessRestrictions());
+                } catch (ApiUnavailableException e) {
+                  LOG.warn("Docker API unavailable when trying to run harness step. Retrying", e);
+                  updateSubmission(
+                      builder
+                          .addErrorMessage(
+                              "Harness failed, unable to contact the container API. Retrying...")
+                          .setRetry());
+                  return STATUS_RETRY;
+                }
+                updateSubmission(
+                    builder.setHarnessResponse(
+                        harnessResponse.getResponse(), harnessResponse.getExecutionTimeMs()));
+                updateSubmission(
+                    builder.addErrorMessage(harnessResponse.getResponse().getErrorMessage()));
+                if (!harnessResponse.getResponse().isCompleted()) {
+                  return STATUS_FAILED;
+                }
+
+                updateSubmission(builder.setStatus(Submission.STATUS_VALIDATOR_RUNNING));
+
+                ContainerExecResponse<ValidatorResponse> validatorResponse;
+                try {
+                  validatorResponse =
+                      containerManager.execValidator(
+                          c.getValidatorRoot(),
+                          harnessResponse.getResponse(),
+                          image,
+                          taskInfo.getValidatorRestrictions());
+                } catch (ApiUnavailableException e) {
+                  LOG.warn("Docker API unavailable when trying to run validator step. Retrying", e);
+                  updateSubmission(
+                      builder
+                          .addErrorMessage(
+                              "Validation failed, unable to contact the container API. "
+                                  + "Retrying...")
+                          .setRetry());
+                  return STATUS_RETRY;
+                }
+
+                boolean acceptableFound = false;
+                String errorMessage = validatorResponse.getResponse().getErrorMessage();
+                boolean badFound = errorMessage != null && !errorMessage.trim().equals("");
+                for (Interpretation i : validatorResponse.getResponse().getInterpretations()) {
+                  if (i.getResult().equals(Interpretation.INTERPRETED_ACCEPTABLE)) {
+                    acceptableFound = true;
+                  } else if (i.getResult().equals(Interpretation.INTERPRETED_FAILED)) {
+                    badFound = true;
+                  }
+                }
+
+                String interpretation;
+                if (badFound) {
+                  interpretation = Submission.INTERPRETATION_BAD;
+                } else if (acceptableFound) {
+                  interpretation = Submission.INTERPRETATION_ACCEPTABLE;
+                } else {
+                  interpretation = Submission.INTERPRETATION_EXCELLENT;
+                }
+
+                updateSubmission(
+                    builder
+                        .setValidatorResponse(
+                            validatorResponse.getResponse(), validatorResponse.getExecutionTimeMs())
+                        .setInterpretation(interpretation)
+                        .addErrorMessage(errorMessage));
+                if (!validatorResponse.getResponse().isCompleted()) {
+                  return STATUS_FAILED;
+                }
+              } catch (InterruptedException e) {
+                updateSubmission(
+                    Submission.builder(repoInfo.getRepoId(), tag)
+                        .setCompilationResponse("Job was interrupted, retrying", false, 0));
+                return STATUS_RETRY;
+              } finally {
+                builder.setComplete();
+
+                Submission s = builder.build();
+                if (!s.isNeedsRetry()) {
+                  try (TransactionQueryRunner q = database.getQueryRunner()) {
+                    Submissions.insert(s, q);
+                    q.commit();
+                  } catch (SQLException e) {
+                    // This shouldn't happen, but if it does then we'll force
+                    // an error message out to the user
+                    updateSubmission(
+                        Submission.builder(repoInfo.getRepoId(), tag)
+                            .addErrorMessage(
+                                "Failed to store result in database: " + e.getMessage()));
                     return STATUS_FAILED;
                   }
-                } catch (InterruptedException e) {
-                  updateSubmission(
-                      Submission.builder(repoInfo.getRepoId(), tag)
-                          .setCompilationResponse("Job was interrupted, retrying", false, 0));
-                  return STATUS_RETRY;
-                } finally {
-                  builder.setComplete();
-
-                  Submission s = builder.build();
-                  if (!s.isNeedsRetry()) {
-                    try (TransactionQueryRunner q = database.getQueryRunner()) {
-                      Submissions.insert(s, q);
-                      q.commit();
-                    } catch (SQLException e) {
-                      // This shouldn't happen, but if it does then we'll force
-                      // an error message out to the user
-                      updateSubmission(
-                          Submission.builder(repoInfo.getRepoId(), tag)
-                              .addErrorMessage(
-                                  "Failed to store result in database: " + e.getMessage()));
-                      return STATUS_FAILED;
-                    }
-                  }
-                  updateSubmission(s);
                 }
-              } catch (TaskNotFoundException e1) {
-                updateSubmission(builder.addErrorMessage("Task no longer available"));
-                return STATUS_FAILED;
+                updateSubmission(s);
               }
-              return Job.STATUS_OK;
+            } catch (TaskNotFoundException e1) {
+              updateSubmission(builder.addErrorMessage("Task no longer available"));
+              return STATUS_FAILED;
             }
+            return Job.STATUS_OK;
+          }
 
-            @Override
-            public String getDescription() {
-              return "Testing submission " + repoInfo.getRepoId() + ":" + tag;
-            }
-          });
-      return currentSubmission;
-    }
+          @Override
+          public String getDescription() {
+            return "Testing submission " + repoInfo.getRepoId() + ":" + tag;
+          }
+        });
+    return currentSubmission;
   }
 
   /** Find the SHA hash for the head of the master branch. */
@@ -897,5 +899,28 @@ public class Repo {
 
   public boolean isExpired() {
     return new Date().after(repoInfo.getExpiryDate());
+  }
+
+  public void deleteSubmission(String tag, Database database)
+      throws SubmissionAlreadyScheduledException, SubmissionNotFoundException,
+          SubmissionStorageException {
+    synchronized (lockFields) {
+      Submission submission = activeSubmissions.get(tag);
+      if (submission == null) {
+        throw new SubmissionNotFoundException(
+            "Submission " + tag + " for repo " + repoInfo.getRepoId() + " not found.");
+      }
+      if (!submission.isComplete()) {
+        throw new SubmissionAlreadyScheduledException(
+            "Submission is still active. Wait for it to complete before deleting.");
+      }
+      try (TransactionQueryRunner q = database.getQueryRunner()) {
+        Submissions.delete(submission, q);
+        q.commit();
+        activeSubmissions.remove(tag);
+      } catch (SQLException e) {
+        throw new SubmissionStorageException("Failed to remove submission from database", e);
+      }
+    }
   }
 }
