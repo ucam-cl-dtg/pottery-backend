@@ -23,7 +23,15 @@ import com.google.auto.value.AutoValue;
 @AutoValue
 public abstract class ContainerExecResponse<T> {
 
-  public abstract boolean success();
+  public enum Status {
+    COMPLETED,
+    FAILED_OOM,
+    FAILED_DISK,
+    FAILED_TIMEOUT,
+    FAILED_UNKNOWN
+  }
+
+  public abstract Status status();
 
   public abstract T response();
 
@@ -32,7 +40,7 @@ public abstract class ContainerExecResponse<T> {
   public abstract long executionTimeMs();
 
   public static <T> ContainerExecResponse<T> create(
-      boolean success, T response, String rawResponse, long executionTimeMs) {
-    return new AutoValue_ContainerExecResponse<T>(success, response, rawResponse, executionTimeMs);
+      Status status, T response, String rawResponse, long executionTimeMs) {
+    return new AutoValue_ContainerExecResponse<>(status, response, rawResponse, executionTimeMs);
   }
 }

@@ -36,6 +36,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
@@ -107,7 +108,8 @@ public class ContainerManager implements Stoppable {
               .build(),
           Function.identity());
     } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(false, e.getMessage(), e.getMessage(), -1);
+      return ContainerExecResponse.create(
+          Status.FAILED_UNKNOWN, e.getMessage(), e.getMessage(), -1);
     }
   }
 
@@ -138,7 +140,8 @@ public class ContainerManager implements Stoppable {
               .build(),
           Function.identity());
     } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(false, e.getMessage(), e.getMessage(), -1);
+      return ContainerExecResponse.create(
+          Status.FAILED_UNKNOWN, e.getMessage(), e.getMessage(), -1);
     }
   }
 
@@ -177,7 +180,7 @@ public class ContainerManager implements Stoppable {
           });
     } catch (ContainerExecutionException e) {
       return ContainerExecResponse.create(
-          false, new HarnessResponse(e.getMessage()), e.getMessage(), -1);
+          Status.FAILED_UNKNOWN, new HarnessResponse(e.getMessage()), e.getMessage(), -1);
     }
   }
 
@@ -192,7 +195,7 @@ public class ContainerManager implements Stoppable {
     Optional<String> measurements = getMeasurements(harnessResponse);
     if (!measurements.isPresent()) {
       return ContainerExecResponse.create(
-          false,
+          Status.FAILED_UNKNOWN,
           new ValidatorResponse("Failed to serialise measurement list"),
           "Failed to serialise measurement list",
           -1);
@@ -232,7 +235,7 @@ public class ContainerManager implements Stoppable {
           });
     } catch (ContainerExecutionException | IOException e) {
       return ContainerExecResponse.create(
-          false, new ValidatorResponse(e.getMessage()), e.getMessage(), -1);
+          Status.FAILED_UNKNOWN, new ValidatorResponse(e.getMessage()), e.getMessage(), -1);
     }
   }
 

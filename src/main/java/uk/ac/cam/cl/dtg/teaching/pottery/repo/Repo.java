@@ -54,6 +54,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock.AutoCloseableLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
@@ -351,11 +352,32 @@ public class Repo {
                 updateSubmission(
                     builder.setCompilationResponse(
                         compilationResponse.response(),
-                        compilationResponse.success(),
+                        compilationResponse.status().equals(Status.COMPLETED),
                         compilationResponse.executionTimeMs()));
-                if (!compilationResponse.success()) {
-                  updateSubmission(
-                      builder.addErrorMessage("Compilation failed, no tests were run"));
+                switch (compilationResponse.status()) {
+                  case FAILED_UNKNOWN:
+                    updateSubmission(
+                        builder.addErrorMessage("Compilation failed, no tests were run"));
+                    break;
+                  case FAILED_DISK:
+                    updateSubmission(
+                        builder.addErrorMessage("Compilation failed, disk usage limit exceeded"));
+                    break;
+                  case FAILED_OOM:
+                    updateSubmission(
+                        builder.addErrorMessage("Compilation failed, memory usage limit exceeded"));
+                    break;
+                  case FAILED_TIMEOUT:
+                    updateSubmission(
+                        builder.addErrorMessage(
+                            "Compilation failed, execution time limit exceeded"));
+                    break;
+                  case COMPLETED:
+                  default:
+                    // do nothing
+                }
+
+                if (!compilationResponse.status().equals(Status.COMPLETED)) {
                   return STATUS_FAILED;
                 }
 
@@ -379,7 +401,31 @@ public class Repo {
                         harnessResponse.response(), harnessResponse.executionTimeMs()));
                 updateSubmission(
                     builder.addErrorMessage(harnessResponse.response().getErrorMessage()));
-                if (!harnessResponse.response().isCompleted()) {
+                switch (harnessResponse.status()) {
+                  case FAILED_UNKNOWN:
+                    updateSubmission(builder.addErrorMessage("Harness failed, no tests were run"));
+                    break;
+                  case FAILED_DISK:
+                    updateSubmission(
+                        builder.addErrorMessage("Harness failed, disk usage limit exceeded"));
+                    break;
+                  case FAILED_OOM:
+                    updateSubmission(
+                        builder.addErrorMessage("Harness failed, memory usage limit exceeded"));
+                    break;
+                  case FAILED_TIMEOUT:
+                    updateSubmission(
+                        builder.addErrorMessage("Harness failed, execution time limit exceeded"));
+                    break;
+                  case COMPLETED:
+                  default:
+                    if (!harnessResponse.response().isCompleted()) {
+                      updateSubmission(
+                          builder.addErrorMessage("Harness failed to run to completions"));
+                    }
+                }
+                if (!harnessResponse.status().equals(Status.COMPLETED)
+                    || !harnessResponse.response().isCompleted()) {
                   return STATUS_FAILED;
                 }
 
@@ -402,6 +448,35 @@ public class Repo {
                                   + "Retrying...")
                           .setRetry());
                   return STATUS_RETRY;
+                }
+
+                switch (validatorResponse.status()) {
+                  case FAILED_UNKNOWN:
+                    updateSubmission(
+                        builder.addErrorMessage("Validator failed, no tests were run"));
+                    break;
+                  case FAILED_DISK:
+                    updateSubmission(
+                        builder.addErrorMessage("Validator failed, disk usage limit exceeded"));
+                    break;
+                  case FAILED_OOM:
+                    updateSubmission(
+                        builder.addErrorMessage("Validator failed, memory usage limit exceeded"));
+                    break;
+                  case FAILED_TIMEOUT:
+                    updateSubmission(
+                        builder.addErrorMessage("Validator failed, execution time limit exceeded"));
+                    break;
+                  case COMPLETED:
+                  default:
+                    if (!validatorResponse.response().isCompleted()) {
+                      updateSubmission(
+                          builder.addErrorMessage("Validator failed to run to completion"));
+                    }
+                }
+                if (!validatorResponse.status().equals(Status.COMPLETED)
+                    || !validatorResponse.response().isCompleted()) {
+                  return STATUS_FAILED;
                 }
 
                 boolean acceptableFound = false;
@@ -897,10 +972,15 @@ public class Repo {
     return repoInfo;
   }
 
+  /** Return true if this repo has expired. */
   public boolean isExpired() {
     return new Date().after(repoInfo.getExpiryDate());
   }
 
+  /**
+   * Delete this submission and remove it from the database. This method only succeeds if the
+   * submission has already completed testing.
+   */
   public void deleteSubmission(String tag, Database database)
       throws SubmissionAlreadyScheduledException, SubmissionNotFoundException,
           SubmissionStorageException {

@@ -106,7 +106,12 @@ public class UncontainerImpl implements ContainerBackend {
         this.notifyAll();
       }
       return ContainerExecResponse.create(
-          process.exitValue() == 0, converter.apply(output), output, 0);
+          process.exitValue() == 0
+              ? ContainerExecResponse.Status.COMPLETED
+              : ContainerExecResponse.Status.FAILED_UNKNOWN,
+          converter.apply(output),
+          output,
+          0);
     } catch (IOException | InterruptedException e) {
       throw new ApiUnavailableException(e);
     }

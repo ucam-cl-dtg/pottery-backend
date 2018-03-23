@@ -51,6 +51,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.SystemInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Version;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
 /** Docker implementation of container backend. */
@@ -122,7 +123,7 @@ public class DockerContainerImpl implements ContainerBackend {
   @Override
   public <T> ContainerExecResponse<T> executeContainer(
       ExecutionConfig executionConfig, Function<String, T> converter)
-      throws ContainerExecutionException, ApiUnavailableException {
+      throws ApiUnavailableException, ContainerExecutionException {
 
     String containerName =
         this.config.getContainerPrefix() + containerNameCounter.incrementAndGet();
@@ -160,46 +161,49 @@ public class DockerContainerImpl implements ContainerBackend {
               docker.attach(containerId, true, true, true, true, true, attachListener);
 
           // Wait for container to finish (or be killed)
-          boolean success = false;
+          Status status = Status.FAILED_UNKNOWN;
           boolean knownStopped = false;
           boolean closed = false;
+          ContainerInfo containerInfo = null;
           while (!closed) {
             closed = attachListener.waitForClose(60 * 1000);
-            ContainerInfo i = docker.inspectContainer(containerId, false);
-            if (!i.getState().getRunning()) {
+            containerInfo = docker.inspectContainer(containerId, false);
+            if (!containerInfo.getState().getRunning()) {
               knownStopped = true;
               closed = true;
-              success = i.getState().getExitCode() == 0;
+              if (containerInfo.getState().getExitCode() == 0) {
+                status = Status.COMPLETED;
+              }
             }
           }
 
           // Check to make sure its really stopped the container
           if (!knownStopped) {
-            ContainerInfo containerInfo = docker.inspectContainer(containerId, false);
+            containerInfo = docker.inspectContainer(containerId, false);
             if (containerInfo.getState().getRunning()) {
               DockerUtil.killContainer(containerId, docker);
               containerInfo = docker.inspectContainer(containerId, false);
             }
-            success = containerInfo.getState().getExitCode() == 0;
+            if (containerInfo.getState().getExitCode() == 0) {
+              status = Status.COMPLETED;
+            }
+          }
+
+          if (containerInfo.getState().getOomKilled()) {
+            status = Status.FAILED_OOM;
           }
 
           timeoutKiller.cancel(false);
           try {
             if (timeoutKiller.get()) {
-              throw new ContainerExecutionException(
-                  String.format(
-                      "Timed out after %d seconds", System.currentTimeMillis() - startTime));
+              status = Status.FAILED_TIMEOUT;
             }
           } catch (InterruptedException | ExecutionException | CancellationException e) {
             // ignore
           }
 
           if (diskUsageKiller.isKilled()) {
-            throw new ContainerExecutionException(
-                String.format(
-                    "Excessive disk usage. Recorded %d bytes written. Limit is %d mb.",
-                    diskUsageKiller.getBytesWritten(),
-                    executionConfig.containerRestrictions().getDiskWriteLimitMegabytes()));
+            status = Status.FAILED_DISK;
           }
 
           try {
@@ -214,7 +218,7 @@ public class DockerContainerImpl implements ContainerBackend {
 
           LOG.debug("Container response: {}", attachListener.getOutput());
           return ContainerExecResponse.create(
-              success,
+              status,
               converter.apply(attachListener.getOutput()),
               attachListener.getOutput(),
               System.currentTimeMillis() - startTime);

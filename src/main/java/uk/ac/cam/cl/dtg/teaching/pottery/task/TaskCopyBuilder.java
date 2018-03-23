@@ -231,11 +231,36 @@ public class TaskCopyBuilder {
         containerManager.execTaskCompilation(
             taskCopy.getLocation(), image, taskInfo.getTaskCompilationRestrictions());
     builderInfo.setTestCompileResponse(r.response());
-    if (!r.success()) {
-      builderInfo.setException(
-          new InvalidTaskSpecificationException(
-              "Failed to compile testing code in task. Compiler response was: "
-                  + r.rawResponse()));
+    switch (r.status()) {
+      case FAILED_UNKNOWN:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Failed to compile testing code in task. Compiler response was: "
+                    + r.rawResponse()));
+        break;
+      case FAILED_DISK:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Insufficient disk quota to compile testing code in task. Compiler response was: "
+                    + r.rawResponse()));
+        break;
+      case FAILED_OOM:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Insufficient memory quota to compile testing code in task. Compiler response was: "
+                    + r.rawResponse()));
+        break;
+      case FAILED_TIMEOUT:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Timeout when compiling testing code in task. Compiler response was: "
+                    + r.rawResponse()));
+        break;
+      case COMPLETED:
+      default:
+        // do nothing
+    }
+    if (!r.status().equals(ContainerExecResponse.Status.COMPLETED)) {
       return false;
     }
 
@@ -248,12 +273,41 @@ public class TaskCopyBuilder {
             image,
             taskInfo.getCompilationRestrictions());
     builderInfo.setSolutionCompileResponse(r2.response());
-    if (!r2.success()) {
-      builderInfo.setException(
-          new InvalidTaskSpecificationException(
-              "Failed to compile solution when testing task during registration. Compiler "
-                  + "response was: "
-                  + r2.rawResponse()));
+    switch (r2.status()) {
+      case FAILED_UNKNOWN:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Failed to compile solution when testing task during registration. "
+                    + "Compiler response was: "
+                    + r2.rawResponse()));
+        break;
+      case FAILED_DISK:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Insufficient disk quota to compile solution when testing task during "
+                    + "registration. "
+                    + "Compiler response was: "
+                    + r2.rawResponse()));
+        break;
+      case FAILED_OOM:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Insufficient memory to compile solution when testing task during registration. "
+                    + "Compiler response was: "
+                    + r2.rawResponse()));
+        break;
+      case FAILED_TIMEOUT:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Timeout when compiling solution when testing task during registration. "
+                    + "Compiler response was: "
+                    + r2.rawResponse()));
+        break;
+      case COMPLETED:
+      default:
+        // do nothing
+    }
+    if (!r2.status().equals(ContainerExecResponse.Status.COMPLETED)) {
       return false;
     }
 
@@ -265,11 +319,46 @@ public class TaskCopyBuilder {
             image,
             taskInfo.getHarnessRestrictions());
     builderInfo.setHarnessResponse(r3.response());
-    if (!r3.response().isCompleted()) {
-      builderInfo.setException(
-          new InvalidTaskSpecificationException(
-              "Failed to run harness when testing task during registration. Harness response was: "
-                  + r3.rawResponse()));
+    switch (r3.status()) {
+      case FAILED_UNKNOWN:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Failed to run harness when testing task during registration. "
+                    + "Harness response was: "
+                    + r2.rawResponse()));
+        break;
+      case FAILED_DISK:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Insufficient disk quota running harness when testing task during registration. "
+                    + "Harness response was: "
+                    + r2.rawResponse()));
+        break;
+      case FAILED_OOM:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Insufficient memory running harness when testing task during registration. "
+                    + "Harness response was: "
+                    + r2.rawResponse()));
+        break;
+      case FAILED_TIMEOUT:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Timeout running harness when testing task during registration. "
+                    + "Harness response was: "
+                    + r2.rawResponse()));
+        break;
+      case COMPLETED:
+      default:
+        if (!r3.response().isCompleted()) {
+          builderInfo.setException(
+              new InvalidTaskSpecificationException(
+                  "Harness failed to run to completion during registration. Harness response was: "
+                      + r3.rawResponse()));
+        }
+    }
+    if (!r3.status().equals(ContainerExecResponse.Status.COMPLETED)
+        || !r3.response().isCompleted()) {
       return false;
     }
 
@@ -280,12 +369,47 @@ public class TaskCopyBuilder {
             image,
             taskInfo.getValidatorRestrictions());
     builderInfo.setValidatorResponse(r4.response());
-    if (!r4.response().isCompleted()) {
-      builderInfo.setException(
-          new InvalidTaskSpecificationException(
-              "Failed to validate harness results when testing task during registration. "
-                  + "Validator response was: "
-                  + r4.rawResponse()));
+    switch (r4.status()) {
+      case FAILED_UNKNOWN:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Failed to run validator when testing task during registration. "
+                    + "Validator response was: "
+                    + r2.rawResponse()));
+        break;
+      case FAILED_DISK:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Insufficient disk quota running validator when testing task during registration. "
+                    + "Validator response was: "
+                    + r2.rawResponse()));
+        break;
+      case FAILED_OOM:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Insufficient memory running validator when testing task during registration. "
+                    + "Validator response was: "
+                    + r2.rawResponse()));
+        break;
+      case FAILED_TIMEOUT:
+        builderInfo.setException(
+            new InvalidTaskSpecificationException(
+                "Timeout running validator when testing task during registration. "
+                    + "Validator response was: "
+                    + r2.rawResponse()));
+        break;
+      case COMPLETED:
+      default:
+        if (!r4.response().isCompleted()) {
+          builderInfo.setException(
+              new InvalidTaskSpecificationException(
+                  "Validator failed to run to completion during registration. "
+                      + "Validator response was: "
+                      + r3.rawResponse()));
+        }
+    }
+    if (!r4.status().equals(ContainerExecResponse.Status.COMPLETED)
+        || !r4.response().isCompleted()) {
       return false;
     }
 
