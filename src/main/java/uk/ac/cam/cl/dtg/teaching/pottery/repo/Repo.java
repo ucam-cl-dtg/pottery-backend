@@ -350,10 +350,10 @@ public class Repo {
                 }
                 updateSubmission(
                     builder.setCompilationResponse(
-                        compilationResponse.getResponse(),
-                        compilationResponse.isSuccess(),
-                        compilationResponse.getExecutionTimeMs()));
-                if (!compilationResponse.isSuccess()) {
+                        compilationResponse.response(),
+                        compilationResponse.success(),
+                        compilationResponse.executionTimeMs()));
+                if (!compilationResponse.success()) {
                   updateSubmission(
                       builder.addErrorMessage("Compilation failed, no tests were run"));
                   return STATUS_FAILED;
@@ -376,10 +376,10 @@ public class Repo {
                 }
                 updateSubmission(
                     builder.setHarnessResponse(
-                        harnessResponse.getResponse(), harnessResponse.getExecutionTimeMs()));
+                        harnessResponse.response(), harnessResponse.executionTimeMs()));
                 updateSubmission(
-                    builder.addErrorMessage(harnessResponse.getResponse().getErrorMessage()));
-                if (!harnessResponse.getResponse().isCompleted()) {
+                    builder.addErrorMessage(harnessResponse.response().getErrorMessage()));
+                if (!harnessResponse.response().isCompleted()) {
                   return STATUS_FAILED;
                 }
 
@@ -390,7 +390,7 @@ public class Repo {
                   validatorResponse =
                       containerManager.execValidator(
                           c.getValidatorRoot(),
-                          harnessResponse.getResponse(),
+                          harnessResponse.response(),
                           image,
                           taskInfo.getValidatorRestrictions());
                 } catch (ApiUnavailableException e) {
@@ -405,9 +405,9 @@ public class Repo {
                 }
 
                 boolean acceptableFound = false;
-                String errorMessage = validatorResponse.getResponse().getErrorMessage();
+                String errorMessage = validatorResponse.response().getErrorMessage();
                 boolean badFound = errorMessage != null && !errorMessage.trim().equals("");
-                for (Interpretation i : validatorResponse.getResponse().getInterpretations()) {
+                for (Interpretation i : validatorResponse.response().getInterpretations()) {
                   if (i.getResult().equals(Interpretation.INTERPRETED_ACCEPTABLE)) {
                     acceptableFound = true;
                   } else if (i.getResult().equals(Interpretation.INTERPRETED_FAILED)) {
@@ -427,10 +427,10 @@ public class Repo {
                 updateSubmission(
                     builder
                         .setValidatorResponse(
-                            validatorResponse.getResponse(), validatorResponse.getExecutionTimeMs())
+                            validatorResponse.response(), validatorResponse.executionTimeMs())
                         .setInterpretation(interpretation)
                         .addErrorMessage(errorMessage));
-                if (!validatorResponse.getResponse().isCompleted()) {
+                if (!validatorResponse.response().isCompleted()) {
                   return STATUS_FAILED;
                 }
               } catch (InterruptedException e) {

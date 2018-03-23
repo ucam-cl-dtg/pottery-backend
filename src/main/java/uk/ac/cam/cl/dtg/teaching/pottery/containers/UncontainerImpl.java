@@ -105,7 +105,7 @@ public class UncontainerImpl implements ContainerBackend {
         blocked = false;
         this.notifyAll();
       }
-      return new ContainerExecResponse<>(
+      return ContainerExecResponse.create(
           process.exitValue() == 0, converter.apply(output), output, 0);
     } catch (IOException | InterruptedException e) {
       throw new ApiUnavailableException(e);

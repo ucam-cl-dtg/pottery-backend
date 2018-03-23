@@ -107,7 +107,7 @@ public class ContainerManager implements Stoppable {
               .build(),
           Function.identity());
     } catch (ContainerExecutionException e) {
-      return new ContainerExecResponse<>(false, e.getMessage(), e.getMessage(), -1);
+      return ContainerExecResponse.create(false, e.getMessage(), e.getMessage(), -1);
     }
   }
 
@@ -138,7 +138,7 @@ public class ContainerManager implements Stoppable {
               .build(),
           Function.identity());
     } catch (ContainerExecutionException e) {
-      return new ContainerExecResponse<>(false, e.getMessage(), e.getMessage(), -1);
+      return ContainerExecResponse.create(false, e.getMessage(), e.getMessage(), -1);
     }
   }
 
@@ -176,7 +176,7 @@ public class ContainerManager implements Stoppable {
             }
           });
     } catch (ContainerExecutionException e) {
-      return new ContainerExecResponse<>(
+      return ContainerExecResponse.create(
           false, new HarnessResponse(e.getMessage()), e.getMessage(), -1);
     }
   }
@@ -191,7 +191,7 @@ public class ContainerManager implements Stoppable {
 
     Optional<String> measurements = getMeasurements(harnessResponse);
     if (!measurements.isPresent()) {
-      return new ContainerExecResponse<>(
+      return ContainerExecResponse.create(
           false,
           new ValidatorResponse("Failed to serialise measurement list"),
           "Failed to serialise measurement list",
@@ -231,7 +231,7 @@ public class ContainerManager implements Stoppable {
             }
           });
     } catch (ContainerExecutionException | IOException e) {
-      return new ContainerExecResponse<>(
+      return ContainerExecResponse.create(
           false, new ValidatorResponse(e.getMessage()), e.getMessage(), -1);
     }
   }

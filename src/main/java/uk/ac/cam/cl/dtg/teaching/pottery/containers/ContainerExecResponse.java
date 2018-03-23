@@ -18,64 +18,21 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
-public class ContainerExecResponse<T> {
+import com.google.auto.value.AutoValue;
 
-  private boolean success;
-  private T response;
-  private String rawResponse;
-  private long executionTimeMs;
+@AutoValue
+public abstract class ContainerExecResponse<T> {
 
-  public ContainerExecResponse() {}
+  public abstract boolean success();
 
-  public ContainerExecResponse(
+  public abstract T response();
+
+  public abstract String rawResponse();
+
+  public abstract long executionTimeMs();
+
+  public static <T> ContainerExecResponse<T> create(
       boolean success, T response, String rawResponse, long executionTimeMs) {
-    super();
-    this.success = success;
-    this.response = response;
-    this.rawResponse = rawResponse;
-    this.executionTimeMs = executionTimeMs;
-  }
-
-  public long getExecutionTimeMs() {
-    return executionTimeMs;
-  }
-
-  public void setExecutionTimeMs(long executionTimeMs) {
-    this.executionTimeMs = executionTimeMs;
-  }
-
-  public boolean isSuccess() {
-    return success;
-  }
-
-  public void setSuccess(boolean success) {
-    this.success = success;
-  }
-
-  public T getResponse() {
-    return response;
-  }
-
-  public void setResponse(T response) {
-    this.response = response;
-  }
-
-  public String getRawResponse() {
-    return rawResponse;
-  }
-
-  @Override
-  public String toString() {
-    return "ContainerExecResponse{"
-        + "success="
-        + success
-        + ", response="
-        + response
-        + ", rawResponse='"
-        + rawResponse
-        + '\''
-        + ", executionTimeMs="
-        + executionTimeMs
-        + '}';
+    return new AutoValue_ContainerExecResponse<T>(success, response, rawResponse, executionTimeMs);
   }
 }

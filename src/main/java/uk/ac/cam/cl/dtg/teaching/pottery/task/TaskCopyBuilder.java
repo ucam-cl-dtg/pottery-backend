@@ -230,12 +230,12 @@ public class TaskCopyBuilder {
     ContainerExecResponse<String> r =
         containerManager.execTaskCompilation(
             taskCopy.getLocation(), image, taskInfo.getTaskCompilationRestrictions());
-    builderInfo.setTestCompileResponse(r.getResponse());
-    if (!r.isSuccess()) {
+    builderInfo.setTestCompileResponse(r.response());
+    if (!r.success()) {
       builderInfo.setException(
           new InvalidTaskSpecificationException(
               "Failed to compile testing code in task. Compiler response was: "
-                  + r.getRawResponse()));
+                  + r.rawResponse()));
       return false;
     }
 
@@ -247,13 +247,13 @@ public class TaskCopyBuilder {
             taskConfig.getCompileDir(copyId),
             image,
             taskInfo.getCompilationRestrictions());
-    builderInfo.setSolutionCompileResponse(r2.getResponse());
-    if (!r2.isSuccess()) {
+    builderInfo.setSolutionCompileResponse(r2.response());
+    if (!r2.success()) {
       builderInfo.setException(
           new InvalidTaskSpecificationException(
               "Failed to compile solution when testing task during registration. Compiler "
                   + "response was: "
-                  + r2.getRawResponse()));
+                  + r2.rawResponse()));
       return false;
     }
 
@@ -264,28 +264,28 @@ public class TaskCopyBuilder {
             taskConfig.getHarnessDir(copyId),
             image,
             taskInfo.getHarnessRestrictions());
-    builderInfo.setHarnessResponse(r3.getResponse());
-    if (!r3.getResponse().isCompleted()) {
+    builderInfo.setHarnessResponse(r3.response());
+    if (!r3.response().isCompleted()) {
       builderInfo.setException(
           new InvalidTaskSpecificationException(
               "Failed to run harness when testing task during registration. Harness response was: "
-                  + r3.getRawResponse()));
+                  + r3.rawResponse()));
       return false;
     }
 
     ContainerExecResponse<ValidatorResponse> r4 =
         containerManager.execValidator(
             taskConfig.getValidatorDir(copyId),
-            r3.getResponse(),
+            r3.response(),
             image,
             taskInfo.getValidatorRestrictions());
-    builderInfo.setValidatorResponse(r4.getResponse());
-    if (!r4.getResponse().isCompleted()) {
+    builderInfo.setValidatorResponse(r4.response());
+    if (!r4.response().isCompleted()) {
       builderInfo.setException(
           new InvalidTaskSpecificationException(
               "Failed to validate harness results when testing task during registration. "
                   + "Validator response was: "
-                  + r4.getRawResponse()));
+                  + r4.rawResponse()));
       return false;
     }
 

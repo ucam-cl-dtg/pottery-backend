@@ -163,7 +163,6 @@ public class DockerContainerImpl implements ContainerBackend {
           boolean success = false;
           boolean knownStopped = false;
           boolean closed = false;
-
           while (!closed) {
             closed = attachListener.waitForClose(60 * 1000);
             ContainerInfo i = docker.inspectContainer(containerId, false);
@@ -214,7 +213,7 @@ public class DockerContainerImpl implements ContainerBackend {
           }
 
           LOG.debug("Container response: {}", attachListener.getOutput());
-          return new ContainerExecResponse<>(
+          return ContainerExecResponse.create(
               success,
               converter.apply(attachListener.getOutput()),
               attachListener.getOutput(),
@@ -236,7 +235,7 @@ public class DockerContainerImpl implements ContainerBackend {
   }
 
   private ScheduledFuture<Boolean> scheduleTimeoutKiller(
-      int timeoutSec, String containerId, AttachListener attachListener) {
+      long timeoutSec, String containerId, AttachListener attachListener) {
     if (timeoutSec <= 0) {
       return new EmptyScheduledFuture<>();
     }
