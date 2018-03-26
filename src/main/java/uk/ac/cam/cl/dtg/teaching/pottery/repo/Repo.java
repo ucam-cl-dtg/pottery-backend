@@ -399,11 +399,11 @@ public class Repo {
                 updateSubmission(
                     builder.setHarnessResponse(
                         harnessResponse.response(), harnessResponse.executionTimeMs()));
-                updateSubmission(
-                    builder.addErrorMessage(harnessResponse.response().getErrorMessage()));
                 switch (harnessResponse.status()) {
                   case FAILED_UNKNOWN:
                     updateSubmission(builder.addErrorMessage("Harness failed, no tests were run"));
+                    updateSubmission(
+                        builder.addErrorMessage(harnessResponse.response().getErrorMessage()));
                     break;
                   case FAILED_DISK:
                     updateSubmission(
