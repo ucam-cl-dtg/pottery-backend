@@ -30,6 +30,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -207,13 +208,15 @@ public class DockerContainerImpl implements ContainerBackend {
           }
 
           try {
-            session.get().close();
+            session.get(5, TimeUnit.SECONDS).close();
           } catch (InterruptedException e) {
             // ignore
           } catch (ExecutionException e) {
             LOG.error(
                 "An exception occurred collecting the websocket session from the future",
                 e.getCause());
+          } catch (TimeoutException e) {
+            LOG.error("Time occurred collecting the websocket session from the future", e);
           }
 
           LOG.debug("Container response: {}", attachListener.getOutput());
