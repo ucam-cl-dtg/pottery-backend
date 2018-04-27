@@ -40,9 +40,12 @@ SET default_with_oids = false;
 CREATE TABLE repos (
     repoid character varying(255) NOT NULL,
     taskid character varying(255) NOT NULL,
+    -- FIXME: Should we track the commit of the task? Otherwise, can't go back in time to check this
+    -- taskcommit character varying(255) NOT NULL,
     using_testing_version boolean DEFAULT true NOT NULL,
     expirydate timestamp with time zone,
-    remote character varying(255) DEFAULT '' NOT NULL
+    remote character varying(255) DEFAULT '' NOT NULL,
+    variant character varying(255) NOT NULL
 );
 
 
@@ -56,15 +59,10 @@ CREATE TABLE submissions (
     repoid character varying(255) NOT NULL,
     tag character varying(255) NOT NULL,
     status character varying(255) NOT NULL,
-    compilationoutput text,
-    compilationtimems bigint DEFAULT '-1'::integer NOT NULL,
-    harnesstimems bigint DEFAULT '-1'::integer NOT NULL,
-    validatortimems bigint DEFAULT '-1'::integer NOT NULL,
+    output text,
     waittimems bigint DEFAULT '-1'::integer NOT NULL,
     errormessage text,
-    teststeps text,
-    datescheduled timestamp without time zone,
-    interpretation character varying(255)
+    datescheduled timestamp without time zone
 );
 
 
@@ -80,7 +78,7 @@ CREATE TABLE tasks (
     retired boolean DEFAULT false NOT NULL,
     testingcopyid character varying(255),
     registeredcopyid character varying(255),
-    remote character varying(255) not null default ''
+    remote character varying(255) default '' not null
 );
 
 

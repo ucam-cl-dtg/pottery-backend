@@ -78,7 +78,7 @@ public class TestRepo {
           JsonProcessingException {
 
     // ARRANGE
-    String expectedContents = TestEnvironment.getScriptContents("Skeleton");
+    String expectedContents = TestEnvironment.printingScript("Skeleton");
 
     // ACT
     byte[] fileContents = repo.readFile("HEAD", "skeleton.sh");

@@ -20,6 +20,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import java.io.File;
 import java.net.URI;
+import java.util.Map;
+
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -28,18 +30,20 @@ import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.BuilderInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Execution;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
+
+import static uk.ac.cam.cl.dtg.teaching.pottery.worker.Job.STATUS_OK;
 
 /**
  * Class for building a taskcopy. Responsible for copying files, compilation etc.
@@ -86,7 +90,7 @@ public class TaskCopyBuilder {
               ContainerManager containerManager,
               Database database) {
             return copyFiles(sha1, taskId, copyId, taskConfig, taskDefLocation)
-                ? Job.STATUS_OK
+                ? STATUS_OK
                 : Job.STATUS_FAILED;
           }
 
@@ -104,7 +108,7 @@ public class TaskCopyBuilder {
               ContainerManager containerManager,
               Database database) {
             try {
-              return compileFiles(taskConfig, containerManager) ? Job.STATUS_OK : Job.STATUS_FAILED;
+              return compileFiles(taskConfig, containerManager) ? STATUS_OK : Job.STATUS_FAILED;
             } catch (ApiUnavailableException e) {
               LOG.warn("Docker API unavailable. Retrying", e);
               return Job.STATUS_RETRY;
@@ -222,196 +226,128 @@ public class TaskCopyBuilder {
       throws ApiUnavailableException {
     String copyId = taskCopy.getCopyId();
     TaskInfo taskInfo = taskCopy.getInfo();
-    String image = taskInfo.getImage();
 
     LOG.info("Compiling tests for task {} in {}", taskInfo.getTaskId(), copyId);
 
-    builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TEST);
-    ContainerExecResponse<String> r =
-        containerManager.execTaskCompilation(
-            taskCopy.getLocation(), image, taskInfo.getTaskCompilationRestrictions());
-    builderInfo.setTestCompileResponse(r.response());
-    switch (r.status()) {
-      case FAILED_UNKNOWN:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Failed to compile testing code in task. Compiler response was: "
-                    + r.rawResponse()));
-        break;
-      case FAILED_DISK:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Insufficient disk quota to compile testing code in task. Compiler response was: "
-                    + r.rawResponse()));
-        break;
-      case FAILED_OOM:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Insufficient memory quota to compile testing code in task. Compiler response was: "
-                    + r.rawResponse()));
-        break;
-      case FAILED_TIMEOUT:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Timeout when compiling testing code in task. Compiler response was: "
-                    + r.rawResponse()));
-        break;
-      case COMPLETED:
-      default:
-        // do nothing
-    }
-    if (!r.status().equals(ContainerExecResponse.Status.COMPLETED)) {
-      return false;
-    }
+    builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TESTS);
 
-    builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_SOLUTION);
-    // Test it against the model answer
-    ContainerExecResponse<String> r2 =
-        containerManager.execCompilation(
-            taskConfig.getSolutionDir(copyId),
-            taskConfig.getCompileDir(copyId),
-            image,
-            taskInfo.getCompilationRestrictions());
-    builderInfo.setSolutionCompileResponse(r2.response());
-    switch (r2.status()) {
-      case FAILED_UNKNOWN:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Failed to compile solution when testing task during registration. "
-                    + "Compiler response was: "
-                    + r2.rawResponse()));
-        break;
-      case FAILED_DISK:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Insufficient disk quota to compile solution when testing task during "
-                    + "registration. "
-                    + "Compiler response was: "
-                    + r2.rawResponse()));
-        break;
-      case FAILED_OOM:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Insufficient memory to compile solution when testing task during registration. "
-                    + "Compiler response was: "
-                    + r2.rawResponse()));
-        break;
-      case FAILED_TIMEOUT:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Timeout when compiling solution when testing task during registration. "
-                    + "Compiler response was: "
-                    + r2.rawResponse()));
-        break;
-      case COMPLETED:
-      default:
-        // do nothing
-    }
-    if (!r2.status().equals(ContainerExecResponse.Status.COMPLETED)) {
-      return false;
-    }
+    for (Execution compileStep : taskInfo.getTaskCompilation()) {
+      ContainerExecResponse r = containerManager.execTaskCompilation(taskCopy.getLocation(),
+          compileStep.getImage(), compileStep.getProgram(), compileStep.getRestrictions());
 
-    builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTION);
-    ContainerExecResponse<HarnessResponse> r3 =
-        containerManager.execHarness(
-            taskConfig.getSolutionDir(copyId),
-            taskConfig.getHarnessDir(copyId),
-            image,
-            taskInfo.getHarnessRestrictions());
-    builderInfo.setHarnessResponse(r3.response());
-    switch (r3.status()) {
-      case FAILED_UNKNOWN:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Failed to run harness when testing task during registration. "
-                    + "Harness response was: "
-                    + r2.rawResponse()));
-        break;
-      case FAILED_DISK:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Insufficient disk quota running harness when testing task during registration. "
-                    + "Harness response was: "
-                    + r2.rawResponse()));
-        break;
-      case FAILED_OOM:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Insufficient memory running harness when testing task during registration. "
-                    + "Harness response was: "
-                    + r2.rawResponse()));
-        break;
-      case FAILED_TIMEOUT:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Timeout running harness when testing task during registration. "
-                    + "Harness response was: "
-                    + r2.rawResponse()));
-        break;
-      case COMPLETED:
-      default:
-        if (!r3.response().isCompleted()) {
+      switch (r.status()) {
+        case FAILED_UNKNOWN:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
-                  "Harness failed to run to completion during registration. Harness response was: "
-                      + r3.rawResponse()));
-        }
-    }
-    if (!r3.status().equals(ContainerExecResponse.Status.COMPLETED)
-        || !r3.response().isCompleted()) {
-      return false;
-    }
-
-    ContainerExecResponse<ValidatorResponse> r4 =
-        containerManager.execValidator(
-            taskConfig.getValidatorDir(copyId),
-            r3.response(),
-            image,
-            taskInfo.getValidatorRestrictions());
-    builderInfo.setValidatorResponse(r4.response());
-    switch (r4.status()) {
-      case FAILED_UNKNOWN:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Failed to run validator when testing task during registration. "
-                    + "Validator response was: "
-                    + r2.rawResponse()));
-        break;
-      case FAILED_DISK:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Insufficient disk quota running validator when testing task during registration. "
-                    + "Validator response was: "
-                    + r2.rawResponse()));
-        break;
-      case FAILED_OOM:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Insufficient memory running validator when testing task during registration. "
-                    + "Validator response was: "
-                    + r2.rawResponse()));
-        break;
-      case FAILED_TIMEOUT:
-        builderInfo.setException(
-            new InvalidTaskSpecificationException(
-                "Timeout running validator when testing task during registration. "
-                    + "Validator response was: "
-                    + r2.rawResponse()));
-        break;
-      case COMPLETED:
-      default:
-        if (!r4.response().isCompleted()) {
+                  "Failed to compile testing code in task. Compiler response was: "
+                      + r.response()));
+          break;
+        case FAILED_DISK:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
-                  "Validator failed to run to completion during registration. "
-                      + "Validator response was: "
-                      + r3.rawResponse()));
+                  "Insufficient disk quota to compile testing code in task. Compiler response was: "
+                      + r.response()));
+          break;
+        case FAILED_OOM:
+          builderInfo.setException(
+              new InvalidTaskSpecificationException(
+                  "Insufficient memory quota to compile testing code in task. Compiler response was: "
+                      + r.response()));
+          break;
+        case FAILED_TIMEOUT:
+          builderInfo.setException(
+              new InvalidTaskSpecificationException(
+                  "Timeout when compiling testing code in task. Compiler response was: "
+                      + r.response()));
+          break;
+        case ERROR:
+          builderInfo.setException(
+              new InvalidTaskSpecificationException(
+                  "Compiled returned error code of " + r.exitCode() + ". Compiler response was: "
+                      + r.response()));
+          break;
+      }
+      if (!r.status().equals(Status.COMPLETED)) {
+        return false;
+      }
+      builderInfo.setTestCompileResponse(builderInfo.getTestCompileResponse() + "\r\n" + r.response());
+    }
+
+    builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTIONS);
+
+    for (String variant : taskInfo.getVariants()) {
+      Map<String, String> testcases = taskInfo.getTaskTests().get(variant);
+      File variantSolutions = new File(taskCopy.getSolutionsLocation(), variant);
+      for (Map.Entry<String, String> testcase : testcases.entrySet()) {
+        String testName = testcase.getKey();
+        File testCodeFolder = new File(variantSolutions, testName);
+        String testExpectedFailureStep = testcase.getValue();
+
+        final String taskName = variant + "/" + testName;
+        final boolean[] failedAsExpected = {false};
+
+        int result = containerManager.runStepsAndOutput(
+            taskCopy, testCodeFolder, taskInfo, variant, new ContainerManager.StepRunnerCallback() {
+
+          @Override
+          public void setStatus(String status) {
+            LOG.info("{}: {}", taskName, status);
+            builderInfo.setSolutionTestingResponse(builderInfo.getSolutionTestingResponse() + "\r\n" + taskName + ": " + status);
+          }
+
+          @Override
+          public void recordErrorReason(ContainerExecResponse response, String stepName) {
+            if (testExpectedFailureStep != null && testExpectedFailureStep == stepName) {
+              // All good, expected to fail here
+              failedAsExpected[0] = true;
+            } else {
+              switch (response.status()) {
+                case FAILED_UNKNOWN:
+                  builderInfo.setException(
+                      new InvalidTaskSpecificationException(
+                          "Failed when testing " + taskName + " during registration. "
+                              + "Compiler response was: "
+                              + response.response()));
+                  break;
+                case FAILED_DISK:
+                  builderInfo.setException(
+                      new InvalidTaskSpecificationException(
+                          "Insufficient disk quota when testing " + taskName + " during "
+                              + "registration. "
+                              + "Compiler response was: "
+                              + response.response()));
+                  break;
+                case FAILED_OOM:
+                  builderInfo.setException(
+                      new InvalidTaskSpecificationException(
+                          "Insufficient memory when testing " + taskName + " during registration. "
+                              + "Compiler response was: "
+                              + response.response()));
+                  break;
+                case FAILED_TIMEOUT:
+                  builderInfo.setException(
+                      new InvalidTaskSpecificationException(
+                          "Timeout when testing " + taskName + " during registration. "
+                              + "Compiler response was: "
+                              + response.response()));
+                  break;
+              }
+            }
+          }
+
+          @Override
+          public void setOutput(String output) {
+            // Don't care about the actual output
+          }
+        });
+        if (!failedAsExpected[0] && result != STATUS_OK) {
+          // This test case didn't pass, so bail.
+          return false;
         }
+      }
     }
-    if (!r4.status().equals(ContainerExecResponse.Status.COMPLETED)
-        || !r4.response().isCompleted()) {
-      return false;
-    }
+
+    LOG.info("Success in running the tests for the task");
 
     builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
 

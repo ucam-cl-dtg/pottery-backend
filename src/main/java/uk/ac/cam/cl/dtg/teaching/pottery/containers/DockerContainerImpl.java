@@ -122,8 +122,7 @@ public class DockerContainerImpl implements ContainerBackend {
   }
 
   @Override
-  public <T> ContainerExecResponse<T> executeContainer(
-      ExecutionConfig executionConfig, Function<String, T> converter)
+  public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ApiUnavailableException, ContainerExecutionException {
 
     String containerName =
@@ -174,6 +173,8 @@ public class DockerContainerImpl implements ContainerBackend {
               closed = true;
               if (containerInfo.getState().getExitCode() == 0) {
                 status = Status.COMPLETED;
+              } else {
+                status = Status.ERROR;
               }
             }
           }
@@ -187,6 +188,8 @@ public class DockerContainerImpl implements ContainerBackend {
             }
             if (containerInfo.getState().getExitCode() == 0) {
               status = Status.COMPLETED;
+            } else {
+              status = Status.ERROR;
             }
           }
 
@@ -222,7 +225,7 @@ public class DockerContainerImpl implements ContainerBackend {
           LOG.debug("Container response: {}", attachListener.getOutput());
           return ContainerExecResponse.create(
               status,
-              converter.apply(attachListener.getOutput()),
+              containerInfo.getState().getExitCode(),
               attachListener.getOutput(),
               System.currentTimeMillis() - startTime);
         } finally {

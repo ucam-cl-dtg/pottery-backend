@@ -81,7 +81,8 @@ public class GitServletV3 extends GitServlet {
                       output.println("Waiting for testing build of task...");
                       int previousStatus = 0;
 
-                      while (previousStatus < 6) {
+                      while (previousStatus < 5) {
+                        Thread.sleep(1000);
                         int currentStatus = BuilderInfo.statusToInt(b.getStatus());
 
                         if (currentStatus >= 2 && previousStatus < 2) {
@@ -89,43 +90,27 @@ public class GitServletV3 extends GitServlet {
                         }
 
                         if (currentStatus >= 3 && previousStatus < 3) {
-                          output.println("Compiling test");
+                          output.println("Compiling tests");
                         }
 
                         if (currentStatus >= 4 && previousStatus < 4) {
                           output.println(b.getTestCompileResponse());
-                          output.println("Compiling solution");
+                          output.println("Testing solutions");
                         }
 
                         if (currentStatus >= 5 && previousStatus < 5) {
-                          output.println(b.getSolutionCompileResponse());
-                          output.println("Testing solution");
+                          output.println(b.getSolutionTestingResponse());
                         }
 
-                        if (currentStatus >= 6) {
-                          ObjectMapper o = new ObjectMapper();
-                          o.configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
-                          ObjectWriter writer = o.writerWithDefaultPrettyPrinter();
-                          try {
-                            writer.writeValue(output, b.getHarnessResponse());
-                          } catch (IOException e) {
-                            output.println("Failed to serialise harness output: " + e.getMessage());
-                          }
-                          try {
-                            writer.writeValue(output, b.getValidatorResponse());
-                          } catch (IOException e) {
-                            output.println(
-                                "Failed to serialise validator output: " + e.getMessage());
-                          }
-                        }
                         previousStatus = currentStatus;
-                        Thread.sleep(1000);
                       }
 
                       if (b.getStatus().equals(BuilderInfo.STATUS_FAILURE)) {
                         output.println("Failed");
                         if (b.getException() != null) {
                           output.println(b.getException());
+                          output.println(b.getException().getStackTrace()[0].toString());
+                          output.println(b.getException().getCause());
                         }
                       } else {
                         output.println("Success");

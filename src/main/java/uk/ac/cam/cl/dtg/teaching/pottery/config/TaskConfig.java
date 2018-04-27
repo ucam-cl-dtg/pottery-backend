@@ -35,6 +35,10 @@ public class TaskConfig {
     return new File(taskPrefix, "def");
   }
 
+  public File getLocalTaskDefinitionDir(String taskId) {
+    return new File(getTaskDefinitionRoot(), taskId);
+  }
+
   public File getTaskCopyRoot() {
     return new File(taskPrefix, "copy");
   }
@@ -43,27 +47,15 @@ public class TaskConfig {
     return new File(getTaskCopyRoot(), copyId);
   }
 
-  public File getSolutionDir(String copyId) {
+  public File getSolutionsDir(String copyId) {
     return new File(getTaskCopyDir(copyId), "solution");
   }
 
-  public File getCompileDir(String copyId) {
-    return new File(getTaskCopyDir(copyId), "compile");
-  }
+  public File getStepsDir(String copyId) { return new File(getTaskCopyDir(copyId), "steps"); }
 
-  public File getHarnessDir(String copyId) {
-    return new File(getTaskCopyDir(copyId), "harness");
-  }
-
-  public File getValidatorDir(String copyId) {
-    return new File(getTaskCopyDir(copyId), "validator");
-  }
-
-  public File getSkeletonDir(String copyId) {
+  public File getSkeletonsDir(String copyId) {
     return new File(getTaskCopyDir(copyId), "skeleton");
   }
 
-  public File getLocalTaskDefinitionDir(String taskId) {
-    return new File(getTaskDefinitionRoot(), taskId);
-  }
+  public File getSkeletonDir(String copyId, String variant) { return new File(getSkeletonsDir(copyId), variant); }
 }

@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
@@ -47,6 +48,7 @@ import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.reflect.internal.Trees;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock;
@@ -54,7 +56,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock.AutoCloseableLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
@@ -67,17 +68,12 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledEx
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.*;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Interpretation;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 /**
  * A repo represents the candidate's attempt at a task.
@@ -205,7 +201,7 @@ public class Repo {
     try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         try {
-          List<String> copiedFiles = task.copySkeleton(repoDirectory);
+          List<String> copiedFiles = task.copySkeleton(repoDirectory, repoInfo.getVariant());
           if (!copiedFiles.isEmpty()) {
             for (String f : copiedFiles) {
               git.add().addFilepattern(f).call();
@@ -265,6 +261,7 @@ public class Repo {
 
   /** Convenience method for updating a submission from a builder. */
   private void updateSubmission(Submission.Builder builder) {
+    LOG.info("Submission status {}", builder.build());
     updateSubmission(builder != null ? builder.build() : null);
   }
 
@@ -308,7 +305,7 @@ public class Repo {
               t = taskIndex.getTask(repoInfo.getTaskId());
             } catch (TaskNotFoundException e1) {
               updateSubmission(
-                  builder.setCompilationResponse("Task no longer available", false, 0));
+                  builder.addErrorMessage("Task no longer available"));
               return STATUS_FAILED;
             }
             try (TaskCopy c =
@@ -327,194 +324,62 @@ public class Repo {
 
                 File codeDir = repoTestingDirectory;
                 TaskInfo taskInfo = c.getInfo();
-                String image = taskInfo.getImage();
-                updateSubmission(builder.setStatus(Submission.STATUS_COMPILATION_RUNNING));
-                ContainerExecResponse<String> compilationResponse;
-                try {
-                  compilationResponse =
-                      containerManager.execCompilation(
-                          codeDir,
-                          c.getCompileRoot(),
-                          image,
-                          taskInfo.getCompilationRestrictions());
-                } catch (ApiUnavailableException e) {
-                  LOG.warn(
-                      "Docker API unavailable when trying to execute compilation step. Retrying",
-                      e);
-                  updateSubmission(
-                      builder
-                          .addErrorMessage(
-                              "Compilation failed, unable to contact the container API. "
-                                  + "Retrying...")
-                          .setRetry());
-                  return STATUS_RETRY;
-                }
-                updateSubmission(
-                    builder.setCompilationResponse(
-                        compilationResponse.response(),
-                        compilationResponse.status().equals(Status.COMPLETED),
-                        compilationResponse.executionTimeMs()));
-                switch (compilationResponse.status()) {
-                  case FAILED_UNKNOWN:
+                String variant = repoInfo.getVariant();
+                int result = containerManager.runStepsAndOutput(c, codeDir, taskInfo, variant, new ContainerManager.ErrorHandlingStepRunnerCallback() {
+                  @Override
+                  public void apiUnavailable(String errorMessage, Throwable exception) {
+                    Repo.LOG.warn(
+                        errorMessage,
+                        exception);
                     updateSubmission(
-                        builder.addErrorMessage("Compilation failed, no tests were run"));
-                    break;
-                  case FAILED_DISK:
-                    updateSubmission(
-                        builder.addErrorMessage("Compilation failed, disk usage limit exceeded"));
-                    break;
-                  case FAILED_OOM:
-                    updateSubmission(
-                        builder.addErrorMessage("Compilation failed, memory usage limit exceeded"));
-                    break;
-                  case FAILED_TIMEOUT:
-                    updateSubmission(
-                        builder.addErrorMessage(
-                            "Compilation failed, execution time limit exceeded"));
-                    break;
-                  case COMPLETED:
-                  default:
-                    // do nothing
-                }
-
-                if (!compilationResponse.status().equals(Status.COMPLETED)) {
-                  return STATUS_FAILED;
-                }
-
-                updateSubmission(builder.setStatus(Submission.STATUS_HARNESS_RUNNING));
-                ContainerExecResponse<HarnessResponse> harnessResponse;
-                try {
-                  harnessResponse =
-                      containerManager.execHarness(
-                          codeDir, c.getHarnessRoot(), image, taskInfo.getHarnessRestrictions());
-                } catch (ApiUnavailableException e) {
-                  LOG.warn("Docker API unavailable when trying to run harness step. Retrying", e);
-                  updateSubmission(
-                      builder
-                          .addErrorMessage(
-                              "Harness failed, unable to contact the container API. Retrying...")
-                          .setRetry());
-                  return STATUS_RETRY;
-                }
-                updateSubmission(
-                    builder.setHarnessResponse(
-                        harnessResponse.response(), harnessResponse.executionTimeMs()));
-                switch (harnessResponse.status()) {
-                  case FAILED_UNKNOWN:
-                    updateSubmission(builder.addErrorMessage("Harness failed, no tests were run"));
-                    updateSubmission(
-                        builder.addErrorMessage(harnessResponse.response().getErrorMessage()));
-                    break;
-                  case FAILED_DISK:
-                    updateSubmission(
-                        builder.addErrorMessage("Harness failed, disk usage limit exceeded"));
-                    break;
-                  case FAILED_OOM:
-                    updateSubmission(
-                        builder.addErrorMessage("Harness failed, memory usage limit exceeded"));
-                    break;
-                  case FAILED_TIMEOUT:
-                    updateSubmission(
-                        builder.addErrorMessage("Harness failed, execution time limit exceeded"));
-                    break;
-                  case COMPLETED:
-                  default:
-                    if (!harnessResponse.response().isCompleted()) {
-                      updateSubmission(
-                          builder.addErrorMessage("Harness failed to run to completions"));
-                    }
-                }
-                if (!harnessResponse.status().equals(Status.COMPLETED)
-                    || !harnessResponse.response().isCompleted()) {
-                  return STATUS_FAILED;
-                }
-
-                updateSubmission(builder.setStatus(Submission.STATUS_VALIDATOR_RUNNING));
-
-                ContainerExecResponse<ValidatorResponse> validatorResponse;
-                try {
-                  validatorResponse =
-                      containerManager.execValidator(
-                          c.getValidatorRoot(),
-                          harnessResponse.response(),
-                          image,
-                          taskInfo.getValidatorRestrictions());
-                } catch (ApiUnavailableException e) {
-                  LOG.warn("Docker API unavailable when trying to run validator step. Retrying", e);
-                  updateSubmission(
-                      builder
-                          .addErrorMessage(
-                              "Validation failed, unable to contact the container API. "
-                                  + "Retrying...")
-                          .setRetry());
-                  return STATUS_RETRY;
-                }
-
-                switch (validatorResponse.status()) {
-                  case FAILED_UNKNOWN:
-                    updateSubmission(
-                        builder.addErrorMessage("Validator failed, no tests were run"));
-                    break;
-                  case FAILED_DISK:
-                    updateSubmission(
-                        builder.addErrorMessage("Validator failed, disk usage limit exceeded"));
-                    break;
-                  case FAILED_OOM:
-                    updateSubmission(
-                        builder.addErrorMessage("Validator failed, memory usage limit exceeded"));
-                    break;
-                  case FAILED_TIMEOUT:
-                    updateSubmission(
-                        builder.addErrorMessage("Validator failed, execution time limit exceeded"));
-                    break;
-                  case COMPLETED:
-                  default:
-                    if (!validatorResponse.response().isCompleted()) {
-                      updateSubmission(
-                          builder.addErrorMessage("Validator failed to run to completion"));
-                    }
-                }
-                if (!validatorResponse.status().equals(Status.COMPLETED)
-                    || !validatorResponse.response().isCompleted()) {
-                  return STATUS_FAILED;
-                }
-
-                boolean acceptableFound = false;
-                String errorMessage = validatorResponse.response().getErrorMessage();
-                boolean badFound = errorMessage != null && !errorMessage.trim().equals("");
-                for (Interpretation i : validatorResponse.response().getInterpretations()) {
-                  if (i.getResult().equals(Interpretation.INTERPRETED_ACCEPTABLE)) {
-                    acceptableFound = true;
-                  } else if (i.getResult().equals(Interpretation.INTERPRETED_FAILED)) {
-                    badFound = true;
+                        builder
+                            .addErrorMessage(
+                                "Compilation failed, unable to contact the container API. "
+                                    + "Retrying...")
+                            .setRetry());
                   }
-                }
 
-                String interpretation;
-                if (badFound) {
-                  interpretation = Submission.INTERPRETATION_BAD;
-                } else if (acceptableFound) {
-                  interpretation = Submission.INTERPRETATION_ACCEPTABLE;
-                } else {
-                  interpretation = Submission.INTERPRETATION_EXCELLENT;
-                }
+                  @Override
+                  public void setStatus(String status) {
+                    updateSubmission(builder.setStatus(status));
+                  }
 
-                updateSubmission(
-                    builder
-                        .setValidatorResponse(
-                            validatorResponse.response(), validatorResponse.executionTimeMs())
-                        .setInterpretation(interpretation)
-                        .addErrorMessage(errorMessage));
-                if (!validatorResponse.response().isCompleted()) {
-                  return STATUS_FAILED;
-                }
+                  @Override
+                  public void recordErrorReason(ContainerExecResponse response, String stepName) {
+                    switch (response.status()) {
+                      case FAILED_UNKNOWN:
+                        updateSubmission(
+                            builder.addErrorMessage("Output failed, no tests were run"));
+                        break;
+                      case FAILED_DISK:
+                        updateSubmission(
+                            builder.addErrorMessage("Output failed, disk usage limit exceeded"));
+                        break;
+                      case FAILED_OOM:
+                        updateSubmission(
+                            builder.addErrorMessage("Output failed, memory usage limit exceeded"));
+                        break;
+                      case FAILED_TIMEOUT:
+                        updateSubmission(
+                            builder.addErrorMessage(
+                                "Output failed, execution time limit exceeded"));
+                        break;
+                    }
+                  }
+
+                  @Override
+                  public void setOutput(String output) {
+                    builder.setOutput(output);
+                  }
+                });
+                if (result != STATUS_OK) return result;
               } catch (InterruptedException e) {
                 updateSubmission(
                     Submission.builder(repoInfo.getRepoId(), tag)
-                        .setCompilationResponse("Job was interrupted, retrying", false, 0));
+                        .addErrorMessage("Job was interrupted, retrying"));
                 return STATUS_RETRY;
               } finally {
-                builder.setComplete();
+                builder.setStatus(Submission.STATUS_COMPLETE);
 
                 Submission s = builder.build();
                 if (!s.isNeedsRetry()) {

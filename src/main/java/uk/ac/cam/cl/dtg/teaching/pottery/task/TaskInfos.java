@@ -30,15 +30,12 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 public class TaskInfos {
 
   /** Read the json file specifying this TaskInfo from disk and parse it into an object. */
-  public static TaskInfo load(String taskId, File taskDirectory, List<String> skeletonFiles)
+  public static TaskInfo load(String taskId, File taskDirectory)
       throws InvalidTaskSpecificationException {
     ObjectMapper o = new ObjectMapper();
     try {
       TaskInfo t = o.readValue(new File(taskDirectory, "task.json"), TaskInfo.class);
       t.setTaskId(taskId);
-      if (t.getStartingPointFiles() == null) {
-        t.setStartingPointFiles(Collections.unmodifiableList(new ArrayList<>(skeletonFiles)));
-      }
       return t;
     } catch (IOException e) {
       throw new InvalidTaskSpecificationException(

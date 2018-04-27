@@ -234,7 +234,7 @@ $(document).ready(
 				$.ajax({
 					url: 'api/repo',
 					type: 'POST',
-					data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validity").val() },
+					data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validity").val(), "variant": $("#variant").val() },
 					success: function (result) {
 						reportSuccess(result);
 						$("#repoId").val(result.repoId);
@@ -252,7 +252,7 @@ $(document).ready(
 				$.ajax({
 					url: 'api/repo',
 					type: 'POST',
-					data : {"taskId" : $("#taskId").val(), "usingTestingVersion":"true", "validityMinutes": $("#validityTest").val() },
+					data : {"taskId" : $("#taskId").val(), "usingTestingVersion":"true", "validityMinutes": $("#validityTest").val(), "variant": $("#variantTest").val() },
 					success: function (result) {
 						reportSuccess(result);
 						$("#repoId").val(result.repoId);
@@ -271,7 +271,7 @@ $(document).ready(
                 $.ajax({
                     url: 'api/repo/remote',
                     type: 'POST',
-                    data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validity").val(),"remote":$("#repoRemote").val() },
+                    data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validityRemote").val(),"remote":$("#repoRemote").val(), "variant": $("#variantRemote").val() },
                     success: function (result) {
                         reportSuccess(result);
                         $("#repoId").val(result.repoId);

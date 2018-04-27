@@ -90,7 +90,7 @@ public class TestSubmission {
     repo.deleteSubmission(tag, database);
     try {
       repo.getSubmission(tag, database);
-      fail("deleteSubmission should throw SubmissionAlreadyScheduledException");
+      fail("getSubmission should throw SubmissionNotFoundException");
     } catch (SubmissionNotFoundException e) {
       assertThat(e).hasMessageThat().contains(tag);
     }

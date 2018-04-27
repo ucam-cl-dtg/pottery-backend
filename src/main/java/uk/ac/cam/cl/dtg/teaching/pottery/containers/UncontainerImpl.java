@@ -53,8 +53,7 @@ public class UncontainerImpl implements ContainerBackend {
   public void setTimeoutMultiplier(int multiplier) {}
 
   @Override
-  public <T> ContainerExecResponse<T> executeContainer(
-      ExecutionConfig executionConfig, Function<String, T> converter)
+  public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ApiUnavailableException {
     try {
       ImmutableList<String> commands =
@@ -108,8 +107,8 @@ public class UncontainerImpl implements ContainerBackend {
       return ContainerExecResponse.create(
           process.exitValue() == 0
               ? ContainerExecResponse.Status.COMPLETED
-              : ContainerExecResponse.Status.FAILED_UNKNOWN,
-          converter.apply(output),
+              : ContainerExecResponse.Status.ERROR,
+          process.exitValue(),
           output,
           0);
     } catch (IOException | InterruptedException e) {

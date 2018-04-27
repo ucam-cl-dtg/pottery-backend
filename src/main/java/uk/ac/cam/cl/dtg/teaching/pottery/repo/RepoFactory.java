@@ -33,7 +33,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskMissingVariantException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 
 @Singleton
 public class RepoFactory {
@@ -85,7 +87,7 @@ public class RepoFactory {
 
   /** Create a new repo for this task and return it. */
   public Repo createInstance(
-      String taskId, boolean usingTestingVersion, Date expiryDate, String remote)
+      String taskId, boolean usingTestingVersion, Date expiryDate, String variant, String remote)
       throws RepoStorageException, RepoNotFoundException {
     final String newRepoId = uuidGenerator.generate();
     try {
@@ -93,7 +95,7 @@ public class RepoFactory {
           newRepoId,
           () ->
               Repo.createRepo(
-                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate, remote),
+                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate, variant, remote),
                   config,
                   database));
     } catch (ExecutionException e) {

@@ -35,7 +35,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.BuilderInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Criterion;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskLocation;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskStatus;
@@ -196,31 +195,5 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
             "Unit Testing: Assesses the ability of the developer to write unit tests on "
                 + "pre-existing source code and or source code that they have themselves written.")
         .build();
-  }
-
-  @Override
-  public List<Criterion> listCriteria() {
-    try {
-      return ImmutableList.<Criterion>builder()
-          .add(new Criterion("compute"))
-          .add(new Criterion("complexity"))
-          .add(new Criterion("runningtime"))
-          .add(new Criterion("mempeak"))
-          .add(new Criterion("memtotal"))
-          .add(new Criterion("cache"))
-          .add(new Criterion("iototal"))
-          .add(new Criterion("correctness"))
-          .add(new Criterion("robustness"))
-          .add(new Criterion("testability"))
-          .add(new Criterion("testcoverage"))
-          .build();
-    } catch (CriterionNotFoundException e) {
-      throw new Error(e);
-    }
-  }
-
-  @Override
-  public List<String> listLanguages() {
-    return ImmutableList.of("java");
   }
 }

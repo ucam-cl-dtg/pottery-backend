@@ -18,7 +18,6 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
-import java.util.function.Function;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
@@ -41,7 +40,6 @@ public interface ContainerBackend extends Stoppable {
 
   void setTimeoutMultiplier(int multiplier);
 
-  <T> ContainerExecResponse<T> executeContainer(
-      ExecutionConfig executionConfig, Function<String, T> converter)
+  ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ContainerExecutionException, ApiUnavailableException;
 }

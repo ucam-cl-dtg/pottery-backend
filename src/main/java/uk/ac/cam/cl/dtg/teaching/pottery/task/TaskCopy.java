@@ -66,7 +66,7 @@ public class TaskCopy implements AutoCloseable {
     super();
     this.copyId = copyId;
     this.config = config;
-    this.info = TaskInfos.load(taskId, config.getTaskCopyDir(copyId), listSkeleton());
+    this.info = TaskInfos.load(taskId, config.getTaskCopyDir(copyId));
   }
 
   public String getCopyId() {
@@ -81,8 +81,11 @@ public class TaskCopy implements AutoCloseable {
     return config.getTaskCopyDir(copyId);
   }
 
-  private List<String> listSkeleton() throws TaskStorageException {
-    File sourceLocation = config.getSkeletonDir(copyId);
+  public File getStepsLocation() { return config.getStepsDir(copyId); }
+  public File getSolutionsLocation() { return config.getSolutionsDir(copyId); }
+
+  /*public List<String> listSkeleton(String variant) throws TaskStorageException {
+    File sourceLocation = config.getSkeletonDir(copyId, variant);
     if (!sourceLocation.exists()) {
       return new LinkedList<>();
     }
@@ -108,26 +111,14 @@ public class TaskCopy implements AutoCloseable {
               + copyId,
           e);
     }
-  }
+  }*/
 
   /**
    * Copy the skeleton files from this task copy to the target directory given (this will be in a
    * candidates repo).
    */
-  public ImmutableList<String> copySkeleton(File destination) throws IOException {
-    return FileUtil.copyFilesRecursively(config.getSkeletonDir(copyId), destination);
-  }
-
-  public File getCompileRoot() {
-    return config.getCompileDir(copyId);
-  }
-
-  public File getHarnessRoot() {
-    return config.getHarnessDir(copyId);
-  }
-
-  public File getValidatorRoot() {
-    return config.getValidatorDir(copyId);
+  public ImmutableList<String> copySkeleton(File destination, String variant) throws IOException {
+    return FileUtil.copyFilesRecursively(config.getSkeletonDir(copyId, variant), destination);
   }
 
   public boolean acquire() {
