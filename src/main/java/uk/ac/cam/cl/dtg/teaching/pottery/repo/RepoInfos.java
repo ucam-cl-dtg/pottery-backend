@@ -35,7 +35,7 @@ public class RepoInfos {
           return new RepoInfo(
               rs.getString("repoid"),
               rs.getString("taskid"),
-              rs.getBoolean("using_test_version"),
+              rs.getBoolean("using_testing_version"),
               new Date(rs.getTimestamp("expiryDate").getTime()),
               rs.getString("variant"),
               rs.getString("remote"));

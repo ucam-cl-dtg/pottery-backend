@@ -297,7 +297,7 @@ public class TaskCopyBuilder {
 
           @Override
           public void recordErrorReason(ContainerExecResponse response, String stepName) {
-            if (testExpectedFailureStep != null && testExpectedFailureStep == stepName) {
+            if (testExpectedFailureStep != null && testExpectedFailureStep.equals(stepName)) {
               // All good, expected to fail here
               failedAsExpected[0] = true;
             } else {

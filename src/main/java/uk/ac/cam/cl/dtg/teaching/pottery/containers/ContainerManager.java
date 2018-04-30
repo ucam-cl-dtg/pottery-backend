@@ -25,7 +25,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -37,7 +36,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.*;
-import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 
@@ -94,13 +92,10 @@ public class ContainerManager implements Stoppable {
 
   private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][a-zA-Z_0-9]*)@");
   private ExecutionConfig.Builder applyBindings(String command, Map<String, Binding> bindings,
-                                                Map<String, ContainerExecResponse> stepResults)
+                                                Map<String, ContainerExecResponse> stepResults, File containerTempDir)
       throws ContainerExecutionException, IOException {
     ExecutionConfig.Builder builder = ExecutionConfig.builder();
     StringBuffer finalCommand = new StringBuffer();
-
-    File containerTempDir = new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
-    FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir);
 
     Matcher regexMatcher = bindingRegex.matcher(command);
     // FIXME: Matcher has a replaceAll that takes a function
@@ -111,8 +106,9 @@ public class ContainerManager implements Stoppable {
         binding = bindings.get(name);
       } else if (stepResults.containsKey(name)) {
         File stepFile = new File(containerTempDir, name);
-        FileWriter w = new FileWriter(stepFile);
-        w.write(stepResults.get(name).response());
+        try (FileWriter w = new FileWriter(stepFile)) {
+          w.write(stepResults.get(name).response());
+        }
         binding = new FileBinding(stepFile, false);
       } else {
         throw new ContainerExecutionException("Couldn't find a binding called " + name + " for command " + command);
@@ -199,9 +195,10 @@ public class ContainerManager implements Stoppable {
                                                 ContainerRestrictions restrictions,
                                                 Map<String, Binding> bindings,
                                                 Map<String, ContainerExecResponse> stepResults) throws ApiUnavailableException {
-    try {
+    File containerTempDir = new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
+    try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
       return containerBackend.executeContainer(
-          applyBindings(command, bindings, stepResults)
+          applyBindings(command, bindings, stepResults, containerTempDir)
               .setImageName(imageName)
               .setContainerRestrictions(restrictions)
               .setLocalUserId(config.getUid())
@@ -257,8 +254,8 @@ public class ContainerManager implements Stoppable {
         SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
         VARIANT_BINDING, new TextBinding(variant)
     );
-    command = command + " " + stepResults.entrySet().stream().map(entry -> "--input={0}:{1}:{2}:@{0}@".format(entry.getKey(), entry.getValue().exitCode(), entry.getValue().executionTimeMs())).collect(Collectors.joining(" "));
-    command = command + " " + potteryProperties.entrySet().stream().map(entry -> "--pottery-{0}={1}".format(entry.getKey(), entry.getValue())).collect(Collectors.joining(" "));
+    command = command + " " + stepResults.entrySet().stream().map(entry -> String.format("--input=%1$s:%2$s:%3$s:@%1$s@", entry.getKey(), entry.getValue().exitCode(), entry.getValue().executionTimeMs())).collect(Collectors.joining(" "));
+    command = command + " " + potteryProperties.entrySet().stream().map(entry -> String.format("--pottery-%1$s=%2$s", entry.getKey(), entry.getValue())).collect(Collectors.joining(" "));
     return execute(imageName, command, restrictions, bindings, stepResults);
   }
 
