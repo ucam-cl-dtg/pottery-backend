@@ -37,7 +37,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Execution;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
@@ -53,6 +52,8 @@ public class ContainerManager implements Stoppable {
   public static final String SUBMISSION_BINDING = "SUBMISSION";
   public static final String VARIANT_BINDING = "VARIANT";
   public static final String TASK_BINDING = "TASK";
+  public static final String STEP_BINDING = "STEP";
+  public static final String SHARED_BINDING = "SHARED";
 
   public static final String DEFAULT_EXECUTION = "default";
 
@@ -202,19 +203,17 @@ public class ContainerManager implements Stoppable {
   /**
    * Execute a command inside a container.
    */
-  private ContainerExecResponse execute(String imageName,
-                                                String command,
-                                                ContainerRestrictions restrictions,
-                                                Map<String, Binding> bindings,
-                                                Map<String, ContainerExecResponse> stepResults)
+  private ContainerExecResponse execute(Execution execution,
+                                        Map<String, ContainerExecResponse> stepResults,
+                                        Map<String, Binding> bindings)
       throws ApiUnavailableException {
     File containerTempDir = new File(config.getTempRoot(),
         String.valueOf(tempDirCounter.incrementAndGet()));
     try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
       return containerBackend.executeContainer(
-          applyBindings(command, bindings, stepResults, containerTempDir)
-              .setImageName(imageName)
-              .setContainerRestrictions(restrictions)
+          applyBindings(execution.getProgram(), bindings, stepResults, containerTempDir)
+              .setImageName(execution.getImage())
+              .setContainerRestrictions(execution.getRestrictions())
               .setLocalUserId(config.getUid())
               .build());
     } catch (ContainerExecutionException | IOException e) {
@@ -227,40 +226,39 @@ public class ContainerManager implements Stoppable {
    * Run a compile task and get the response.
    */
   public ContainerExecResponse execTaskCompilation(
-      File taskDirHost, String imageName, String command, ContainerRestrictions restrictions)
+      File taskDirHost, Execution execution)
       throws ApiUnavailableException {
     Map<String, Binding> bindings = Map.of(
         TASK_BINDING, new FileBinding(taskDirHost, true),
         IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH));
     Map<String, ContainerExecResponse> stepResults = Collections.emptyMap();
-    return execute(imageName, command, restrictions, bindings, stepResults);
+    return execute(execution, stepResults, bindings);
   }
 
   /**
    * Run a step and get the response.
    */
   public ContainerExecResponse execStep(
-      File taskStepsDirHost, File codeDirHost, String imageName, String command,String variant,
-      Map<String, ContainerExecResponse> stepResults, ContainerRestrictions restrictions)
+      File taskStepsDirHost, File codeDirHost, Execution execution, String variant,
+      Map<String, ContainerExecResponse> stepResults)
       throws ApiUnavailableException {
     Map<String, Binding> bindings = Map.of(
         IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH),
         SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
-        "STEP", new FileBinding(new File(taskStepsDirHost, variant), false),
-        "SHARED", new FileBinding(new File(taskStepsDirHost, "shared"), false),
+        STEP_BINDING, new FileBinding(new File(taskStepsDirHost, variant), false),
+        SHARED_BINDING, new FileBinding(new File(taskStepsDirHost, "shared"), false),
         VARIANT_BINDING, new TextBinding(variant)
         );
-    return execute(imageName, command, restrictions, bindings, stepResults);
+    return execute(execution, stepResults, bindings);
   }
 
   /**
    * Run a output and get the response.
    */
   public ContainerExecResponse execOutput(
-      File taskDirHost, File codeDirHost, String imageName, String command, String variant,
+      File taskDirHost, File codeDirHost, Execution execution, String variant,
       Map<String, ContainerExecResponse> stepResults,
-      Map<String, String> potteryProperties,
-      ContainerRestrictions restrictions)
+      Map<String, String> potteryProperties)
       throws ApiUnavailableException {
     Map<String, Binding> bindings = Map.of(
         IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH),
@@ -268,6 +266,7 @@ public class ContainerManager implements Stoppable {
         SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
         VARIANT_BINDING, new TextBinding(variant)
     );
+    String command = execution.getProgram();
     command = command + " " + stepResults.entrySet().stream().map(entry ->
         String.format("--input=%1$s:%2$s:%3$s:@%1$s@",
             entry.getKey(),
@@ -276,7 +275,7 @@ public class ContainerManager implements Stoppable {
     command = command + " " + potteryProperties.entrySet().stream().map(entry ->
         String.format("--pottery-%1$s=%2$s", entry.getKey(), entry.getValue()))
         .collect(Collectors.joining(" "));
-    return execute(imageName, command, restrictions, bindings, stepResults);
+    return execute(execution.withProgram(command), stepResults, bindings);
   }
 
   public interface StepRunnerCallback {
@@ -292,9 +291,11 @@ public class ContainerManager implements Stoppable {
   }
 
   public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
-                               ErrorHandlingStepRunnerCallback callback) {
+                               ErrorHandlingStepRunnerCallback callback,
+                               Map<String, String> potteryProperties) {
     try {
-      return runStepsAndOutput(c, codeDir, taskInfo, variant, (StepRunnerCallback) callback);
+      return runStepsAndOutput(c, codeDir, taskInfo, variant, (StepRunnerCallback) callback,
+          potteryProperties);
     } catch (ApiUnavailableException e) {
       callback.apiUnavailable(e.getMessage(), e.getCause());
       return Job.STATUS_RETRY;
@@ -302,7 +303,8 @@ public class ContainerManager implements Stoppable {
   }
 
   public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
-                               StepRunnerCallback callback) throws ApiUnavailableException {
+                               StepRunnerCallback callback, Map<String, String> potteryProperties)
+      throws ApiUnavailableException {
     callback.setStatus(Submission.STATUS_STEPS_RUNNING);
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
@@ -322,11 +324,9 @@ public class ContainerManager implements Stoppable {
             execStep(
                 c.getStepLocation(stepName),
                 codeDir,
-                execution.getImage(),
-                execution.getProgram(),
+                execution,
                 variant,
-                stepResults,
-                execution.getRestrictions());
+                stepResults);
       } catch (ApiUnavailableException e) {
         throw new ApiUnavailableException("Docker API unavailable when trying to execute "
             + stepName + " step.", e);
@@ -354,13 +354,10 @@ public class ContainerManager implements Stoppable {
       output = execOutput(
           c.getLocation(),
           codeDir,
-          execution.getImage(),
-          execution.getProgram(),
+          execution,
           variant,
           stepResults,
-          Map.of(),
-          execution.getRestrictions()
-      );
+          potteryProperties);
     } catch (ApiUnavailableException e) {
       throw new ApiUnavailableException("Docker API unavailable when trying to execute output", e);
     }

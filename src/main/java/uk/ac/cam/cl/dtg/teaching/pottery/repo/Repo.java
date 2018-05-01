@@ -18,6 +18,8 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -25,6 +27,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
@@ -230,12 +233,12 @@ public class Repo {
    * be submitted at most once. Poll this method to get updates on the submission testing process
    * for the tag under test or submitted for testing.
    */
-  public Submission getSubmission(String tag, Database database)
+  public String getSubmission(String tag, Database database)
       throws SubmissionStorageException, SubmissionNotFoundException {
     synchronized (lockFields) {
       Submission s = activeSubmissions.get(tag);
       if (s != null) {
-        return s;
+        return s.getOutput();
       }
     }
     try (TransactionQueryRunner q = database.getQueryRunner()) {
@@ -247,7 +250,7 @@ public class Repo {
                 + " on repository "
                 + repoInfo.getRepoId());
       }
-      return s;
+      return s.getOutput();
     } catch (SQLException e) {
       throw new SubmissionStorageException("Failed to load submission from database", e);
     }
@@ -265,7 +268,7 @@ public class Repo {
   }
 
   /** Schedule a particular version of the repo for testing later. */
-  public Submission scheduleSubmission(String tag, Worker w, Database db)
+  public String scheduleSubmission(String tag, Worker w, Database db)
       throws RepoExpiredException, SubmissionStorageException, RepoStorageException {
     throwIfRepoExpired();
 
@@ -373,7 +376,12 @@ public class Repo {
                   public void setOutput(String output) {
                     builder.setOutput(output);
                   }
-                });
+                }, Map.of(
+                  "repoId", repoInfo.getRepoId(),
+                  "tag", tag,
+                  "waitTimeMs", Long.toString(builder.build().getWaitTimeMs()),
+                  "dateScheduled", Long.toString(currentSubmission.getDateScheduled().getTime())
+                ));
                 if (result != STATUS_OK) {
                   return result;
                 }
@@ -414,7 +422,13 @@ public class Repo {
             return "Testing submission " + repoInfo.getRepoId() + ":" + tag;
           }
         });
-    return currentSubmission;
+    try {
+      ObjectMapper om = new ObjectMapper();
+      updateSubmission(builder.setOutput(om.writeValueAsString(currentSubmission)));
+      return builder.build().getOutput();
+    } catch (JsonProcessingException e) {
+      return "{\"errorMessage\": \"Couldn't serialize submission information.\"}";
+    }
   }
 
   /** Find the SHA hash for the head of the master branch. */

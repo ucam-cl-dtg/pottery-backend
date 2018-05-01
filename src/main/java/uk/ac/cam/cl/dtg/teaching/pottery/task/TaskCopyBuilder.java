@@ -230,7 +230,7 @@ public class TaskCopyBuilder {
 
     for (Execution compileStep : taskInfo.getTaskCompilation()) {
       ContainerExecResponse r = containerManager.execTaskCompilation(taskCopy.getLocation(),
-          compileStep.getImage(), compileStep.getProgram(), compileStep.getRestrictions());
+          compileStep);
 
       switch (r.status()) {
         case FAILED_UNKNOWN:
@@ -341,7 +341,7 @@ public class TaskCopyBuilder {
           public void setOutput(String output) {
             // Don't care about the actual output
           }
-        });
+        }, Map.of());
         if (testExpectedFailureStep != null) {
           if (!failedAsExpected[0]) {
             builderInfo.setStatus(BuilderInfo.STATUS_FAILURE);
