@@ -81,37 +81,13 @@ public class TaskCopy implements AutoCloseable {
     return config.getTaskCopyDir(copyId);
   }
 
-  public File getStepsLocation() { return config.getStepsDir(copyId); }
-  public File getSolutionsLocation() { return config.getSolutionsDir(copyId); }
+  public File getStepLocation(String variant) {
+    return config.getStepDir(copyId, variant);
+  }
 
-  /*public List<String> listSkeleton(String variant) throws TaskStorageException {
-    File sourceLocation = config.getSkeletonDir(copyId, variant);
-    if (!sourceLocation.exists()) {
-      return new LinkedList<>();
-    }
-
-    try {
-      List<String> result = new LinkedList<>();
-      Files.walkFileTree(
-          sourceLocation.toPath(),
-          new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-              Path localLocation = sourceLocation.toPath().relativize(file);
-              result.add(localLocation.toString());
-              return FileVisitResult.CONTINUE;
-            }
-          });
-      return result;
-    } catch (IOException e) {
-      throw new TaskStorageException(
-          "Failed to access skeleton files for task "
-              + info.getTaskId()
-              + " stored in copy "
-              + copyId,
-          e);
-    }
-  }*/
+  public File getSolutionLocation(String variant) {
+    return config.getSolutionDir(copyId, variant);
+  }
 
   /**
    * Copy the skeleton files from this task copy to the target directory given (this will be in a

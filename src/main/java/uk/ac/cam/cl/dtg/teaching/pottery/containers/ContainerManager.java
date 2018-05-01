@@ -23,7 +23,9 @@ import com.google.inject.Singleton;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -35,7 +37,11 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.*;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Execution;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Step;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 
@@ -91,14 +97,16 @@ public class ContainerManager implements Stoppable {
   }
 
   private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][a-zA-Z_0-9]*)@");
-  private ExecutionConfig.Builder applyBindings(String command, Map<String, Binding> bindings,
-                                                Map<String, ContainerExecResponse> stepResults, File containerTempDir)
+
+  private ExecutionConfig.Builder applyBindings(String command,
+                                                Map<String, Binding> bindings,
+                                                Map<String, ContainerExecResponse> stepResults,
+                                                File containerTempDir)
       throws ContainerExecutionException, IOException {
     ExecutionConfig.Builder builder = ExecutionConfig.builder();
     StringBuffer finalCommand = new StringBuffer();
 
     Matcher regexMatcher = bindingRegex.matcher(command);
-    // FIXME: Matcher has a replaceAll that takes a function
     while (regexMatcher.find()) {
       String name = regexMatcher.group(1);
       Binding binding;
@@ -111,7 +119,8 @@ public class ContainerManager implements Stoppable {
         }
         binding = new FileBinding(stepFile, false);
       } else {
-        throw new ContainerExecutionException("Couldn't find a binding called " + name + " for command " + command);
+        throw new ContainerExecutionException("Couldn't find a binding called " + name
+            + " for command " + command);
       }
       binding.applyBinding(builder, name);
       regexMatcher.appendReplacement(finalCommand, binding.getMountPoint(name));
@@ -120,15 +129,17 @@ public class ContainerManager implements Stoppable {
 
     Pattern tokenizer = Pattern.compile("([^\"' ]|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')+");
     Matcher matcher = tokenizer.matcher(finalCommand);
-    while(matcher.find()) {
+    while (matcher.find()) {
       builder.addCommand(matcher.group());
     }
     return builder;
   }
 
-  static abstract class Binding {
-    abstract public ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name);
-    abstract public String getMountPoint(String name);
+  abstract static class Binding {
+    public abstract ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder,
+                                                         String name);
+
+    public abstract String getMountPoint(String name);
   }
 
   static class FileBinding extends Binding {
@@ -142,7 +153,8 @@ public class ContainerManager implements Stoppable {
 
     @Override
     public ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
-      return builder.addPathSpecification(PathSpecification.create(file, getMountPoint(name), readWrite));
+      return builder.addPathSpecification(
+          PathSpecification.create(file, getMountPoint(name), readWrite));
     }
 
     @Override
@@ -188,14 +200,16 @@ public class ContainerManager implements Stoppable {
   }
 
   /**
-   * Execute a command inside a container
+   * Execute a command inside a container.
    */
   private ContainerExecResponse execute(String imageName,
                                                 String command,
                                                 ContainerRestrictions restrictions,
                                                 Map<String, Binding> bindings,
-                                                Map<String, ContainerExecResponse> stepResults) throws ApiUnavailableException {
-    File containerTempDir = new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
+                                                Map<String, ContainerExecResponse> stepResults)
+      throws ApiUnavailableException {
+    File containerTempDir = new File(config.getTempRoot(),
+        String.valueOf(tempDirCounter.incrementAndGet()));
     try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
       return containerBackend.executeContainer(
           applyBindings(command, bindings, stepResults, containerTempDir)
@@ -254,14 +268,22 @@ public class ContainerManager implements Stoppable {
         SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
         VARIANT_BINDING, new TextBinding(variant)
     );
-    command = command + " " + stepResults.entrySet().stream().map(entry -> String.format("--input=%1$s:%2$s:%3$s:@%1$s@", entry.getKey(), entry.getValue().exitCode(), entry.getValue().executionTimeMs())).collect(Collectors.joining(" "));
-    command = command + " " + potteryProperties.entrySet().stream().map(entry -> String.format("--pottery-%1$s=%2$s", entry.getKey(), entry.getValue())).collect(Collectors.joining(" "));
+    command = command + " " + stepResults.entrySet().stream().map(entry ->
+        String.format("--input=%1$s:%2$s:%3$s:@%1$s@",
+            entry.getKey(),
+            entry.getValue().exitCode(),
+            entry.getValue().executionTimeMs())).collect(Collectors.joining(" "));
+    command = command + " " + potteryProperties.entrySet().stream().map(entry ->
+        String.format("--pottery-%1$s=%2$s", entry.getKey(), entry.getValue()))
+        .collect(Collectors.joining(" "));
     return execute(imageName, command, restrictions, bindings, stepResults);
   }
 
   public interface StepRunnerCallback {
     void setStatus(String status);
+
     void recordErrorReason(ContainerExecResponse response, String stepName);
+
     void setOutput(String output);
   }
 
@@ -269,7 +291,8 @@ public class ContainerManager implements Stoppable {
     void apiUnavailable(String errorMessage, Throwable exception);
   }
 
-  public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant, ErrorHandlingStepRunnerCallback callback) {
+  public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
+                               ErrorHandlingStepRunnerCallback callback) {
     try {
       return runStepsAndOutput(c, codeDir, taskInfo, variant, (StepRunnerCallback) callback);
     } catch (ApiUnavailableException e) {
@@ -278,7 +301,8 @@ public class ContainerManager implements Stoppable {
     }
   }
 
-  public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant, StepRunnerCallback callback) throws ApiUnavailableException {
+  public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
+                               StepRunnerCallback callback) throws ApiUnavailableException {
     callback.setStatus(Submission.STATUS_STEPS_RUNNING);
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
@@ -290,11 +314,13 @@ public class ContainerManager implements Stoppable {
       stepName = step.getName();
       Map<String, Execution> executionMap = step.getExecution();
       Execution execution = getExecution(variant, executionMap);
-      if (execution == null) continue;
+      if (execution == null) {
+        continue;
+      }
       try {
         response =
             execStep(
-                new File(c.getStepsLocation(), stepName),
+                c.getStepLocation(stepName),
                 codeDir,
                 execution.getImage(),
                 execution.getProgram(),
@@ -302,7 +328,8 @@ public class ContainerManager implements Stoppable {
                 stepResults,
                 execution.getRestrictions());
       } catch (ApiUnavailableException e) {
-        throw new ApiUnavailableException("Docker API unavailable when trying to execute " + stepName + " step.", e);
+        throw new ApiUnavailableException("Docker API unavailable when trying to execute "
+            + stepName + " step.", e);
       }
       stepResults.put(stepName, response);
       if (response.status() != Status.COMPLETED) {
@@ -310,10 +337,12 @@ public class ContainerManager implements Stoppable {
       }
     }
 
-    if (response != null && response.status() != Status.COMPLETED && response.status() != Status.ERROR) {
+    if (response != null && response.status() != Status.COMPLETED) {
       callback.setStatus(Submission.STATUS_STEPS_FAILED);
       callback.recordErrorReason(response, stepName);
-      return Job.STATUS_FAILED;
+      if (response.status() != Status.ERROR) {
+        return Job.STATUS_FAILED;
+      }
     }
 
     callback.setStatus(Submission.STATUS_OUTPUT_RUNNING);
@@ -338,7 +367,7 @@ public class ContainerManager implements Stoppable {
 
     callback.setOutput(output.response());
 
-    if (output.status() != Status.COMPLETED && output.status() != Status.ERROR) {
+    if (output.status() != Status.COMPLETED) {
       callback.setStatus(Submission.STATUS_OUTPUT_FAILED);
       callback.recordErrorReason(response, null);
       return Job.STATUS_FAILED;
@@ -350,7 +379,7 @@ public class ContainerManager implements Stoppable {
     Execution execution;
     if (executionMap.containsKey(variant)) {
       execution = executionMap.get(variant);
-    } else if(executionMap.containsKey(DEFAULT_EXECUTION)) {
+    } else if (executionMap.containsKey(DEFAULT_EXECUTION)) {
       execution = executionMap.get(DEFAULT_EXECUTION);
     } else {
       execution = null;

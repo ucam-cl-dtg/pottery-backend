@@ -47,15 +47,19 @@ public class TaskConfig {
     return new File(getTaskCopyRoot(), copyId);
   }
 
-  public File getSolutionsDir(String copyId) {
-    return new File(getTaskCopyDir(copyId), "solution");
+  public File getSolutionDir(String copyId, String variant) {
+    return getTaskCopyVariantSubDir(copyId, "solution", variant);
   }
 
-  public File getStepsDir(String copyId) { return new File(getTaskCopyDir(copyId), "steps"); }
-
-  public File getSkeletonsDir(String copyId) {
-    return new File(getTaskCopyDir(copyId), "skeleton");
+  public File getStepDir(String copyId, String variant) {
+    return getTaskCopyVariantSubDir(copyId, "steps", variant);
   }
 
-  public File getSkeletonDir(String copyId, String variant) { return new File(getSkeletonsDir(copyId), variant); }
+  public File getSkeletonDir(String copyId, String variant) {
+    return getTaskCopyVariantSubDir(copyId, "skeleton", variant);
+  }
+
+  private File getTaskCopyVariantSubDir(String copyId, String subdirectory, String variant) {
+    return new File(new File(getTaskCopyDir(copyId), subdirectory), variant);
+  }
 }

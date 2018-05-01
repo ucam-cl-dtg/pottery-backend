@@ -29,7 +29,8 @@ public class RepoInfos {
   /** Look up a repo from the database by its repoId. */
   public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
     return q.query(
-        "SELECT repoid,taskid,using_testing_version,expiryDate,variant,remote from repos where repoid=?",
+        "SELECT repoid,taskid,using_testing_version,expiryDate,variant,remote from repos "
+            + "where repoid=?",
         rs -> {
           rs.next();
           return new RepoInfo(

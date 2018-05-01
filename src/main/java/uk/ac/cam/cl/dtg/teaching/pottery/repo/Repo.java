@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
@@ -48,8 +47,6 @@ import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.reflect.internal.Trees;
-import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock.AutoCloseableLock;
@@ -68,7 +65,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledEx
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.*;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
@@ -325,7 +324,8 @@ public class Repo {
                 File codeDir = repoTestingDirectory;
                 TaskInfo taskInfo = c.getInfo();
                 String variant = repoInfo.getVariant();
-                int result = containerManager.runStepsAndOutput(c, codeDir, taskInfo, variant, new ContainerManager.ErrorHandlingStepRunnerCallback() {
+                int result = containerManager.runStepsAndOutput(c, codeDir, taskInfo, variant,
+                    new ContainerManager.ErrorHandlingStepRunnerCallback() {
                   @Override
                   public void apiUnavailable(String errorMessage, Throwable exception) {
                     Repo.LOG.warn(
@@ -364,6 +364,8 @@ public class Repo {
                             builder.addErrorMessage(
                                 "Output failed, execution time limit exceeded"));
                         break;
+                      default:
+                        break;
                     }
                   }
 
@@ -372,7 +374,9 @@ public class Repo {
                     builder.setOutput(output);
                   }
                 });
-                if (result != STATUS_OK) return result;
+                if (result != STATUS_OK) {
+                  return result;
+                }
               } catch (InterruptedException e) {
                 updateSubmission(
                     Submission.builder(repoInfo.getRepoId(), tag)

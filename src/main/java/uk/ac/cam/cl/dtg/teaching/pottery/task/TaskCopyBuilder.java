@@ -43,8 +43,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
-import static uk.ac.cam.cl.dtg.teaching.pottery.worker.Job.STATUS_OK;
-
 /**
  * Class for building a taskcopy. Responsible for copying files, compilation etc.
  *
@@ -108,7 +106,7 @@ public class TaskCopyBuilder {
               ContainerManager containerManager,
               Database database) {
             try {
-              return compileFiles(taskConfig, containerManager) ? STATUS_OK : Job.STATUS_FAILED;
+              return compileFiles(containerManager) ? STATUS_OK : Job.STATUS_FAILED;
             } catch (ApiUnavailableException e) {
               LOG.warn("Docker API unavailable. Retrying", e);
               return Job.STATUS_RETRY;
@@ -222,8 +220,7 @@ public class TaskCopyBuilder {
     return true;
   }
 
-  private boolean compileFiles(TaskConfig taskConfig, ContainerManager containerManager)
-      throws ApiUnavailableException {
+  private boolean compileFiles(ContainerManager containerManager) throws ApiUnavailableException {
     String copyId = taskCopy.getCopyId();
     TaskInfo taskInfo = taskCopy.getInfo();
 
@@ -239,45 +236,49 @@ public class TaskCopyBuilder {
         case FAILED_UNKNOWN:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
-                  "Failed to compile testing code in task. Compiler response was: "
-                      + r.response()));
+                  "Failed to compile testing code in task. "
+                      + "Compiler response was: " + r.response()));
           break;
         case FAILED_DISK:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
-                  "Insufficient disk quota to compile testing code in task. Compiler response was: "
-                      + r.response()));
+                  "Insufficient disk quota to compile testing code in task. "
+                      + "Compiler response was: " + r.response()));
           break;
         case FAILED_OOM:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
-                  "Insufficient memory quota to compile testing code in task. Compiler response was: "
-                      + r.response()));
+                  "Insufficient memory quota to compile testing code in task. "
+                      + "Compiler response was: " + r.response()));
           break;
         case FAILED_TIMEOUT:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
-                  "Timeout when compiling testing code in task. Compiler response was: "
-                      + r.response()));
+                  "Timeout when compiling testing code in task. "
+                      + "Compiler response was: " + r.response()));
           break;
         case ERROR:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
-                  "Compiled returned error code of " + r.exitCode() + ". Compiler response was: "
-                      + r.response()));
+                  "Compiler returned error code of " + r.exitCode() + ". "
+                      + "Compiler response was: " + r.response()));
+          break;
+        default:
           break;
       }
       if (!r.status().equals(Status.COMPLETED)) {
         return false;
       }
-      builderInfo.setTestCompileResponse(builderInfo.getTestCompileResponse() + "\r\n" + r.response());
+      String response = r.response();
+
+      builderInfo.addTestCompileResponse(response);
     }
 
     builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTIONS);
 
     for (String variant : taskInfo.getVariants()) {
       Map<String, String> testcases = taskInfo.getTaskTests().get(variant);
-      File variantSolutions = new File(taskCopy.getSolutionsLocation(), variant);
+      File variantSolutions = taskCopy.getSolutionLocation(variant);
       for (Map.Entry<String, String> testcase : testcases.entrySet()) {
         String testName = testcase.getKey();
         File testCodeFolder = new File(variantSolutions, testName);
@@ -292,11 +293,11 @@ public class TaskCopyBuilder {
           @Override
           public void setStatus(String status) {
             LOG.info("{}: {}", taskName, status);
-            builderInfo.setSolutionTestingResponse(builderInfo.getSolutionTestingResponse() + "\r\n" + taskName + ": " + status);
           }
 
           @Override
           public void recordErrorReason(ContainerExecResponse response, String stepName) {
+            LOG.info(taskName + ": recordErrorReason " + response + " at " + stepName);
             if (testExpectedFailureStep != null && testExpectedFailureStep.equals(stepName)) {
               // All good, expected to fail here
               failedAsExpected[0] = true;
@@ -305,31 +306,32 @@ public class TaskCopyBuilder {
                 case FAILED_UNKNOWN:
                   builderInfo.setException(
                       new InvalidTaskSpecificationException(
-                          "Failed when testing " + taskName + " during registration. "
-                              + "Compiler response was: "
-                              + response.response()));
+                          "Failed when testing " + taskName
+                              + " during registration. "
+                              + "Compiler response was: " + response.response()));
                   break;
                 case FAILED_DISK:
                   builderInfo.setException(
                       new InvalidTaskSpecificationException(
-                          "Insufficient disk quota when testing " + taskName + " during "
-                              + "registration. "
-                              + "Compiler response was: "
-                              + response.response()));
+                          "Insufficient disk quota when testing "
+                              + taskName + " during registration. "
+                              + "Compiler response was: " + response.response()));
                   break;
                 case FAILED_OOM:
                   builderInfo.setException(
                       new InvalidTaskSpecificationException(
-                          "Insufficient memory when testing " + taskName + " during registration. "
-                              + "Compiler response was: "
-                              + response.response()));
+                          "Insufficient memory when testing " + taskName
+                              + " during registration. "
+                              + "Compiler response was: " + response.response()));
                   break;
                 case FAILED_TIMEOUT:
                   builderInfo.setException(
                       new InvalidTaskSpecificationException(
-                          "Timeout when testing " + taskName + " during registration. "
-                              + "Compiler response was: "
-                              + response.response()));
+                          "Timeout when testing " + taskName
+                              + " during registration. "
+                              + "Compiler response was: " + response.response()));
+                  break;
+                default:
                   break;
               }
             }
@@ -340,9 +342,26 @@ public class TaskCopyBuilder {
             // Don't care about the actual output
           }
         });
-        if (!failedAsExpected[0] && result != STATUS_OK) {
-          // This test case didn't pass, so bail.
-          return false;
+        if (testExpectedFailureStep != null) {
+          if (!failedAsExpected[0]) {
+            builderInfo.setStatus(BuilderInfo.STATUS_FAILURE);
+            builderInfo.addSolutionTestingResponse(taskName + " was expected to fail at step "
+                + testExpectedFailureStep + " but it didn't");
+            LOG.info("{}: {}", taskName, "Expected step " + testExpectedFailureStep
+                + " to fail, but it didn't");
+            return false;
+          }
+          builderInfo.addSolutionTestingResponse(taskName + " failed at step "
+              + testExpectedFailureStep + " as expected");
+        } else {
+          if (result != Job.STATUS_OK) {
+            builderInfo.setStatus(BuilderInfo.STATUS_FAILURE);
+            builderInfo.addSolutionTestingResponse(taskName + " was expected to succeed but did not"
+                + "\r\n" + "Exception was " + builderInfo.getException());
+            LOG.info("{}: {}", taskName, "Output script didn't return OK");
+            return false;
+          }
+          builderInfo.addSolutionTestingResponse(taskName + " succeeded as expected");
         }
       }
     }
@@ -353,4 +372,5 @@ public class TaskCopyBuilder {
 
     return true;
   }
+
 }
