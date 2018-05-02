@@ -29,8 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
-import org.eclipse.jgit.api.RevertCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.JGitInternalException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
@@ -769,15 +769,12 @@ public class Repo {
           throw new RepoTagNotFoundException(
               "Tag " + tag + " not found in repository " + repoInfo.getRepoId());
         }
-        Ref peeled = r.peel(tagRef);
-        ObjectId tagObjectId = peeled != null ? peeled.getPeeledObjectId() : tagRef.getObjectId();
-        ObjectId headObjectId = r.findRef("HEAD").getObjectId();
 
-        RevertCommand rev = git.revert();
-        for (RevCommit c : git.log().addRange(tagObjectId, headObjectId).call()) {
-          rev = rev.include(c);
-        }
-        rev.call();
+        ResetCommand reset = git.reset()
+            .setMode(ResetType.HARD)
+            .setRef(tagRef.getName());
+
+        reset.call();
       } catch (GitAPIException | IOException e) {
         throw new RepoStorageException("Failed to reset repo to tag " + tag, e);
       }
