@@ -765,7 +765,7 @@ public class Repo {
       throws RepoStorageException, RepoExpiredException, RepoTagNotFoundException {
     throwIfRepoExpired();
     throwIfRemote();
-    try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
+    try (AutoCloseableLock ignored = lock.takeFullExclusionLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository r = git.getRepository();
         Ref tagRef = r.findRef(tag);
@@ -782,7 +782,7 @@ public class Repo {
 
         reset = git.reset()
             .setMode(ResetType.SOFT)
-            .setRef("ORIG_HEAD"); // The revision before the reset above
+            .setRef(Constants.ORIG_HEAD); // The revision before the reset above
 
         reset.call();
 
@@ -795,7 +795,7 @@ public class Repo {
         throw new RepoStorageException("Failed to reset repo to tag " + tag, e);
       }
     } catch (InterruptedException e) {
-      throw new RepoStorageException("Interrupted whilst waiting for file writing lock", e);
+      throw new RepoStorageException("Interrupted whilst waiting for full exclusion lock", e);
     }
   }
 
