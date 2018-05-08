@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
+import org.eclipse.jgit.api.CommitCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
@@ -752,8 +753,11 @@ public class Repo {
   }
 
   /**
-   * Set the contents of the repository to be the same as at the particular tag. Note that this does
-   * a git revert and not a reset.
+   * Set the contents of the repository to be the same as at the particular tag.
+   *
+   * Since jgit doesn't expose a multi-commit or no-commit revert command, we instead
+   * reset to the earlier point, put the HEAD pointer back where it was, and then do a
+   * manual commit.
    *
    * @param tag the tag to reset to
    */
@@ -775,6 +779,18 @@ public class Repo {
             .setRef(tagRef.getName());
 
         reset.call();
+
+        reset = git.reset()
+            .setMode(ResetType.SOFT)
+            .setRef("ORIG_HEAD"); // The revision before the reset above
+
+        reset.call();
+
+        CommitCommand commit = git.commit()
+            .setMessage("Reverted to " + tag);
+
+        commit.call();
+
       } catch (GitAPIException | IOException e) {
         throw new RepoStorageException("Failed to reset repo to tag " + tag, e);
       }
