@@ -31,9 +31,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
+import org.eclipse.jgit.api.CommitCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
-import org.eclipse.jgit.api.RevertCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.JGitInternalException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
@@ -635,8 +636,11 @@ public class Repo {
   }
 
   /**
-   * Set the contents of the repository to be the same as at the particular tag. Note that this does
-   * a git revert and not a reset.
+   * Set the contents of the repository to be the same as at the particular tag.
+   *
+   * Since jgit doesn't expose a multi-commit or no-commit revert command, we instead
+   * reset to the earlier point, put the HEAD pointer back where it was, and then do a
+   * manual commit.
    *
    * @param tag the tag to reset to
    */
@@ -644,7 +648,7 @@ public class Repo {
       throws RepoStorageException, RepoExpiredException, RepoTagNotFoundException {
     throwIfRepoExpired();
     throwIfRemote();
-    try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
+    try (AutoCloseableLock ignored = lock.takeFullExclusionLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository r = git.getRepository();
         Ref tagRef = r.findRef(tag);
@@ -652,20 +656,29 @@ public class Repo {
           throw new RepoTagNotFoundException(
               "Tag " + tag + " not found in repository " + repoInfo.getRepoId());
         }
-        Ref peeled = r.peel(tagRef);
-        ObjectId tagObjectId = peeled != null ? peeled.getPeeledObjectId() : tagRef.getObjectId();
-        ObjectId headObjectId = r.findRef("HEAD").getObjectId();
 
-        RevertCommand rev = git.revert();
-        for (RevCommit c : git.log().addRange(tagObjectId, headObjectId).call()) {
-          rev = rev.include(c);
-        }
-        rev.call();
+        ResetCommand reset = git.reset()
+            .setMode(ResetType.HARD)
+            .setRef(tagRef.getName());
+
+        reset.call();
+
+        reset = git.reset()
+            .setMode(ResetType.SOFT)
+            .setRef(Constants.ORIG_HEAD); // The revision before the reset above
+
+        reset.call();
+
+        CommitCommand commit = git.commit()
+            .setMessage("Reverted to " + tag);
+
+        commit.call();
+
       } catch (GitAPIException | IOException e) {
         throw new RepoStorageException("Failed to reset repo to tag " + tag, e);
       }
     } catch (InterruptedException e) {
-      throw new RepoStorageException("Interrupted whilst waiting for file writing lock", e);
+      throw new RepoStorageException("Interrupted whilst waiting for full exclusion lock", e);
     }
   }
 
