@@ -97,7 +97,7 @@ public class ContainerManager implements Stoppable {
     containerBackend.setTimeoutMultiplier(multiplier);
   }
 
-  private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][a-zA-Z_0-9]*)@");
+  private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
 
   private ExecutionConfig.Builder applyBindings(String command,
                                                 Map<String, Binding> bindings,
@@ -106,6 +106,8 @@ public class ContainerManager implements Stoppable {
       throws ContainerExecutionException, IOException {
     ExecutionConfig.Builder builder = ExecutionConfig.builder();
     StringBuffer finalCommand = new StringBuffer();
+
+    bindings = new HashMap<String, Binding>(bindings);
 
     Matcher regexMatcher = bindingRegex.matcher(command);
     while (regexMatcher.find()) {
@@ -119,11 +121,14 @@ public class ContainerManager implements Stoppable {
           w.write(stepResults.get(name).response());
         }
         binding = new FileBinding(stepFile, false);
+        bindings.put(name, binding);
       } else {
         throw new ContainerExecutionException("Couldn't find a binding called " + name
             + " for command " + command);
       }
-      binding.applyBinding(builder, name);
+      if (binding.needsApplying()) {
+        binding.applyBinding(builder, name);
+      }
       regexMatcher.appendReplacement(finalCommand, binding.getMountPoint(name));
     }
     regexMatcher.appendTail(finalCommand);
@@ -137,23 +142,31 @@ public class ContainerManager implements Stoppable {
   }
 
   abstract static class Binding {
-    public abstract ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder,
-                                                         String name);
-
     public abstract String getMountPoint(String name);
+
+    public ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
+      throw new UnsupportedOperationException();
+    }
+
+    public boolean needsApplying() {
+      return false;
+    }
   }
 
   static class FileBinding extends Binding {
     private final File file;
     private final boolean readWrite;
+    private boolean needsApplying;
 
     public FileBinding(File file, boolean readWrite) {
       this.file = file;
       this.readWrite = readWrite;
+      this.needsApplying = true;
     }
 
     @Override
     public ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
+      needsApplying = false;
       return builder.addPathSpecification(
           PathSpecification.create(file, getMountPoint(name), readWrite));
     }
@@ -161,6 +174,11 @@ public class ContainerManager implements Stoppable {
     @Override
     public String getMountPoint(String name) {
       return "/mnt/pottery/" + name;
+    }
+
+    @Override
+    public boolean needsApplying() {
+      return needsApplying;
     }
   }
 
@@ -175,11 +193,6 @@ public class ContainerManager implements Stoppable {
     public String getMountPoint(String name) {
       return path;
     }
-
-    @Override
-    public ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
-      return builder;
-    }
   }
 
   static class TextBinding extends Binding {
@@ -187,11 +200,6 @@ public class ContainerManager implements Stoppable {
 
     public TextBinding(String text) {
       this.text = text;
-    }
-
-    @Override
-    public ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
-      return builder;
     }
 
     @Override
