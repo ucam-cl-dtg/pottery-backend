@@ -35,7 +35,6 @@ public class InMemoryDatabase implements Database {
   private static AtomicInteger counter = new AtomicInteger();
 
   private DataSource dataSource;
-  private SQLException connectionException;
 
   /** Create a new instance (independent of all others). */
   public InMemoryDatabase() throws IOException {
@@ -43,11 +42,11 @@ public class InMemoryDatabase implements Database {
       dataSource =
           DataSources.unpooledDataSource("jdbc:hsqldb:mem:" + counter.incrementAndGet(), "SA", "");
       try (TransactionQueryRunner queryRunner = getQueryRunner()) {
-        byte[] encoded = Files.readAllBytes(Paths.get("docs/pg_schema.sql"));
+        byte[] encoded = Database.class.getResourceAsStream("schema.sql").readAllBytes();
         String shape = new String(encoded);
         shape = Pattern.compile("--.*$", Pattern.MULTILINE).matcher(shape).replaceAll("");
         for(String query : shape.split(";")) {
-          query = query.trim();//replaceFirst("(\\s|^\\s*--.*$)*", "");
+          query = query.trim();
           if (query.toUpperCase().startsWith("CREATE TABLE")) {
             query = query.replaceAll("text", "character varying(65536)");
             query = query.replaceAll("::integer", "");
@@ -57,18 +56,12 @@ public class InMemoryDatabase implements Database {
         queryRunner.commit();
       }
     } catch (SQLException e) {
-      connectionException = e;
-      System.err.println("*********** GOT SQL EXCEPTION when creating InMemoryDatabase");
-      System.err.println(e);
-      System.exit(1);
+      throw new IOException("Couldn't create testing database", e);
     }
   }
 
   @Override
   public TransactionQueryRunner getQueryRunner() throws SQLException {
-    if (dataSource == null) {
-      throw connectionException;
-    }
     return new TransactionQueryRunner(dataSource);
   }
 

@@ -21,6 +21,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jgit.api.CommitCommand;
 import org.eclipse.jgit.api.Git;
@@ -377,7 +379,7 @@ public class Repo {
                   public void setOutput(String output) {
                     builder.setOutput(output);
                   }
-                }, Map.of(
+                }, ImmutableMap.of(
                   "repoId", repoInfo.getRepoId(),
                   "tag", tag,
                   "waitTimeMs", Long.toString(builder.build().getWaitTimeMs()),
@@ -638,9 +640,9 @@ public class Repo {
   /**
    * Set the contents of the repository to be the same as at the particular tag.
    *
-   * Since jgit doesn't expose a multi-commit or no-commit revert command, we instead
+   * <p>Since jgit doesn't expose a multi-commit or no-commit revert command, we instead
    * reset to the earlier point, put the HEAD pointer back where it was, and then do a
-   * manual commit.
+   * manual commit.</p>
    *
    * @param tag the tag to reset to
    */

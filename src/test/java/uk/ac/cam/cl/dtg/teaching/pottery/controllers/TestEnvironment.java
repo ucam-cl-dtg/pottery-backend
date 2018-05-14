@@ -63,6 +63,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 class TestEnvironment {
 
+  public static final String VARIANT = "shell";
+
   private final String testRootDir;
   private final TaskFactory taskFactory;
   private final RepoFactory repoFactory;
@@ -116,8 +118,6 @@ class TestEnvironment {
     }
     return repo;
   }
-
-  public static final String VARIANT = "shell";
 
   Task createNoOpTask()
       throws TaskStorageException, IOException, GitAPIException, CriterionNotFoundException,

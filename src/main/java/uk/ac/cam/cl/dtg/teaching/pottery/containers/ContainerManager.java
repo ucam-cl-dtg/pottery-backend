@@ -18,18 +18,22 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
@@ -47,15 +51,19 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 @Singleton
 public class ContainerManager implements Stoppable {
 
-  public static final String POTTERY_BINARIES_PATH = "/pottery-binaries";
-  public static final String IMAGE_BINDING = "IMAGE";
-  public static final String SUBMISSION_BINDING = "SUBMISSION";
-  public static final String VARIANT_BINDING = "VARIANT";
-  public static final String TASK_BINDING = "TASK";
-  public static final String STEP_BINDING = "STEP";
-  public static final String SHARED_BINDING = "SHARED";
+  private static final String POTTERY_BINARIES_PATH = "/pottery-binaries";
 
-  public static final String DEFAULT_EXECUTION = "default";
+  private static final String IMAGE_BINDING = "IMAGE";
+  private static final String SUBMISSION_BINDING = "SUBMISSION";
+  private static final String VARIANT_BINDING = "VARIANT";
+  private static final String TASK_BINDING = "TASK";
+  private static final String STEP_BINDING = "STEP";
+  private static final String SHARED_BINDING = "SHARED";
+
+  private static final String DEFAULT_EXECUTION = "default";
+
+  private static final Pattern COMMAND_TOKENIZER =
+      Pattern.compile("([^\"' ]|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')+");
 
   private final ContainerEnvConfig config;
   private final ContainerBackend containerBackend;
@@ -100,28 +108,28 @@ public class ContainerManager implements Stoppable {
   private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
 
   private ExecutionConfig.Builder applyBindings(String command,
-                                                Map<String, Binding> bindings,
+                                                ImmutableMap<String, Binding> bindings,
                                                 Map<String, ContainerExecResponse> stepResults,
                                                 File containerTempDir)
       throws ContainerExecutionException, IOException {
     ExecutionConfig.Builder builder = ExecutionConfig.builder();
-    StringBuffer finalCommand = new StringBuffer();
+    StringBuilder finalCommand = new StringBuilder();
 
-    bindings = new HashMap<String, Binding>(bindings);
+    Map<String, Binding> mutableBindings = new HashMap<String, Binding>(bindings);
 
     Matcher regexMatcher = bindingRegex.matcher(command);
     while (regexMatcher.find()) {
       String name = regexMatcher.group(1);
       Binding binding;
-      if (bindings.containsKey(name)) {
-        binding = bindings.get(name);
+      if (mutableBindings.containsKey(name)) {
+        binding = mutableBindings.get(name);
       } else if (stepResults.containsKey(name)) {
         File stepFile = new File(containerTempDir, name);
         try (FileWriter w = new FileWriter(stepFile)) {
           w.write(stepResults.get(name).response());
         }
         binding = new FileBinding(stepFile, false);
-        bindings.put(name, binding);
+        mutableBindings.put(name, binding);
       } else {
         throw new ContainerExecutionException("Couldn't find a binding called " + name
             + " for command " + command);
@@ -133,8 +141,7 @@ public class ContainerManager implements Stoppable {
     }
     regexMatcher.appendTail(finalCommand);
 
-    Pattern tokenizer = Pattern.compile("([^\"' ]|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')+");
-    Matcher matcher = tokenizer.matcher(finalCommand);
+    Matcher matcher = COMMAND_TOKENIZER.matcher(finalCommand);
     while (matcher.find()) {
       builder.addCommand(matcher.group());
     }
@@ -211,9 +218,9 @@ public class ContainerManager implements Stoppable {
   /**
    * Execute a command inside a container.
    */
-  private ContainerExecResponse execute(Execution execution,
+  private ContainerExecResponse execute(@Nonnull Execution execution,
                                         Map<String, ContainerExecResponse> stepResults,
-                                        Map<String, Binding> bindings)
+                                        ImmutableMap<String, Binding> bindings)
       throws ApiUnavailableException {
     File containerTempDir = new File(config.getTempRoot(),
         String.valueOf(tempDirCounter.incrementAndGet()));
@@ -234,12 +241,12 @@ public class ContainerManager implements Stoppable {
    * Run a compile task and get the response.
    */
   public ContainerExecResponse execTaskCompilation(
-      File taskDirHost, Execution execution)
+      File taskDirHost, @Nonnull Execution execution)
       throws ApiUnavailableException {
-    Map<String, Binding> bindings = Map.of(
+    ImmutableMap<String, Binding> bindings = ImmutableMap.of(
         TASK_BINDING, new FileBinding(taskDirHost, true),
         IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH));
-    Map<String, ContainerExecResponse> stepResults = Collections.emptyMap();
+    ImmutableMap<String, ContainerExecResponse> stepResults = ImmutableMap.of();
     return execute(execution, stepResults, bindings);
   }
 
@@ -247,10 +254,10 @@ public class ContainerManager implements Stoppable {
    * Run a step and get the response.
    */
   public ContainerExecResponse execStep(
-      File taskStepsDirHost, File codeDirHost, Execution execution, String variant,
+      File taskStepsDirHost, File codeDirHost, @Nonnull Execution execution, String variant,
       Map<String, ContainerExecResponse> stepResults)
       throws ApiUnavailableException {
-    Map<String, Binding> bindings = Map.of(
+    ImmutableMap<String, Binding> bindings = ImmutableMap.of(
         IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH),
         SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
         STEP_BINDING, new FileBinding(new File(taskStepsDirHost, variant), false),
@@ -264,25 +271,45 @@ public class ContainerManager implements Stoppable {
    * Run a output and get the response.
    */
   public ContainerExecResponse execOutput(
-      File taskDirHost, File codeDirHost, Execution execution, String variant,
+      File taskDirHost, File codeDirHost, @Nonnull Execution execution, String variant,
       Map<String, ContainerExecResponse> stepResults,
-      Map<String, String> potteryProperties)
+      ImmutableMap<String, String> potteryProperties)
       throws ApiUnavailableException {
-    Map<String, Binding> bindings = Map.of(
+    ImmutableMap<String, Binding> bindings = ImmutableMap.of(
         IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH),
         TASK_BINDING, new FileBinding(taskDirHost, true),
         SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
         VARIANT_BINDING, new TextBinding(variant)
     );
-    String command = execution.getProgram();
-    command = command + " " + stepResults.entrySet().stream().map(entry ->
-        String.format("--input=%1$s:%2$s:%3$s:@%1$s@",
-            entry.getKey(),
-            entry.getValue().exitCode(),
-            entry.getValue().executionTimeMs())).collect(Collectors.joining(" "));
-    command = command + " " + potteryProperties.entrySet().stream().map(entry ->
-        String.format("--pottery-%1$s=%2$s", entry.getKey(), entry.getValue()))
-        .collect(Collectors.joining(" "));
+
+    Stream<String> commands = Stream.of(execution.getProgram());
+
+    commands =
+        Stream.concat(
+            commands,
+            stepResults
+                .entrySet()
+                .stream()
+                .map(
+                    entry ->
+                        String.format(
+                            "--input=%1$s:%2$s:%3$s:@%1$s@",
+                            entry.getKey(),
+                            entry.getValue().exitCode(),
+                            entry.getValue().executionTimeMs())));
+
+    commands =
+        Stream.concat(
+            commands,
+            potteryProperties
+                .entrySet()
+                .stream()
+                .map(
+                    entry ->
+                        String.format("--pottery-%1$s=%2$s", entry.getKey(), entry.getValue())));
+
+    String command = commands.collect(Collectors.joining(" "));
+
     return execute(execution.withProgram(command), stepResults, bindings);
   }
 
@@ -300,8 +327,10 @@ public class ContainerManager implements Stoppable {
 
   public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
                                ErrorHandlingStepRunnerCallback callback,
-                               Map<String, String> potteryProperties) {
+                               ImmutableMap<String, String> potteryProperties) {
     try {
+      // The StepRunnerCallback cast is necessary to prevent a stack overflow since this would
+      // become self-recursive
       return runStepsAndOutput(c, codeDir, taskInfo, variant, (StepRunnerCallback) callback,
           potteryProperties);
     } catch (ApiUnavailableException e) {
@@ -311,7 +340,8 @@ public class ContainerManager implements Stoppable {
   }
 
   public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
-                               StepRunnerCallback callback, Map<String, String> potteryProperties)
+                               StepRunnerCallback callback,
+                               ImmutableMap<String, String> potteryProperties)
       throws ApiUnavailableException {
     callback.setStatus(Submission.STATUS_STEPS_RUNNING);
 
@@ -336,7 +366,7 @@ public class ContainerManager implements Stoppable {
                 variant,
                 stepResults);
       } catch (ApiUnavailableException e) {
-        throw new ApiUnavailableException("Docker API unavailable when trying to execute "
+        throw new ApiUnavailableException("Container API unavailable when trying to execute "
             + stepName + " step.", e);
       }
       stepResults.put(stepName, response);
@@ -353,9 +383,16 @@ public class ContainerManager implements Stoppable {
       }
     }
 
-    callback.setStatus(Submission.STATUS_OUTPUT_RUNNING);
-
     Execution execution = getExecution(variant, taskInfo.getOutput());
+
+    if (execution == null) {
+      callback.setStatus(Submission.STATUS_OUTPUT_FAILED);
+      callback.recordErrorReason(ContainerExecResponse.create(Status.FAILED_UNKNOWN, -1,
+          "No output was specified", 0), null);
+      return Job.STATUS_FAILED;
+    }
+
+    callback.setStatus(Submission.STATUS_OUTPUT_RUNNING);
 
     ContainerExecResponse output;
     try {
@@ -367,7 +404,8 @@ public class ContainerManager implements Stoppable {
           stepResults,
           potteryProperties);
     } catch (ApiUnavailableException e) {
-      throw new ApiUnavailableException("Docker API unavailable when trying to execute output", e);
+      throw new ApiUnavailableException("Container API unavailable when trying to execute output",
+          e);
     }
 
     callback.setOutput(output.response());
@@ -380,15 +418,14 @@ public class ContainerManager implements Stoppable {
     return Job.STATUS_OK;
   }
 
+  @Nullable
   private Execution getExecution(String variant, Map<String, Execution> executionMap) {
-    Execution execution;
     if (executionMap.containsKey(variant)) {
-      execution = executionMap.get(variant);
+      return executionMap.get(variant);
     } else if (executionMap.containsKey(DEFAULT_EXECUTION)) {
-      execution = executionMap.get(DEFAULT_EXECUTION);
+      return executionMap.get(DEFAULT_EXECUTION);
     } else {
-      execution = null;
+      return null;
     }
-    return execution;
   }
 }

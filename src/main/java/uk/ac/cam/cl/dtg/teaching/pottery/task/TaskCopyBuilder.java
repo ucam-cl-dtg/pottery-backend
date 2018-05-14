@@ -18,6 +18,7 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.net.URI;
 import java.util.Map;
@@ -341,7 +342,7 @@ public class TaskCopyBuilder {
           public void setOutput(String output) {
             // Don't care about the actual output
           }
-        }, Map.of());
+        }, ImmutableMap.of());
         if (testExpectedFailureStep != null) {
           if (!failedAsExpected[0]) {
             builderInfo.setStatus(BuilderInfo.STATUS_FAILURE);
