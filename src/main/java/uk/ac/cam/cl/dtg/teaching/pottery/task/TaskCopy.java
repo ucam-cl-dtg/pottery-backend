@@ -49,6 +49,7 @@ public class TaskCopy implements AutoCloseable {
   private String copyId;
   private TaskConfig config;
   private TaskInfo info;
+  private String taskCommit;
   private TwoPhaseLatch latch = new TwoPhaseLatch();
 
   /**
@@ -61,12 +62,13 @@ public class TaskCopy implements AutoCloseable {
    * @throws InvalidTaskSpecificationException if we can't load the task specification
    * @throws TaskStorageException if the task cannot be accessed
    */
-  TaskCopy(String taskId, String copyId, TaskConfig config)
+  TaskCopy(String taskId, String copyId, TaskConfig config, String taskCommit)
       throws InvalidTaskSpecificationException, TaskStorageException {
     super();
     this.copyId = copyId;
     this.config = config;
     this.info = TaskInfos.load(taskId, config.getTaskCopyDir(copyId));
+    this.taskCommit = taskCommit;
   }
 
   public String getCopyId() {
@@ -75,6 +77,10 @@ public class TaskCopy implements AutoCloseable {
 
   public TaskInfo getInfo() {
     return info;
+  }
+
+  public String getTaskCommit() {
+    return taskCommit;
   }
 
   public File getLocation() {

@@ -110,13 +110,13 @@ class TestEnvironment {
           RepoExpiredException {
     Calendar calendar = Calendar.getInstance();
     calendar.add(Calendar.YEAR, 10);
-    Repo repo =
-        repoFactory.createInstance(
-            task.getTaskId(), true, calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET);
     try (TaskCopy c = task.acquireTestingCopy()) {
+      Repo repo =
+          repoFactory.createInstance(task.getTaskId(), true, c.getTaskCommit(),
+              calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET);
       repo.copyFiles(c);
+      return repo;
     }
-    return repo;
   }
 
   Task createNoOpTask()

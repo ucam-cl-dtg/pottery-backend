@@ -91,7 +91,8 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       if (!c.getInfo().getVariants().contains(variant)) {
         throw new TaskMissingVariantException("Variant " + variant + " is not defined");
       }
-      Repo r = repoFactory.createInstance(taskId, usingTestingVersion, expiryDate, variant, remote);
+      Repo r = repoFactory.createInstance(taskId, usingTestingVersion, c.getTaskCommit(),
+          expiryDate, variant, remote);
       RepoInfo info = r.toRepoInfo();
       if (!info.isRemote()) {
         r.copyFiles(c);

@@ -40,9 +40,8 @@ SET default_with_oids = false;
 CREATE TABLE repos (
     repoid character varying(255) NOT NULL,
     taskid character varying(255) NOT NULL,
-    -- FIXME: Should we track the commit of the task? Otherwise, can't go back in time to check this
-    -- taskcommit character varying(255) NOT NULL,
     using_testing_version boolean DEFAULT true NOT NULL,
+    taskcommit character varying(255) NOT NULL,
     expirydate timestamp with time zone,
     remote character varying(255) DEFAULT '' NOT NULL,
     variant character varying(255) NOT NULL

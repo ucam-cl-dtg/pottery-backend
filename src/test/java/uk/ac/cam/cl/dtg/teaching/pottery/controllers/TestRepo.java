@@ -46,12 +46,14 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 
 public class TestRepo {
 
   private File testRootDir;
   private Repo repo;
   private TestEnvironment testEnvironment;
+  private Task task;
 
   /** Configure the test environment. */
   @Before
@@ -63,7 +65,7 @@ public class TestRepo {
     this.testRootDir = Files.createTempDir().getCanonicalFile();
     this.testEnvironment = new TestEnvironment(testRootDir.getPath());
 
-    Task task = testEnvironment.createNoOpTask();
+    task = testEnvironment.createNoOpTask();
     this.repo = testEnvironment.createRepo(task);
   }
 
@@ -146,5 +148,22 @@ public class TestRepo {
 
     // ASSERT
     assertThat(foundSha).isEqualTo(headSha);
+  }
+
+  @Test
+  public void repoHasCorrectTaskCommitHash()
+      throws TaskNotFoundException, TaskStorageException {
+
+    // ARRANGE
+    String headSha = task.getHeadSha();
+    TaskCopy copy = task.acquireTestingCopy();
+    String taskCommit = copy.getTaskCommit();
+
+    // ACT
+    String foundSha = repo.toRepoInfo().getTaskCommit();
+
+    // ASSERT
+    assertThat(taskCommit).isEqualTo(headSha);
+    assertThat(foundSha).isEqualTo(taskCommit);
   }
 }
