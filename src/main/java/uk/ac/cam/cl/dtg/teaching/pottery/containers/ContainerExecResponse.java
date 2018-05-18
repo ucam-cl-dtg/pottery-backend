@@ -25,7 +25,7 @@ public abstract class ContainerExecResponse {
 
   public enum Status {
     COMPLETED,
-    ERROR,
+    FAILED_EXITCODE,
     FAILED_OOM,
     FAILED_DISK,
     FAILED_TIMEOUT,
@@ -34,16 +34,13 @@ public abstract class ContainerExecResponse {
 
   public abstract Status status();
 
-  public abstract int exitCode();
-
   public abstract String response();
 
   public abstract long executionTimeMs();
 
   public static ContainerExecResponse create(Status status,
-                                             int exitCode,
                                              String response,
                                              long executionTimeMs) {
-    return new AutoValue_ContainerExecResponse(status, exitCode, response, executionTimeMs);
+    return new AutoValue_ContainerExecResponse(status, response, executionTimeMs);
   }
 }

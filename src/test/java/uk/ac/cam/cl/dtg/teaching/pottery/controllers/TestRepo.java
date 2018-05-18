@@ -65,7 +65,7 @@ public class TestRepo {
     this.testRootDir = Files.createTempDir().getCanonicalFile();
     this.testEnvironment = new TestEnvironment(testRootDir.getPath());
 
-    task = testEnvironment.createNoOpTask();
+    this.task = testEnvironment.createNoOpTask();
     this.repo = testEnvironment.createRepo(task);
   }
 

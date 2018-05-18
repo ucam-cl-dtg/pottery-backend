@@ -29,8 +29,8 @@ public class RepoInfos {
   /** Look up a repo from the database by its repoId. */
   public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
     return q.query(
-        "SELECT repoid,taskid,using_testing_version,taskcommit,expiryDate,variant,remote from repos "
-            + "where repoid=?",
+        "SELECT repoid,taskid,using_testing_version,taskcommit,expiryDate,variant,remote from"
+            + " repos where repoid=?",
         rs -> {
           rs.next();
           return new RepoInfo(
@@ -48,8 +48,8 @@ public class RepoInfos {
   /** Insert this repo in to the database. */
   public static void insert(RepoInfo repoInfo, QueryRunner q) throws SQLException {
     q.update(
-        "INSERT INTO repos(repoid,taskid,using_testing_version,taskcommit,expiryDate,variant,remote) "
-            + "values (?,?,?,?,?,?,?)",
+        "INSERT INTO repos(repoid,taskid,using_testing_version,taskcommit,expiryDate,variant,"
+            + "remote) values (?,?,?,?,?,?,?)",
         repoInfo.getRepoId(),
         repoInfo.getTaskId(),
         repoInfo.isUsingTestingVersion(),

@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Function;
+
 import org.apache.commons.io.IOUtils;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 
@@ -107,8 +107,7 @@ public class UncontainerImpl implements ContainerBackend {
       return ContainerExecResponse.create(
           process.exitValue() == 0
               ? ContainerExecResponse.Status.COMPLETED
-              : ContainerExecResponse.Status.ERROR,
-          process.exitValue(),
+              : ContainerExecResponse.Status.FAILED_EXITCODE,
           output,
           0);
     } catch (IOException | InterruptedException e) {

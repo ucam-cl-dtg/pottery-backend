@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.net.URI;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
@@ -89,7 +90,7 @@ public class TaskCopyBuilder {
               ContainerManager containerManager,
               Database database) {
             return copyFiles(sha1, taskId, copyId, taskConfig, taskDefLocation)
-                ? STATUS_OK
+                ? Job.STATUS_OK
                 : Job.STATUS_FAILED;
           }
 
@@ -258,10 +259,10 @@ public class TaskCopyBuilder {
                   "Timeout when compiling testing code in task. "
                       + "Compiler response was: " + r.response()));
           break;
-        case ERROR:
+        case FAILED_EXITCODE:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
-                  "Compiler returned error code of " + r.exitCode() + ". "
+                  "Compiler returned an error code. "
                       + "Compiler response was: " + r.response()));
           break;
         default:
@@ -286,7 +287,7 @@ public class TaskCopyBuilder {
         String testExpectedFailureStep = testcase.getValue();
 
         final String taskName = variant + "/" + testName;
-        final boolean[] failedAsExpected = {false};
+        final AtomicBoolean failedAsExpected = new AtomicBoolean(false);
 
         int result = containerManager.runStepsAndOutput(
             taskCopy, testCodeFolder, taskInfo, variant, new ContainerManager.StepRunnerCallback() {
@@ -301,7 +302,7 @@ public class TaskCopyBuilder {
             LOG.info(taskName + ": recordErrorReason " + response + " at " + stepName);
             if (testExpectedFailureStep != null && testExpectedFailureStep.equals(stepName)) {
               // All good, expected to fail here
-              failedAsExpected[0] = true;
+              failedAsExpected.set(true);
             } else {
               switch (response.status()) {
                 case FAILED_UNKNOWN:
@@ -344,7 +345,7 @@ public class TaskCopyBuilder {
           }
         }, ImmutableMap.of());
         if (testExpectedFailureStep != null) {
-          if (!failedAsExpected[0]) {
+          if (!failedAsExpected.get()) {
             builderInfo.setStatus(BuilderInfo.STATUS_FAILURE);
             builderInfo.addSolutionTestingResponse(taskName + " was expected to fail at step "
                 + testExpectedFailureStep + " but it didn't");

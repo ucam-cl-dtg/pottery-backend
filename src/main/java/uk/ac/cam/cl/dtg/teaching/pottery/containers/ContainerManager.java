@@ -149,13 +149,13 @@ public class ContainerManager implements Stoppable {
   }
 
   abstract static class Binding {
-    public abstract String getMountPoint(String name);
+    abstract String getMountPoint(String name);
 
-    public ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
+    ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
       throw new UnsupportedOperationException();
     }
 
-    public boolean needsApplying() {
+    boolean needsApplying() {
       return false;
     }
   }
@@ -165,26 +165,26 @@ public class ContainerManager implements Stoppable {
     private final boolean readWrite;
     private boolean needsApplying;
 
-    public FileBinding(File file, boolean readWrite) {
+    FileBinding(File file, boolean readWrite) {
       this.file = file;
       this.readWrite = readWrite;
       this.needsApplying = true;
     }
 
     @Override
-    public ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
+    ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
       needsApplying = false;
       return builder.addPathSpecification(
           PathSpecification.create(file, getMountPoint(name), readWrite));
     }
 
     @Override
-    public String getMountPoint(String name) {
+    String getMountPoint(String name) {
       return "/mnt/pottery/" + name;
     }
 
     @Override
-    public boolean needsApplying() {
+    boolean needsApplying() {
       return needsApplying;
     }
   }
@@ -192,12 +192,12 @@ public class ContainerManager implements Stoppable {
   static class ImageBinding extends Binding {
     private final String path;
 
-    public ImageBinding(String path) {
+    ImageBinding(String path) {
       this.path = path;
     }
 
     @Override
-    public String getMountPoint(String name) {
+    String getMountPoint(String name) {
       return path;
     }
   }
@@ -205,12 +205,12 @@ public class ContainerManager implements Stoppable {
   static class TextBinding extends Binding {
     private final String text;
 
-    public TextBinding(String text) {
+    TextBinding(String text) {
       this.text = text;
     }
 
     @Override
-    public String getMountPoint(String name) {
+    String getMountPoint(String name) {
       return text;
     }
   }
@@ -233,7 +233,7 @@ public class ContainerManager implements Stoppable {
               .build());
     } catch (ContainerExecutionException | IOException e) {
       return ContainerExecResponse.create(
-          Status.FAILED_UNKNOWN, -1, e.getMessage(), -1);
+          Status.FAILED_UNKNOWN, e.getMessage(), -1);
     }
   }
 
@@ -295,7 +295,7 @@ public class ContainerManager implements Stoppable {
                         String.format(
                             "--input=%1$s:%2$s:%3$s:@%1$s@",
                             entry.getKey(),
-                            entry.getValue().exitCode(),
+                            entry.getValue().status(),
                             entry.getValue().executionTimeMs())));
 
     commands =
@@ -378,7 +378,7 @@ public class ContainerManager implements Stoppable {
     if (response != null && response.status() != Status.COMPLETED) {
       callback.setStatus(Submission.STATUS_STEPS_FAILED);
       callback.recordErrorReason(response, stepName);
-      if (response.status() != Status.ERROR) {
+      if (response.status() != Status.FAILED_EXITCODE) {
         return Job.STATUS_FAILED;
       }
     }
@@ -387,7 +387,7 @@ public class ContainerManager implements Stoppable {
 
     if (execution == null) {
       callback.setStatus(Submission.STATUS_OUTPUT_FAILED);
-      callback.recordErrorReason(ContainerExecResponse.create(Status.FAILED_UNKNOWN, -1,
+      callback.recordErrorReason(ContainerExecResponse.create(Status.FAILED_UNKNOWN,
           "No output was specified", 0), null);
       return Job.STATUS_FAILED;
     }

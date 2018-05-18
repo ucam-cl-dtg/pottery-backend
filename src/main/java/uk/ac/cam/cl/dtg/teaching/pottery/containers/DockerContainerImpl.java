@@ -34,7 +34,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
+
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -174,7 +174,7 @@ public class DockerContainerImpl implements ContainerBackend {
               if (containerInfo.getState().getExitCode() == 0) {
                 status = Status.COMPLETED;
               } else {
-                status = Status.ERROR;
+                status = Status.FAILED_EXITCODE;
               }
             }
           }
@@ -189,7 +189,7 @@ public class DockerContainerImpl implements ContainerBackend {
             if (containerInfo.getState().getExitCode() == 0) {
               status = Status.COMPLETED;
             } else {
-              status = Status.ERROR;
+              status = Status.FAILED_EXITCODE;
             }
           }
 
@@ -225,7 +225,6 @@ public class DockerContainerImpl implements ContainerBackend {
           LOG.debug("Container response: {}", attachListener.getOutput());
           return ContainerExecResponse.create(
               status,
-              containerInfo.getState().getExitCode(),
               attachListener.getOutput(),
               System.currentTimeMillis() - startTime);
         } finally {
