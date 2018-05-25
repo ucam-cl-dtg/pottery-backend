@@ -76,8 +76,8 @@ public class TestSubmission {
           SubmissionNotFoundException {
     String tag = repo.createNewTag();
     repo.scheduleSubmission(tag, testEnvironment.getWorker(), testEnvironment.getDatabase());
-    String submission = repo.getSubmission(tag, testEnvironment.getDatabase());
-    assertThat(submission).contains("\"status\":\"PENDING\"");
+    Submission submission = repo.getSubmission(tag, testEnvironment.getDatabase());
+    assertThat(submission.isComplete()).isTrue();
   }
 
   @Test

@@ -371,6 +371,16 @@ public class Repo {
                         break;
                     }
                   }
+
+                  @Override
+                  public void startStep(String stepName) {
+                    updateSubmission(builder.startStep(stepName));
+                  }
+
+                  @Override
+                  public void finishStep(String stepName, String status, long msec, String output) {
+                    updateSubmission(builder.completeStep(stepName, status, msec, output));
+                  }
                 });
                 if (result != STATUS_OK) {
                   return result;

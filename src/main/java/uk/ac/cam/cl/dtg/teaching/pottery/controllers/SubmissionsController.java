@@ -63,7 +63,7 @@ public class SubmissionsController
   }
 
   @Override
-  public String getSubmission(String repoId, String tag)
+  public Submission getSubmission(String repoId, String tag)
       throws SubmissionNotFoundException, RepoStorageException, SubmissionStorageException,
           RepoNotFoundException {
     return repoFactory.getInstance(repoId).getSubmission(tag, database);

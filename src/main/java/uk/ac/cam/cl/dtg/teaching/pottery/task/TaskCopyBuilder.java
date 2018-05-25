@@ -338,6 +338,15 @@ public class TaskCopyBuilder {
             }
           }
 
+              @Override
+              public void startStep(String stepName) {
+                // Don't care about the actual operation of steps
+              }
+
+              @Override
+              public void finishStep(String stepName, String status, long msec, String output) {
+                // Don't care about the actual operation of steps or the output
+              }
             });
         if (testExpectedFailureStep != null) {
           if (!failedAsExpected.get()) {

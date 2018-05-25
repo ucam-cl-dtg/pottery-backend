@@ -29,8 +29,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -272,6 +270,9 @@ public class ContainerManager implements Stoppable {
 
     void recordErrorReason(ContainerExecResponse response, String stepName);
 
+    void startStep(String stepName);
+
+    void finishStep(String stepName, String status, long msec, String output);
   }
 
   public interface ErrorHandlingStepRunnerCallback extends StepRunnerCallback {
@@ -294,7 +295,7 @@ public class ContainerManager implements Stoppable {
   public int runSteps(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
                       StepRunnerCallback callback)
       throws ApiUnavailableException {
-    callback.setStatus(Submission.STATUS_STEPS_RUNNING);
+    callback.setStatus(Submission.STATUS_RUNNING);
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
 
@@ -306,6 +307,7 @@ public class ContainerManager implements Stoppable {
       if (execution == null) {
         continue;
       }
+      callback.startStep(stepName);
       try {
         ContainerExecResponse response = execStep(
             c.getStepLocation(stepName),
@@ -314,8 +316,15 @@ public class ContainerManager implements Stoppable {
             variant,
             stepResults);
         stepResults.put(stepName, response);
+        callback.finishStep(stepName,
+            response.status() == Status.COMPLETED
+                ? Submission.STATUS_COMPLETE
+                : Submission.STATUS_FAILED,
+            response.executionTimeMs(),
+            response.response()
+        );
         if (response.status() != Status.COMPLETED) {
-          callback.setStatus(Submission.STATUS_STEPS_FAILED);
+          callback.setStatus(Submission.STATUS_FAILED);
           callback.recordErrorReason(response, stepName);
           if (response.status() != Status.FAILED_EXITCODE) {
             return Job.STATUS_FAILED;
@@ -328,6 +337,7 @@ public class ContainerManager implements Stoppable {
       }
     }
 
+    return Job.STATUS_OK;
   }
 
   @Nullable
