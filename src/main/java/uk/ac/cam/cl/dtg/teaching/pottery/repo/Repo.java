@@ -901,4 +901,35 @@ public class Repo {
       }
     }
   }
+
+  public String getSubmissionOutput(String tag, String step, Database database) throws
+      SubmissionNotFoundException, SubmissionStorageException {
+    synchronized (lockFields) {
+      Submission s = activeSubmissions.get(tag);
+      if (s != null) {
+        return s.getSteps().stream()
+            .filter(stepResult -> step.equals(stepResult.getName())).findFirst().orElseThrow(
+                SubmissionNotFoundException::new).getOutput();
+      }
+    }
+    try (TransactionQueryRunner q = database.getQueryRunner()) {
+      Submission s = Submissions.getByRepoIdAndTag(repoInfo.getRepoId(), tag, q);
+      if (s == null) {
+        throw new SubmissionNotFoundException(
+            "Failed to find a submission with tag "
+                + tag
+                + " on repository "
+                + repoInfo.getRepoId());
+      }
+
+      if (s.getSteps().stream().anyMatch(stepResult -> step.equals(stepResult.getName()))) {
+        return Submissions.getOutputByRepoIdAndTagAndStep(repoInfo.getRepoId(), tag, step, q);
+      } else {
+        throw new SubmissionNotFoundException("Output named " + step + " not found");
+      }
+
+    } catch (SQLException e) {
+      throw new SubmissionStorageException("Failed to load submission from database", e);
+    }
+  }
 }

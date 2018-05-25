@@ -70,6 +70,13 @@ public class SubmissionsController
   }
 
   @Override
+  public String getSubmission(String repoId, String tag, String step)
+      throws SubmissionNotFoundException, RepoStorageException, SubmissionStorageException,
+      RepoNotFoundException {
+    return repoFactory.getInstance(repoId).getSubmissionOutput(tag, step, database);
+  }
+
+  @Override
   public Response deleteSubmission(String repoId, String tag)
       throws RepoStorageException, RepoNotFoundException, SubmissionStorageException,
           SubmissionNotFoundException, SubmissionAlreadyScheduledException {
