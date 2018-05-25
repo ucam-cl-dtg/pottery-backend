@@ -23,8 +23,16 @@ $(document).ready(
 			var reportSuccess = function(result) {
 //				$("#assignmentsList pre").text(JSON.stringify(result,undefined,2));
 //				$("#error pre").text("");
-				$("#json").JSONView(result, {nl2br:true});
 				$("#error").text("");
+                if (Object.prototype.toString.call(result) === '[object String]') {
+                    try {
+                        result = JSON.parse(result);
+                    } catch {
+                        $("#json").html("<pre>").children().text(result);
+                        return;
+                    }
+                }
+                $("#json").JSONView(result, {nl2br:true});
 			}
 
 			var reportError = function(xhr) {
@@ -426,6 +434,21 @@ $(document).ready(
 				event.preventDefault();
 				$.ajax({
 					url: 'api/submissions/'+$("#repoId").val()+'/'+$("#submissionTag").val(),
+					type: 'GET',
+					success: function (result) {
+						reportSuccess(result);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+				return false;
+			});
+
+			$("#pollOutputForm").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/submissions/'+$("#repoId").val()+'/'+$("#submissionTag").val()+'/output/'+$("#stepName").val(),
 					type: 'GET',
 					success: function (result) {
 						reportSuccess(result);
