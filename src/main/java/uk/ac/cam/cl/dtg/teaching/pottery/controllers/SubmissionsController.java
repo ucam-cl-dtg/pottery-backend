@@ -55,7 +55,7 @@ public class SubmissionsController
   }
 
   @Override
-  public String scheduleTest(String repoId, String tag)
+  public Submission scheduleTest(String repoId, String tag)
       throws RepoStorageException, RepoExpiredException, SubmissionStorageException,
           RepoNotFoundException {
     Repo r = repoFactory.getInstance(repoId);

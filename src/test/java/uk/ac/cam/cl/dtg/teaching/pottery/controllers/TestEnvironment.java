@@ -164,8 +164,7 @@ class TestEnvironment {
                 new Step("compile", Map.of(VARIANT, new Execution("template:java", "@STEP@/compile-solution.sh", null))),
                 new Step("harness", Map.of(VARIANT, new Execution("template:java", "@STEP@/run-harness.sh", null))),
                 new Step("validate", Map.of("default", new Execution("template:java", "@SHARED@/run-validator.sh", null)))
-              ),
-              Map.of(VARIANT, new Execution("template:java", "@TASK@/output.sh", null))
+              )
               );
       TaskInfos.save(i, copyRoot);
       g.add().addFilepattern("task.json").call();

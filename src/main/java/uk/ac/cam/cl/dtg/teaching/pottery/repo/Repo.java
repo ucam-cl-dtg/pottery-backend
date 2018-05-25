@@ -18,17 +18,14 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -236,12 +233,12 @@ public class Repo {
    * be submitted at most once. Poll this method to get updates on the submission testing process
    * for the tag under test or submitted for testing.
    */
-  public String getSubmission(String tag, Database database)
+  public Submission getSubmission(String tag, Database database)
       throws SubmissionStorageException, SubmissionNotFoundException {
     synchronized (lockFields) {
       Submission s = activeSubmissions.get(tag);
       if (s != null) {
-        return s.getOutput();
+        return s;
       }
     }
     try (TransactionQueryRunner q = database.getQueryRunner()) {
@@ -253,7 +250,7 @@ public class Repo {
                 + " on repository "
                 + repoInfo.getRepoId());
       }
-      return s.getOutput();
+      return s;
     } catch (SQLException e) {
       throw new SubmissionStorageException("Failed to load submission from database", e);
     }
@@ -271,7 +268,7 @@ public class Repo {
   }
 
   /** Schedule a particular version of the repo for testing later. */
-  public String scheduleSubmission(String tag, Worker w, Database db)
+  public Submission scheduleSubmission(String tag, Worker w, Database db)
       throws RepoExpiredException, SubmissionStorageException, RepoStorageException {
     throwIfRepoExpired();
 
@@ -330,7 +327,7 @@ public class Repo {
                 File codeDir = repoTestingDirectory;
                 TaskInfo taskInfo = c.getInfo();
                 String variant = repoInfo.getVariant();
-                int result = containerManager.runStepsAndOutput(c, codeDir, taskInfo, variant,
+                int result = containerManager.runSteps(c, codeDir, taskInfo, variant,
                     new ContainerManager.ErrorHandlingStepRunnerCallback() {
                   @Override
                   public void apiUnavailable(String errorMessage, Throwable exception) {
@@ -374,17 +371,7 @@ public class Repo {
                         break;
                     }
                   }
-
-                  @Override
-                  public void setOutput(String output) {
-                    builder.setOutput(output);
-                  }
-                }, ImmutableMap.of(
-                  "repoId", repoInfo.getRepoId(),
-                  "tag", tag,
-                  "waitTimeMs", Long.toString(builder.build().getWaitTimeMs()),
-                  "dateScheduled", Long.toString(currentSubmission.getDateScheduled().getTime())
-                ));
+                });
                 if (result != STATUS_OK) {
                   return result;
                 }
@@ -425,13 +412,7 @@ public class Repo {
             return "Testing submission " + repoInfo.getRepoId() + ":" + tag;
           }
         });
-    try {
-      ObjectMapper om = new ObjectMapper();
-      updateSubmission(builder.setOutput(om.writeValueAsString(currentSubmission)));
-      return builder.build().getOutput();
-    } catch (JsonProcessingException e) {
-      return "{\"errorMessage\": \"Couldn't serialize submission information.\"}";
-    }
+    return currentSubmission;
   }
 
   /** Find the SHA hash for the head of the master branch. */

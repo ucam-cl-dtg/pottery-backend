@@ -18,7 +18,6 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.net.URI;
 import java.util.Map;
@@ -289,7 +288,7 @@ public class TaskCopyBuilder {
         final String taskName = variant + "/" + testName;
         final AtomicBoolean failedAsExpected = new AtomicBoolean(false);
 
-        int result = containerManager.runStepsAndOutput(
+        int result = containerManager.runSteps(
             taskCopy, testCodeFolder, taskInfo, variant, new ContainerManager.StepRunnerCallback() {
 
           @Override
@@ -339,11 +338,7 @@ public class TaskCopyBuilder {
             }
           }
 
-          @Override
-          public void setOutput(String output) {
-            // Don't care about the actual output
-          }
-        }, ImmutableMap.of());
+            });
         if (testExpectedFailureStep != null) {
           if (!failedAsExpected.get()) {
             builderInfo.setStatus(BuilderInfo.STATUS_FAILURE);
