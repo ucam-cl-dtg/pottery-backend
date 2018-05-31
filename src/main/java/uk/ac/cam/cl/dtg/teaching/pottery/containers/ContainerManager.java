@@ -352,7 +352,7 @@ public class ContainerManager implements Stoppable {
 
     for (Step step : taskInfo.getSteps()) {
       stepName = step.getName();
-      Map<String, Execution> executionMap = step.getExecution();
+      Map<String, Execution> executionMap = step.getExecutionMap();
       Execution execution = getExecution(variant, executionMap);
       if (execution == null) {
         continue;
