@@ -150,20 +150,4 @@ public class TestRepo {
     assertThat(foundSha).isEqualTo(headSha);
   }
 
-  @Test
-  public void repoHasCorrectTaskCommitHash()
-      throws TaskNotFoundException, TaskStorageException {
-
-    // ARRANGE
-    String headSha = task.getHeadSha();
-    TaskCopy copy = task.acquireTestingCopy();
-    String taskCommit = copy.getTaskCommit();
-
-    // ACT
-    String foundSha = repo.toRepoInfo().getTaskCommit();
-
-    // ASSERT
-    assertThat(taskCommit).isEqualTo(headSha);
-    assertThat(foundSha).isEqualTo(taskCommit);
-  }
 }

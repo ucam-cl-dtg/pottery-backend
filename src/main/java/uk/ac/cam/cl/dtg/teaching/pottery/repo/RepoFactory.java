@@ -96,7 +96,7 @@ public class RepoFactory {
           newRepoId,
           () ->
               Repo.createRepo(
-                  new RepoInfo(newRepoId, taskId, usingTestingVersion, taskCommit, expiryDate,
+                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate,
                       variant, remote),
                   config,
                   database));
