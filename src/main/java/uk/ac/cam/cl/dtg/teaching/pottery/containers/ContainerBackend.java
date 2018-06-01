@@ -40,6 +40,8 @@ public interface ContainerBackend extends Stoppable {
 
   void setTimeoutMultiplier(int multiplier);
 
+  String getInternalMountPath();
+
   ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ContainerExecutionException, ApiUnavailableException;
 }

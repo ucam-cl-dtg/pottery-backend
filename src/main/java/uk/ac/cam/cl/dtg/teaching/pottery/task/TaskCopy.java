@@ -21,13 +21,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.LinkedList;
-import java.util.List;
+
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TwoPhaseLatch;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
@@ -49,7 +43,6 @@ public class TaskCopy implements AutoCloseable {
   private String copyId;
   private TaskConfig config;
   private TaskInfo info;
-  private String taskCommit;
   private TwoPhaseLatch latch = new TwoPhaseLatch();
 
   /**
@@ -62,13 +55,12 @@ public class TaskCopy implements AutoCloseable {
    * @throws InvalidTaskSpecificationException if we can't load the task specification
    * @throws TaskStorageException if the task cannot be accessed
    */
-  TaskCopy(String taskId, String copyId, TaskConfig config, String taskCommit)
+  TaskCopy(String taskId, String copyId, TaskConfig config)
       throws InvalidTaskSpecificationException, TaskStorageException {
     super();
     this.copyId = copyId;
     this.config = config;
     this.info = TaskInfos.load(taskId, config.getTaskCopyDir(copyId));
-    this.taskCommit = taskCommit;
   }
 
   public String getCopyId() {
@@ -77,10 +69,6 @@ public class TaskCopy implements AutoCloseable {
 
   public TaskInfo getInfo() {
     return info;
-  }
-
-  public String getTaskCommit() {
-    return taskCommit;
   }
 
   public File getLocation() {

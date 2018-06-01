@@ -111,7 +111,7 @@ public class ContainerManager implements Stoppable {
                                                 ImmutableMap<String, Binding> bindings,
                                                 Map<String, ContainerExecResponse> stepResults,
                                                 File containerTempDir)
-      throws ContainerExecutionException, IOException {
+      throws ContainerExecutionException {
     ExecutionConfig.Builder builder = ExecutionConfig.builder();
     StringBuilder finalCommand = new StringBuilder();
 
@@ -127,6 +127,9 @@ public class ContainerManager implements Stoppable {
         File stepFile = new File(containerTempDir, name);
         try (FileWriter w = new FileWriter(stepFile)) {
           w.write(stepResults.get(name).response());
+        } catch (IOException e) {
+          throw new ContainerExecutionException("Couldn't create temporary file for binding " + name
+              + " for command " + command, e);
         }
         binding = new FileBinding(stepFile, false);
         mutableBindings.put(name, binding);
@@ -134,9 +137,7 @@ public class ContainerManager implements Stoppable {
         throw new ContainerExecutionException("Couldn't find a binding called " + name
             + " for command " + command);
       }
-      if (binding.needsApplying()) {
-        binding.applyBinding(builder, name);
-      }
+      binding.applyBinding(builder, name);
       regexMatcher.appendReplacement(finalCommand, binding.getMountPoint(name));
     }
     regexMatcher.appendTail(finalCommand);
@@ -148,19 +149,15 @@ public class ContainerManager implements Stoppable {
     return builder;
   }
 
-  abstract static class Binding {
+  abstract class Binding {
     abstract String getMountPoint(String name);
 
     ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
-      throw new UnsupportedOperationException();
-    }
-
-    boolean needsApplying() {
-      return false;
+      return builder;
     }
   }
 
-  static class FileBinding extends Binding {
+  class FileBinding extends Binding {
     private final File file;
     private final boolean readWrite;
     private boolean needsApplying;
@@ -173,23 +170,23 @@ public class ContainerManager implements Stoppable {
 
     @Override
     ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
-      needsApplying = false;
-      return builder.addPathSpecification(
-          PathSpecification.create(file, getMountPoint(name), readWrite));
+      if (needsApplying) {
+        needsApplying = false;
+
+        return builder.addPathSpecification(
+            PathSpecification.create(file, getMountPoint(name), readWrite));
+      } else {
+        return builder;
+      }
     }
 
     @Override
     String getMountPoint(String name) {
-      return "/mnt/pottery/" + name;
-    }
-
-    @Override
-    boolean needsApplying() {
-      return needsApplying;
+      return containerBackend.getInternalMountPath() + "/" + name;
     }
   }
 
-  static class ImageBinding extends Binding {
+  class ImageBinding extends Binding {
     private final String path;
 
     ImageBinding(String path) {
@@ -202,13 +199,16 @@ public class ContainerManager implements Stoppable {
     }
   }
 
-  static class TextBinding extends Binding {
+  class TextBinding extends Binding {
     private final String text;
 
     TextBinding(String text) {
       this.text = text;
     }
 
+    /**
+     * Technically, this isn't a mount point, it's just a parameter.
+     */
     @Override
     String getMountPoint(String name) {
       return text;
@@ -346,40 +346,34 @@ public class ContainerManager implements Stoppable {
     callback.setStatus(Submission.STATUS_STEPS_RUNNING);
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
-    ContainerExecResponse response = null;
-
-    String stepName = null;
 
     for (Step step : taskInfo.getSteps()) {
-      stepName = step.getName();
+
+      String stepName = step.getName();
       Map<String, Execution> executionMap = step.getExecutionMap();
       Execution execution = getExecution(variant, executionMap);
       if (execution == null) {
         continue;
       }
       try {
-        response =
-            execStep(
-                c.getStepLocation(stepName),
-                codeDir,
-                execution,
-                variant,
-                stepResults);
+        ContainerExecResponse response = execStep(
+            c.getStepLocation(stepName),
+            codeDir,
+            execution,
+            variant,
+            stepResults);
+        stepResults.put(stepName, response);
+        if (response.status() != Status.COMPLETED) {
+          callback.setStatus(Submission.STATUS_STEPS_FAILED);
+          callback.recordErrorReason(response, stepName);
+          if (response.status() != Status.FAILED_EXITCODE) {
+            return Job.STATUS_FAILED;
+          }
+          break;
+        }
       } catch (ApiUnavailableException e) {
         throw new ApiUnavailableException("Container API unavailable when trying to execute "
             + stepName + " step.", e);
-      }
-      stepResults.put(stepName, response);
-      if (response.status() != Status.COMPLETED) {
-        break;
-      }
-    }
-
-    if (response != null && response.status() != Status.COMPLETED) {
-      callback.setStatus(Submission.STATUS_STEPS_FAILED);
-      callback.recordErrorReason(response, stepName);
-      if (response.status() != Status.FAILED_EXITCODE) {
-        return Job.STATUS_FAILED;
       }
     }
 
@@ -412,7 +406,7 @@ public class ContainerManager implements Stoppable {
 
     if (output.status() != Status.COMPLETED) {
       callback.setStatus(Submission.STATUS_OUTPUT_FAILED);
-      callback.recordErrorReason(response, null);
+      callback.recordErrorReason(output, null);
       return Job.STATUS_FAILED;
     }
     return Job.STATUS_OK;

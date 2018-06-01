@@ -122,6 +122,11 @@ public class DockerContainerImpl implements ContainerBackend {
   }
 
   @Override
+  public String getInternalMountPath() {
+    return "/mnt/pottery";
+  }
+
+  @Override
   public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ApiUnavailableException, ContainerExecutionException {
 

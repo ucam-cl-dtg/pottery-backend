@@ -108,7 +108,7 @@ public class TaskCopyBuilder {
               ContainerManager containerManager,
               Database database) {
             try {
-              return compileFiles(containerManager) ? STATUS_OK : Job.STATUS_FAILED;
+              return compileFiles(containerManager) ? Job.STATUS_OK : Job.STATUS_FAILED;
             } catch (ApiUnavailableException e) {
               LOG.warn("Docker API unavailable. Retrying", e);
               return Job.STATUS_RETRY;
@@ -132,7 +132,7 @@ public class TaskCopyBuilder {
       throws InvalidTaskSpecificationException, TaskCopyNotFoundException, TaskStorageException {
     TaskCopyBuilder result = new TaskCopyBuilder(sha1, taskId, taskDefLocation, copyId, taskConfig);
     if (taskConfig.getTaskCopyDir(copyId).exists()) {
-      result.taskCopy = new TaskCopy(taskId, copyId, taskConfig, sha1);
+      result.taskCopy = new TaskCopy(taskId, copyId, taskConfig);
       result.builderInfo.setStatus(BuilderInfo.STATUS_SUCCESS);
     } else {
       throw new TaskCopyNotFoundException(
@@ -213,7 +213,7 @@ public class TaskCopyBuilder {
     }
 
     try {
-      taskCopy = new TaskCopy(taskId, copyId, taskConfig, sha1);
+      taskCopy = new TaskCopy(taskId, copyId, taskConfig);
     } catch (InvalidTaskSpecificationException | TaskStorageException e) {
       builderInfo.setException(e);
       return false;

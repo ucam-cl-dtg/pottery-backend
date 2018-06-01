@@ -112,7 +112,7 @@ class TestEnvironment {
     calendar.add(Calendar.YEAR, 10);
     try (TaskCopy c = task.acquireTestingCopy()) {
       Repo repo =
-          repoFactory.createInstance(task.getTaskId(), true, c.getTaskCommit(),
+          repoFactory.createInstance(task.getTaskId(), true,
               calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET);
       repo.copyFiles(c);
       return repo;
