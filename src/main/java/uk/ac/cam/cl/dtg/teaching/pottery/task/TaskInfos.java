@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -30,15 +30,12 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 public class TaskInfos {
 
   /** Read the json file specifying this TaskInfo from disk and parse it into an object. */
-  public static TaskInfo load(String taskId, File taskDirectory, List<String> skeletonFiles)
+  public static TaskInfo load(String taskId, File taskDirectory)
       throws InvalidTaskSpecificationException {
     ObjectMapper o = new ObjectMapper();
     try {
       TaskInfo t = o.readValue(new File(taskDirectory, "task.json"), TaskInfo.class);
       t.setTaskId(taskId);
-      if (t.getStartingPointFiles() == null) {
-        t.setStartingPointFiles(Collections.unmodifiableList(new ArrayList<>(skeletonFiles)));
-      }
       return t;
     } catch (IOException e) {
       throw new InvalidTaskSpecificationException(

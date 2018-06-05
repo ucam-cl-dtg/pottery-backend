@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -18,19 +18,25 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+
 import org.apache.commons.io.IOUtils;
+import org.eclipse.jgit.api.CommitCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
-import org.eclipse.jgit.api.RevertCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.JGitInternalException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
@@ -47,14 +53,12 @@ import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock.AutoCloseableLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
@@ -75,9 +79,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Interpretation;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 /**
  * A repo represents the candidate's attempt at a task.
@@ -205,7 +206,7 @@ public class Repo {
     try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         try {
-          List<String> copiedFiles = task.copySkeleton(repoDirectory);
+          List<String> copiedFiles = task.copySkeleton(repoDirectory, repoInfo.getVariant());
           if (!copiedFiles.isEmpty()) {
             for (String f : copiedFiles) {
               git.add().addFilepattern(f).call();
@@ -235,12 +236,12 @@ public class Repo {
    * be submitted at most once. Poll this method to get updates on the submission testing process
    * for the tag under test or submitted for testing.
    */
-  public Submission getSubmission(String tag, Database database)
+  public String getSubmission(String tag, Database database)
       throws SubmissionStorageException, SubmissionNotFoundException {
     synchronized (lockFields) {
       Submission s = activeSubmissions.get(tag);
       if (s != null) {
-        return s;
+        return s.getOutput();
       }
     }
     try (TransactionQueryRunner q = database.getQueryRunner()) {
@@ -252,7 +253,7 @@ public class Repo {
                 + " on repository "
                 + repoInfo.getRepoId());
       }
-      return s;
+      return s.getOutput();
     } catch (SQLException e) {
       throw new SubmissionStorageException("Failed to load submission from database", e);
     }
@@ -265,11 +266,12 @@ public class Repo {
 
   /** Convenience method for updating a submission from a builder. */
   private void updateSubmission(Submission.Builder builder) {
+    LOG.info("Submission status {}", builder.build());
     updateSubmission(builder != null ? builder.build() : null);
   }
 
   /** Schedule a particular version of the repo for testing later. */
-  public Submission scheduleSubmission(String tag, Worker w, Database db)
+  public String scheduleSubmission(String tag, Worker w, Database db)
       throws RepoExpiredException, SubmissionStorageException, RepoStorageException {
     throwIfRepoExpired();
 
@@ -308,7 +310,7 @@ public class Repo {
               t = taskIndex.getTask(repoInfo.getTaskId());
             } catch (TaskNotFoundException e1) {
               updateSubmission(
-                  builder.setCompilationResponse("Task no longer available", false, 0));
+                  builder.addErrorMessage("Task no longer available"));
               return STATUS_FAILED;
             }
             try (TaskCopy c =
@@ -327,194 +329,72 @@ public class Repo {
 
                 File codeDir = repoTestingDirectory;
                 TaskInfo taskInfo = c.getInfo();
-                String image = taskInfo.getImage();
-                updateSubmission(builder.setStatus(Submission.STATUS_COMPILATION_RUNNING));
-                ContainerExecResponse<String> compilationResponse;
-                try {
-                  compilationResponse =
-                      containerManager.execCompilation(
-                          codeDir,
-                          c.getCompileRoot(),
-                          image,
-                          taskInfo.getCompilationRestrictions());
-                } catch (ApiUnavailableException e) {
-                  LOG.warn(
-                      "Docker API unavailable when trying to execute compilation step. Retrying",
-                      e);
-                  updateSubmission(
-                      builder
-                          .addErrorMessage(
-                              "Compilation failed, unable to contact the container API. "
-                                  + "Retrying...")
-                          .setRetry());
-                  return STATUS_RETRY;
-                }
-                updateSubmission(
-                    builder.setCompilationResponse(
-                        compilationResponse.response(),
-                        compilationResponse.status().equals(Status.COMPLETED),
-                        compilationResponse.executionTimeMs()));
-                switch (compilationResponse.status()) {
-                  case FAILED_UNKNOWN:
+                String variant = repoInfo.getVariant();
+                int result = containerManager.runStepsAndOutput(c, codeDir, taskInfo, variant,
+                    new ContainerManager.ErrorHandlingStepRunnerCallback() {
+                  @Override
+                  public void apiUnavailable(String errorMessage, Throwable exception) {
+                    Repo.LOG.warn(
+                        errorMessage,
+                        exception);
                     updateSubmission(
-                        builder.addErrorMessage("Compilation failed, no tests were run"));
-                    break;
-                  case FAILED_DISK:
-                    updateSubmission(
-                        builder.addErrorMessage("Compilation failed, disk usage limit exceeded"));
-                    break;
-                  case FAILED_OOM:
-                    updateSubmission(
-                        builder.addErrorMessage("Compilation failed, memory usage limit exceeded"));
-                    break;
-                  case FAILED_TIMEOUT:
-                    updateSubmission(
-                        builder.addErrorMessage(
-                            "Compilation failed, execution time limit exceeded"));
-                    break;
-                  case COMPLETED:
-                  default:
-                    // do nothing
-                }
-
-                if (!compilationResponse.status().equals(Status.COMPLETED)) {
-                  return STATUS_FAILED;
-                }
-
-                updateSubmission(builder.setStatus(Submission.STATUS_HARNESS_RUNNING));
-                ContainerExecResponse<HarnessResponse> harnessResponse;
-                try {
-                  harnessResponse =
-                      containerManager.execHarness(
-                          codeDir, c.getHarnessRoot(), image, taskInfo.getHarnessRestrictions());
-                } catch (ApiUnavailableException e) {
-                  LOG.warn("Docker API unavailable when trying to run harness step. Retrying", e);
-                  updateSubmission(
-                      builder
-                          .addErrorMessage(
-                              "Harness failed, unable to contact the container API. Retrying...")
-                          .setRetry());
-                  return STATUS_RETRY;
-                }
-                updateSubmission(
-                    builder.setHarnessResponse(
-                        harnessResponse.response(), harnessResponse.executionTimeMs()));
-                switch (harnessResponse.status()) {
-                  case FAILED_UNKNOWN:
-                    updateSubmission(builder.addErrorMessage("Harness failed, no tests were run"));
-                    updateSubmission(
-                        builder.addErrorMessage(harnessResponse.response().getErrorMessage()));
-                    break;
-                  case FAILED_DISK:
-                    updateSubmission(
-                        builder.addErrorMessage("Harness failed, disk usage limit exceeded"));
-                    break;
-                  case FAILED_OOM:
-                    updateSubmission(
-                        builder.addErrorMessage("Harness failed, memory usage limit exceeded"));
-                    break;
-                  case FAILED_TIMEOUT:
-                    updateSubmission(
-                        builder.addErrorMessage("Harness failed, execution time limit exceeded"));
-                    break;
-                  case COMPLETED:
-                  default:
-                    if (!harnessResponse.response().isCompleted()) {
-                      updateSubmission(
-                          builder.addErrorMessage("Harness failed to run to completions"));
-                    }
-                }
-                if (!harnessResponse.status().equals(Status.COMPLETED)
-                    || !harnessResponse.response().isCompleted()) {
-                  return STATUS_FAILED;
-                }
-
-                updateSubmission(builder.setStatus(Submission.STATUS_VALIDATOR_RUNNING));
-
-                ContainerExecResponse<ValidatorResponse> validatorResponse;
-                try {
-                  validatorResponse =
-                      containerManager.execValidator(
-                          c.getValidatorRoot(),
-                          harnessResponse.response(),
-                          image,
-                          taskInfo.getValidatorRestrictions());
-                } catch (ApiUnavailableException e) {
-                  LOG.warn("Docker API unavailable when trying to run validator step. Retrying", e);
-                  updateSubmission(
-                      builder
-                          .addErrorMessage(
-                              "Validation failed, unable to contact the container API. "
-                                  + "Retrying...")
-                          .setRetry());
-                  return STATUS_RETRY;
-                }
-
-                switch (validatorResponse.status()) {
-                  case FAILED_UNKNOWN:
-                    updateSubmission(
-                        builder.addErrorMessage("Validator failed, no tests were run"));
-                    break;
-                  case FAILED_DISK:
-                    updateSubmission(
-                        builder.addErrorMessage("Validator failed, disk usage limit exceeded"));
-                    break;
-                  case FAILED_OOM:
-                    updateSubmission(
-                        builder.addErrorMessage("Validator failed, memory usage limit exceeded"));
-                    break;
-                  case FAILED_TIMEOUT:
-                    updateSubmission(
-                        builder.addErrorMessage("Validator failed, execution time limit exceeded"));
-                    break;
-                  case COMPLETED:
-                  default:
-                    if (!validatorResponse.response().isCompleted()) {
-                      updateSubmission(
-                          builder.addErrorMessage("Validator failed to run to completion"));
-                    }
-                }
-                if (!validatorResponse.status().equals(Status.COMPLETED)
-                    || !validatorResponse.response().isCompleted()) {
-                  return STATUS_FAILED;
-                }
-
-                boolean acceptableFound = false;
-                String errorMessage = validatorResponse.response().getErrorMessage();
-                boolean badFound = errorMessage != null && !errorMessage.trim().equals("");
-                for (Interpretation i : validatorResponse.response().getInterpretations()) {
-                  if (i.getResult().equals(Interpretation.INTERPRETED_ACCEPTABLE)) {
-                    acceptableFound = true;
-                  } else if (i.getResult().equals(Interpretation.INTERPRETED_FAILED)) {
-                    badFound = true;
+                        builder
+                            .addErrorMessage(
+                                "Compilation failed, unable to contact the container API. "
+                                    + "Retrying...")
+                            .setRetry());
                   }
-                }
 
-                String interpretation;
-                if (badFound) {
-                  interpretation = Submission.INTERPRETATION_BAD;
-                } else if (acceptableFound) {
-                  interpretation = Submission.INTERPRETATION_ACCEPTABLE;
-                } else {
-                  interpretation = Submission.INTERPRETATION_EXCELLENT;
-                }
+                  @Override
+                  public void setStatus(String status) {
+                    updateSubmission(builder.setStatus(status));
+                  }
 
-                updateSubmission(
-                    builder
-                        .setValidatorResponse(
-                            validatorResponse.response(), validatorResponse.executionTimeMs())
-                        .setInterpretation(interpretation)
-                        .addErrorMessage(errorMessage));
-                if (!validatorResponse.response().isCompleted()) {
-                  return STATUS_FAILED;
+                  @Override
+                  public void recordErrorReason(ContainerExecResponse response, String stepName) {
+                    switch (response.status()) {
+                      case FAILED_UNKNOWN:
+                        updateSubmission(
+                            builder.addErrorMessage("Output failed, no tests were run"));
+                        break;
+                      case FAILED_DISK:
+                        updateSubmission(
+                            builder.addErrorMessage("Output failed, disk usage limit exceeded"));
+                        break;
+                      case FAILED_OOM:
+                        updateSubmission(
+                            builder.addErrorMessage("Output failed, memory usage limit exceeded"));
+                        break;
+                      case FAILED_TIMEOUT:
+                        updateSubmission(
+                            builder.addErrorMessage(
+                                "Output failed, execution time limit exceeded"));
+                        break;
+                      default:
+                        break;
+                    }
+                  }
+
+                  @Override
+                  public void setOutput(String output) {
+                    builder.setOutput(output);
+                  }
+                }, ImmutableMap.of(
+                  "repoId", repoInfo.getRepoId(),
+                  "tag", tag,
+                  "waitTimeMs", Long.toString(builder.build().getWaitTimeMs()),
+                  "dateScheduled", Long.toString(currentSubmission.getDateScheduled().getTime())
+                ));
+                if (result != STATUS_OK) {
+                  return result;
                 }
               } catch (InterruptedException e) {
                 updateSubmission(
                     Submission.builder(repoInfo.getRepoId(), tag)
-                        .setCompilationResponse("Job was interrupted, retrying", false, 0));
+                        .addErrorMessage("Job was interrupted, retrying"));
                 return STATUS_RETRY;
               } finally {
-                builder.setComplete();
+                builder.setStatus(Submission.STATUS_COMPLETE);
 
                 Submission s = builder.build();
                 if (!s.isNeedsRetry()) {
@@ -545,7 +425,13 @@ public class Repo {
             return "Testing submission " + repoInfo.getRepoId() + ":" + tag;
           }
         });
-    return currentSubmission;
+    try {
+      ObjectMapper om = new ObjectMapper();
+      updateSubmission(builder.setOutput(om.writeValueAsString(currentSubmission)));
+      return builder.build().getOutput();
+    } catch (JsonProcessingException e) {
+      return "{\"errorMessage\": \"Couldn't serialize submission information.\"}";
+    }
   }
 
   /** Find the SHA hash for the head of the master branch. */
@@ -752,8 +638,11 @@ public class Repo {
   }
 
   /**
-   * Set the contents of the repository to be the same as at the particular tag. Note that this does
-   * a git revert and not a reset.
+   * Set the contents of the repository to be the same as at the particular tag.
+   *
+   * <p>Since jgit doesn't expose a multi-commit or no-commit revert command, we instead
+   * reset to the earlier point, put the HEAD pointer back where it was, and then do a
+   * manual commit.</p>
    *
    * @param tag the tag to reset to
    */
@@ -761,7 +650,7 @@ public class Repo {
       throws RepoStorageException, RepoExpiredException, RepoTagNotFoundException {
     throwIfRepoExpired();
     throwIfRemote();
-    try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
+    try (AutoCloseableLock ignored = lock.takeFullExclusionLock()) {
       try (Git git = Git.open(repoDirectory)) {
         Repository r = git.getRepository();
         Ref tagRef = r.findRef(tag);
@@ -769,20 +658,29 @@ public class Repo {
           throw new RepoTagNotFoundException(
               "Tag " + tag + " not found in repository " + repoInfo.getRepoId());
         }
-        Ref peeled = r.peel(tagRef);
-        ObjectId tagObjectId = peeled != null ? peeled.getPeeledObjectId() : tagRef.getObjectId();
-        ObjectId headObjectId = r.findRef("HEAD").getObjectId();
 
-        RevertCommand rev = git.revert();
-        for (RevCommit c : git.log().addRange(tagObjectId, headObjectId).call()) {
-          rev = rev.include(c);
-        }
-        rev.call();
+        ResetCommand reset = git.reset()
+            .setMode(ResetType.HARD)
+            .setRef(tagRef.getName());
+
+        reset.call();
+
+        reset = git.reset()
+            .setMode(ResetType.SOFT)
+            .setRef(Constants.ORIG_HEAD); // The revision before the reset above
+
+        reset.call();
+
+        CommitCommand commit = git.commit()
+            .setMessage("Reverted to " + tag);
+
+        commit.call();
+
       } catch (GitAPIException | IOException e) {
         throw new RepoStorageException("Failed to reset repo to tag " + tag, e);
       }
     } catch (InterruptedException e) {
-      throw new RepoStorageException("Interrupted whilst waiting for file writing lock", e);
+      throw new RepoStorageException("Interrupted whilst waiting for full exclusion lock", e);
     }
   }
 

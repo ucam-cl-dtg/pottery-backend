@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -34,7 +34,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
+
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,8 +122,12 @@ public class DockerContainerImpl implements ContainerBackend {
   }
 
   @Override
-  public <T> ContainerExecResponse<T> executeContainer(
-      ExecutionConfig executionConfig, Function<String, T> converter)
+  public String getInternalMountPath() {
+    return "/mnt/pottery";
+  }
+
+  @Override
+  public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ApiUnavailableException, ContainerExecutionException {
 
     String containerName =
@@ -174,6 +178,8 @@ public class DockerContainerImpl implements ContainerBackend {
               closed = true;
               if (containerInfo.getState().getExitCode() == 0) {
                 status = Status.COMPLETED;
+              } else {
+                status = Status.FAILED_EXITCODE;
               }
             }
           }
@@ -187,6 +193,8 @@ public class DockerContainerImpl implements ContainerBackend {
             }
             if (containerInfo.getState().getExitCode() == 0) {
               status = Status.COMPLETED;
+            } else {
+              status = Status.FAILED_EXITCODE;
             }
           }
 
@@ -222,7 +230,6 @@ public class DockerContainerImpl implements ContainerBackend {
           LOG.debug("Container response: {}", attachListener.getOutput());
           return ContainerExecResponse.create(
               status,
-              converter.apply(attachListener.getOutput()),
               attachListener.getOutput(),
               System.currentTimeMillis() - startTime);
         } finally {

@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -21,10 +21,11 @@ package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 import com.google.auto.value.AutoValue;
 
 @AutoValue
-public abstract class ContainerExecResponse<T> {
+public abstract class ContainerExecResponse {
 
   public enum Status {
     COMPLETED,
+    FAILED_EXITCODE,
     FAILED_OOM,
     FAILED_DISK,
     FAILED_TIMEOUT,
@@ -33,14 +34,13 @@ public abstract class ContainerExecResponse<T> {
 
   public abstract Status status();
 
-  public abstract T response();
-
-  public abstract String rawResponse();
+  public abstract String response();
 
   public abstract long executionTimeMs();
 
-  public static <T> ContainerExecResponse<T> create(
-      Status status, T response, String rawResponse, long executionTimeMs) {
-    return new AutoValue_ContainerExecResponse<>(status, response, rawResponse, executionTimeMs);
+  public static ContainerExecResponse create(Status status,
+                                             String response,
+                                             long executionTimeMs) {
+    return new AutoValue_ContainerExecResponse(status, response, executionTimeMs);
   }
 }

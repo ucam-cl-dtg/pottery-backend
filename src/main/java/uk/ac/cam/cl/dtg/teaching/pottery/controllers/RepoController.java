@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -34,6 +34,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskMissingVariantException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.FileData;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
@@ -59,10 +60,10 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public RepoInfo makeRemoteRepo(
-      String taskId, Boolean usingTestingVersion, Integer validityMinutes, String remote)
+  public RepoInfo makeRemoteRepo(String taskId, Boolean usingTestingVersion,
+                                 Integer validityMinutes, String variant, String remote)
       throws TaskNotFoundException, RepoExpiredException, RepoStorageException,
-          RetiredTaskException, RepoNotFoundException {
+          RetiredTaskException, RepoNotFoundException, TaskMissingVariantException {
     if (taskId == null) {
       throw new TaskNotFoundException("No taskId specified");
     }
@@ -87,7 +88,11 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       throw new RetiredTaskException("Cannot start a new repository for task " + taskId);
     }
     try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
-      Repo r = repoFactory.createInstance(taskId, usingTestingVersion, expiryDate, remote);
+      if (!c.getInfo().getVariants().contains(variant)) {
+        throw new TaskMissingVariantException("Variant " + variant + " is not defined");
+      }
+      Repo r = repoFactory.createInstance(taskId, usingTestingVersion,
+          expiryDate, variant, remote);
       RepoInfo info = r.toRepoInfo();
       if (!info.isRemote()) {
         r.copyFiles(c);
@@ -97,10 +102,12 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public RepoInfo makeRepo(String taskId, Boolean usingTestingVersion, Integer validityMinutes)
+  public RepoInfo makeRepo(String taskId, Boolean usingTestingVersion, Integer validityMinutes,
+                           String variant)
       throws TaskNotFoundException, RepoExpiredException, RepoNotFoundException,
-          RetiredTaskException, RepoStorageException {
-    return makeRemoteRepo(taskId, usingTestingVersion, validityMinutes, RepoInfo.REMOTE_UNSET);
+          RetiredTaskException, RepoStorageException, TaskMissingVariantException {
+    return makeRemoteRepo(taskId, usingTestingVersion, validityMinutes, variant,
+        RepoInfo.REMOTE_UNSET);
   }
 
   @Override

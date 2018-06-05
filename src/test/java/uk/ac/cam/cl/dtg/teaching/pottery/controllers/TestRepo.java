@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -46,12 +46,14 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 
 public class TestRepo {
 
   private File testRootDir;
   private Repo repo;
   private TestEnvironment testEnvironment;
+  private Task task;
 
   /** Configure the test environment. */
   @Before
@@ -63,7 +65,7 @@ public class TestRepo {
     this.testRootDir = Files.createTempDir().getCanonicalFile();
     this.testEnvironment = new TestEnvironment(testRootDir.getPath());
 
-    Task task = testEnvironment.createNoOpTask();
+    this.task = testEnvironment.createNoOpTask();
     this.repo = testEnvironment.createRepo(task);
   }
 
@@ -78,7 +80,7 @@ public class TestRepo {
           JsonProcessingException {
 
     // ARRANGE
-    String expectedContents = TestEnvironment.getScriptContents("Skeleton");
+    String expectedContents = TestEnvironment.printingScript("Skeleton");
 
     // ACT
     byte[] fileContents = repo.readFile("HEAD", "skeleton.sh");
@@ -147,4 +149,5 @@ public class TestRepo {
     // ASSERT
     assertThat(foundSha).isEqualTo(headSha);
   }
+
 }

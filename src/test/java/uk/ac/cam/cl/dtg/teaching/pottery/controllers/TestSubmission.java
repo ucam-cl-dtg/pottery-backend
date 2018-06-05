@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -76,8 +76,8 @@ public class TestSubmission {
           SubmissionNotFoundException {
     String tag = repo.createNewTag();
     repo.scheduleSubmission(tag, testEnvironment.getWorker(), testEnvironment.getDatabase());
-    Submission submission = repo.getSubmission(tag, testEnvironment.getDatabase());
-    assertThat(submission.isComplete()).isTrue();
+    String submission = repo.getSubmission(tag, testEnvironment.getDatabase());
+    assertThat(submission).contains("\"status\":\"PENDING\"");
   }
 
   @Test
@@ -90,7 +90,7 @@ public class TestSubmission {
     repo.deleteSubmission(tag, database);
     try {
       repo.getSubmission(tag, database);
-      fail("deleteSubmission should throw SubmissionAlreadyScheduledException");
+      fail("getSubmission should throw SubmissionNotFoundException");
     } catch (SubmissionNotFoundException e) {
       assertThat(e).hasMessageThat().contains(tag);
     }

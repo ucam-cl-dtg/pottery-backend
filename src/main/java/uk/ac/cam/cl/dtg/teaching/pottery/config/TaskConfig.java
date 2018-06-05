@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -35,6 +35,10 @@ public class TaskConfig {
     return new File(taskPrefix, "def");
   }
 
+  public File getLocalTaskDefinitionDir(String taskId) {
+    return new File(getTaskDefinitionRoot(), taskId);
+  }
+
   public File getTaskCopyRoot() {
     return new File(taskPrefix, "copy");
   }
@@ -43,27 +47,19 @@ public class TaskConfig {
     return new File(getTaskCopyRoot(), copyId);
   }
 
-  public File getSolutionDir(String copyId) {
-    return new File(getTaskCopyDir(copyId), "solution");
+  public File getSolutionDir(String copyId, String variant) {
+    return getTaskCopySubDir(copyId, "solution", variant);
   }
 
-  public File getCompileDir(String copyId) {
-    return new File(getTaskCopyDir(copyId), "compile");
+  public File getStepDir(String copyId, String variant) {
+    return getTaskCopySubDir(copyId, "steps", variant);
   }
 
-  public File getHarnessDir(String copyId) {
-    return new File(getTaskCopyDir(copyId), "harness");
+  public File getSkeletonDir(String copyId, String variant) {
+    return getTaskCopySubDir(copyId, "skeleton", variant);
   }
 
-  public File getValidatorDir(String copyId) {
-    return new File(getTaskCopyDir(copyId), "validator");
-  }
-
-  public File getSkeletonDir(String copyId) {
-    return new File(getTaskCopyDir(copyId), "skeleton");
-  }
-
-  public File getLocalTaskDefinitionDir(String taskId) {
-    return new File(getTaskDefinitionRoot(), taskId);
+  private File getTaskCopySubDir(String copyId, String subdirectory, String variant) {
+    return new File(new File(getTaskCopyDir(copyId), subdirectory), variant);
   }
 }

@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -22,13 +22,17 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Function;
+
+import com.google.common.io.Files;
 import org.apache.commons.io.IOUtils;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 
 public class UncontainerImpl implements ContainerBackend {
+
+  private static final File TEMP_DIR = Files.createTempDir();
 
   private volatile boolean block = false;
 
@@ -53,8 +57,12 @@ public class UncontainerImpl implements ContainerBackend {
   public void setTimeoutMultiplier(int multiplier) {}
 
   @Override
-  public <T> ContainerExecResponse<T> executeContainer(
-      ExecutionConfig executionConfig, Function<String, T> converter)
+  public String getInternalMountPath() {
+    return TEMP_DIR.getAbsolutePath();
+  }
+
+  @Override
+  public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ApiUnavailableException {
     try {
       ImmutableList<String> commands =
@@ -108,8 +116,7 @@ public class UncontainerImpl implements ContainerBackend {
       return ContainerExecResponse.create(
           process.exitValue() == 0
               ? ContainerExecResponse.Status.COMPLETED
-              : ContainerExecResponse.Status.FAILED_UNKNOWN,
-          converter.apply(output),
+              : ContainerExecResponse.Status.FAILED_EXITCODE,
           output,
           0);
     } catch (IOException | InterruptedException e) {
@@ -137,5 +144,7 @@ public class UncontainerImpl implements ContainerBackend {
   }
 
   @Override
-  public void stop() {}
+  public void stop() {
+    TEMP_DIR.delete();
+  }
 }

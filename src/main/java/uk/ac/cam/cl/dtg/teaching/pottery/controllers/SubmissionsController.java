@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -55,7 +55,7 @@ public class SubmissionsController
   }
 
   @Override
-  public Submission scheduleTest(String repoId, String tag)
+  public String scheduleTest(String repoId, String tag)
       throws RepoStorageException, RepoExpiredException, SubmissionStorageException,
           RepoNotFoundException {
     Repo r = repoFactory.getInstance(repoId);
@@ -63,7 +63,7 @@ public class SubmissionsController
   }
 
   @Override
-  public Submission getSubmission(String repoId, String tag)
+  public String getSubmission(String repoId, String tag)
       throws SubmissionNotFoundException, RepoStorageException, SubmissionStorageException,
           RepoNotFoundException {
     return repoFactory.getInstance(repoId).getSubmission(tag, database);

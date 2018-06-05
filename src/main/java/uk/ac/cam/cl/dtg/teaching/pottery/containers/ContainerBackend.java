@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -18,7 +18,6 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
-import java.util.function.Function;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
@@ -41,7 +40,8 @@ public interface ContainerBackend extends Stoppable {
 
   void setTimeoutMultiplier(int multiplier);
 
-  <T> ContainerExecResponse<T> executeContainer(
-      ExecutionConfig executionConfig, Function<String, T> converter)
+  String getInternalMountPath();
+
+  ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ContainerExecutionException, ApiUnavailableException;
 }

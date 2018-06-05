@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -85,7 +85,8 @@ public class RepoFactory {
 
   /** Create a new repo for this task and return it. */
   public Repo createInstance(
-      String taskId, boolean usingTestingVersion, Date expiryDate, String remote)
+      String taskId, boolean usingTestingVersion, Date expiryDate,
+      String variant, String remote)
       throws RepoStorageException, RepoNotFoundException {
     final String newRepoId = uuidGenerator.generate();
     try {
@@ -93,7 +94,8 @@ public class RepoFactory {
           newRepoId,
           () ->
               Repo.createRepo(
-                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate, remote),
+                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate,
+                      variant, remote),
                   config,
                   database));
     } catch (ExecutionException e) {

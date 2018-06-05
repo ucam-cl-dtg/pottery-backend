@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -18,34 +18,52 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Execution;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Step;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 
 @Singleton
 public class ContainerManager implements Stoppable {
+
+  private static final String POTTERY_BINARIES_PATH = "/pottery-binaries";
+
+  private static final String IMAGE_BINDING = "IMAGE";
+  private static final String SUBMISSION_BINDING = "SUBMISSION";
+  private static final String VARIANT_BINDING = "VARIANT";
+  private static final String TASK_BINDING = "TASK";
+  private static final String STEP_BINDING = "STEP";
+  private static final String SHARED_BINDING = "SHARED";
+
+  private static final String DEFAULT_EXECUTION = "default";
+
+  private static final Pattern COMMAND_TOKENIZER =
+      Pattern.compile("([^\"' ]|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')+");
 
   private final ContainerEnvConfig config;
   private final ContainerBackend containerBackend;
@@ -87,170 +105,321 @@ public class ContainerManager implements Stoppable {
     containerBackend.setTimeoutMultiplier(multiplier);
   }
 
-  /**
-   * Compile the task and get the response. This is done by executing the compile-test.sh script in
-   * the task repo.
-   */
-  public ContainerExecResponse<String> execTaskCompilation(
-      File taskDirHost, String imageName, ContainerRestrictions restrictions)
-      throws ApiUnavailableException {
-    try {
-      return containerBackend.executeContainer(
-          ExecutionConfig.builder()
-              .addPathSpecification(PathSpecification.create(taskDirHost, "/task", true))
-              .addCommand("/task/compile-test.sh")
-              .addCommand("/task/test")
-              .addCommand("/task/harness")
-              .addCommand("/task/validator")
-              .setImageName(imageName)
-              .setContainerRestrictions(restrictions)
-              .setLocalUserId(config.getUid())
-              .build(),
-          Function.identity());
-    } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(
-          Status.FAILED_UNKNOWN, e.getMessage(), e.getMessage(), -1);
-    }
-  }
+  private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
 
-  /**
-   * Compile the submission and get the response. This is done by executing
-   * compile/compile-solution.sh.
-   */
-  public ContainerExecResponse<String> execCompilation(
-      File codeDirHost,
-      File compilationRecipeDirHost,
-      String imageName,
-      ContainerRestrictions restrictions)
-      throws ApiUnavailableException {
-    try {
-      return containerBackend.executeContainer(
-          ExecutionConfig.builder()
-              .addPathSpecification(PathSpecification.create(codeDirHost, "/code", true))
-              .addPathSpecification(
-                  PathSpecification.create(compilationRecipeDirHost, "/compile", false))
-              .addPathSpecification(
-                  PathSpecification.create(config.getLibRoot(), "/testlib", false))
-              .addCommand("/compile/compile-solution.sh")
-              .addCommand("/code")
-              .addCommand("/testlib")
-              .setImageName(imageName)
-              .setContainerRestrictions(restrictions)
-              .setLocalUserId(config.getUid())
-              .build(),
-          Function.identity());
-    } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(
-          Status.FAILED_UNKNOWN, e.getMessage(), e.getMessage(), -1);
-    }
-  }
+  private ExecutionConfig.Builder applyBindings(String command,
+                                                ImmutableMap<String, Binding> bindings,
+                                                Map<String, ContainerExecResponse> stepResults,
+                                                File containerTempDir)
+      throws ContainerExecutionException {
+    ExecutionConfig.Builder builder = ExecutionConfig.builder();
+    StringBuilder finalCommand = new StringBuilder();
 
-  /** Execute the test harness by running harness/run-harness.sh. */
-  public ContainerExecResponse<HarnessResponse> execHarness(
-      File codeDirHost,
-      File harnessRecipeDirHost,
-      String imageName,
-      ContainerRestrictions restrictions)
-      throws ApiUnavailableException {
-    try {
-      return containerBackend.executeContainer(
-          ExecutionConfig.builder()
-              .addPathSpecification(PathSpecification.create(codeDirHost, "/code", true))
-              .addPathSpecification(
-                  PathSpecification.create(harnessRecipeDirHost, "/harness", false))
-              .addPathSpecification(
-                  PathSpecification.create(config.getLibRoot(), "/testlib", false))
-              .addCommand("/harness/run-harness.sh")
-              .addCommand("/code")
-              .addCommand("/harness")
-              .addCommand("/testlib")
-              .setImageName(imageName)
-              .setContainerRestrictions(restrictions)
-              .setLocalUserId(config.getUid())
-              .build(),
-          containerOutput -> {
-            try {
-              return new ObjectMapper().readValue(containerOutput, HarnessResponse.class);
-            } catch (IOException e) {
-              return new HarnessResponse(
-                  String.format(
-                      "Failed to deserialise response from harness: %s. Response was %s",
-                      e.getMessage(), containerOutput));
-            }
-          });
-    } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(
-          Status.FAILED_UNKNOWN, new HarnessResponse(e.getMessage()), e.getMessage(), -1);
-    }
-  }
+    Map<String, Binding> mutableBindings = new HashMap<String, Binding>(bindings);
 
-  /** Run the validator script by executing validator/run-validator.sh. */
-  public ContainerExecResponse<ValidatorResponse> execValidator(
-      File validatorDirectory,
-      HarnessResponse harnessResponse,
-      String imageName,
-      ContainerRestrictions restrictions)
-      throws ApiUnavailableException {
-
-    Optional<String> measurements = getMeasurements(harnessResponse);
-    if (!measurements.isPresent()) {
-      return ContainerExecResponse.create(
-          Status.FAILED_UNKNOWN,
-          new ValidatorResponse("Failed to serialise measurement list"),
-          "Failed to serialise measurement list",
-          -1);
-    }
-
-    File containerTempDir =
-        new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
-
-    try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
-      try (FileWriter w = new FileWriter(new File(containerTempDir, "input.json"))) {
-        w.write(measurements.get());
+    Matcher regexMatcher = bindingRegex.matcher(command);
+    while (regexMatcher.find()) {
+      String name = regexMatcher.group(1);
+      Binding binding;
+      if (mutableBindings.containsKey(name)) {
+        binding = mutableBindings.get(name);
+      } else if (stepResults.containsKey(name)) {
+        File stepFile = new File(containerTempDir, name);
+        try (FileWriter w = new FileWriter(stepFile)) {
+          w.write(stepResults.get(name).response());
+        } catch (IOException e) {
+          throw new ContainerExecutionException("Couldn't create temporary file for binding " + name
+              + " for command " + command, e);
+        }
+        binding = new FileBinding(stepFile, false);
+        mutableBindings.put(name, binding);
+      } else {
+        throw new ContainerExecutionException("Couldn't find a binding called " + name
+            + " for command " + command);
       }
+      binding.applyBinding(builder, name);
+      regexMatcher.appendReplacement(finalCommand, binding.getMountPoint(name));
+    }
+    regexMatcher.appendTail(finalCommand);
+
+    Matcher matcher = COMMAND_TOKENIZER.matcher(finalCommand);
+    while (matcher.find()) {
+      builder.addCommand(matcher.group());
+    }
+    return builder;
+  }
+
+  abstract class Binding {
+    abstract String getMountPoint(String name);
+
+    ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
+      return builder;
+    }
+  }
+
+  class FileBinding extends Binding {
+    private final File file;
+    private final boolean readWrite;
+    private boolean needsApplying;
+
+    FileBinding(File file, boolean readWrite) {
+      this.file = file;
+      this.readWrite = readWrite;
+      this.needsApplying = true;
+    }
+
+    @Override
+    ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
+      if (needsApplying) {
+        needsApplying = false;
+
+        return builder.addPathSpecification(
+            PathSpecification.create(file, getMountPoint(name), readWrite));
+      } else {
+        return builder;
+      }
+    }
+
+    @Override
+    String getMountPoint(String name) {
+      return containerBackend.getInternalMountPath() + "/" + name;
+    }
+  }
+
+  class ImageBinding extends Binding {
+    private final String path;
+
+    ImageBinding(String path) {
+      this.path = path;
+    }
+
+    @Override
+    String getMountPoint(String name) {
+      return path;
+    }
+  }
+
+  class TextBinding extends Binding {
+    private final String text;
+
+    TextBinding(String text) {
+      this.text = text;
+    }
+
+    /**
+     * Technically, this isn't a mount point, it's just a parameter.
+     */
+    @Override
+    String getMountPoint(String name) {
+      return text;
+    }
+  }
+
+  /**
+   * Execute a command inside a container.
+   */
+  private ContainerExecResponse execute(@Nonnull Execution execution,
+                                        Map<String, ContainerExecResponse> stepResults,
+                                        ImmutableMap<String, Binding> bindings)
+      throws ApiUnavailableException {
+    File containerTempDir = new File(config.getTempRoot(),
+        String.valueOf(tempDirCounter.incrementAndGet()));
+    try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
       return containerBackend.executeContainer(
-          ExecutionConfig.builder()
-              .addPathSpecification(PathSpecification.create(containerTempDir, "/input", false))
-              .addPathSpecification(
-                  PathSpecification.create(validatorDirectory, "/validator", false))
-              .addPathSpecification(
-                  PathSpecification.create(config.getLibRoot(), "/testlib", false))
-              .addCommand("/validator/run-validator.sh")
-              .addCommand("/validator")
-              .addCommand("/testlib")
-              .addCommand("/input/input.json")
-              .setImageName(imageName)
-              .setContainerRestrictions(restrictions)
+          applyBindings(execution.getProgram(), bindings, stepResults, containerTempDir)
+              .setImageName(execution.getImage())
+              .setContainerRestrictions(execution.getRestrictions())
               .setLocalUserId(config.getUid())
-              .build(),
-          containerResponse -> {
-            try {
-              return new ObjectMapper().readValue(containerResponse, ValidatorResponse.class);
-            } catch (IOException e) {
-              return new ValidatorResponse(
-                  String.format(
-                      "Failed to deserialise response from validator: %s. Response was %s.",
-                      e.getMessage(), containerResponse));
-            }
-          });
+              .build());
     } catch (ContainerExecutionException | IOException e) {
       return ContainerExecResponse.create(
-          Status.FAILED_UNKNOWN, new ValidatorResponse(e.getMessage()), e.getMessage(), -1);
+          Status.FAILED_UNKNOWN, e.getMessage(), -1);
     }
   }
 
-  private static Optional<String> getMeasurements(HarnessResponse harnessResponse) {
-    ImmutableList<Measurement> m =
-        harnessResponse
-            .getTestParts()
-            .stream()
-            .map(HarnessPart::getMeasurements)
-            .flatMap(List::stream)
-            .collect(toImmutableList());
+  /**
+   * Run a compile task and get the response.
+   */
+  public ContainerExecResponse execTaskCompilation(
+      File taskDirHost, @Nonnull Execution execution)
+      throws ApiUnavailableException {
+    ImmutableMap<String, Binding> bindings = ImmutableMap.of(
+        TASK_BINDING, new FileBinding(taskDirHost, true),
+        IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH));
+    ImmutableMap<String, ContainerExecResponse> stepResults = ImmutableMap.of();
+    return execute(execution, stepResults, bindings);
+  }
+
+  /**
+   * Run a step and get the response.
+   */
+  public ContainerExecResponse execStep(
+      File taskStepsDirHost, File codeDirHost, @Nonnull Execution execution, String variant,
+      Map<String, ContainerExecResponse> stepResults)
+      throws ApiUnavailableException {
+    ImmutableMap<String, Binding> bindings = ImmutableMap.of(
+        IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH),
+        SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
+        STEP_BINDING, new FileBinding(new File(taskStepsDirHost, variant), false),
+        SHARED_BINDING, new FileBinding(new File(taskStepsDirHost, "shared"), false),
+        VARIANT_BINDING, new TextBinding(variant)
+        );
+    return execute(execution, stepResults, bindings);
+  }
+
+  /**
+   * Run a output and get the response.
+   */
+  public ContainerExecResponse execOutput(
+      File taskDirHost, File codeDirHost, @Nonnull Execution execution, String variant,
+      Map<String, ContainerExecResponse> stepResults,
+      ImmutableMap<String, String> potteryProperties)
+      throws ApiUnavailableException {
+    ImmutableMap<String, Binding> bindings = ImmutableMap.of(
+        IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH),
+        TASK_BINDING, new FileBinding(taskDirHost, true),
+        SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
+        VARIANT_BINDING, new TextBinding(variant)
+    );
+
+    Stream<String> commands = Stream.of(execution.getProgram());
+
+    commands =
+        Stream.concat(
+            commands,
+            stepResults
+                .entrySet()
+                .stream()
+                .map(
+                    entry ->
+                        String.format(
+                            "--input=%1$s:%2$s:%3$s:@%1$s@",
+                            entry.getKey(),
+                            entry.getValue().status(),
+                            entry.getValue().executionTimeMs())));
+
+    commands =
+        Stream.concat(
+            commands,
+            potteryProperties
+                .entrySet()
+                .stream()
+                .map(
+                    entry ->
+                        String.format("--pottery-%1$s=%2$s", entry.getKey(), entry.getValue())));
+
+    String command = commands.collect(Collectors.joining(" "));
+
+    return execute(execution.withProgram(command), stepResults, bindings);
+  }
+
+  public interface StepRunnerCallback {
+    void setStatus(String status);
+
+    void recordErrorReason(ContainerExecResponse response, String stepName);
+
+    void setOutput(String output);
+  }
+
+  public interface ErrorHandlingStepRunnerCallback extends StepRunnerCallback {
+    void apiUnavailable(String errorMessage, Throwable exception);
+  }
+
+  public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
+                               ErrorHandlingStepRunnerCallback callback,
+                               ImmutableMap<String, String> potteryProperties) {
     try {
-      return Optional.of(new ObjectMapper().writeValueAsString(m));
-    } catch (JsonProcessingException e) {
-      return Optional.empty();
+      // The StepRunnerCallback cast is necessary to prevent a stack overflow since this would
+      // become self-recursive
+      return runStepsAndOutput(c, codeDir, taskInfo, variant, (StepRunnerCallback) callback,
+          potteryProperties);
+    } catch (ApiUnavailableException e) {
+      callback.apiUnavailable(e.getMessage(), e.getCause());
+      return Job.STATUS_RETRY;
+    }
+  }
+
+  public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
+                               StepRunnerCallback callback,
+                               ImmutableMap<String, String> potteryProperties)
+      throws ApiUnavailableException {
+    callback.setStatus(Submission.STATUS_STEPS_RUNNING);
+
+    Map<String, ContainerExecResponse> stepResults = new HashMap<>();
+
+    for (Step step : taskInfo.getSteps()) {
+
+      String stepName = step.getName();
+      Map<String, Execution> executionMap = step.getExecutionMap();
+      Execution execution = getExecution(variant, executionMap);
+      if (execution == null) {
+        continue;
+      }
+      try {
+        ContainerExecResponse response = execStep(
+            c.getStepLocation(stepName),
+            codeDir,
+            execution,
+            variant,
+            stepResults);
+        stepResults.put(stepName, response);
+        if (response.status() != Status.COMPLETED) {
+          callback.setStatus(Submission.STATUS_STEPS_FAILED);
+          callback.recordErrorReason(response, stepName);
+          if (response.status() != Status.FAILED_EXITCODE) {
+            return Job.STATUS_FAILED;
+          }
+          break;
+        }
+      } catch (ApiUnavailableException e) {
+        throw new ApiUnavailableException("Container API unavailable when trying to execute "
+            + stepName + " step.", e);
+      }
+    }
+
+    Execution execution = getExecution(variant, taskInfo.getOutput());
+
+    if (execution == null) {
+      callback.setStatus(Submission.STATUS_OUTPUT_FAILED);
+      callback.recordErrorReason(ContainerExecResponse.create(Status.FAILED_UNKNOWN,
+          "No output was specified", 0), null);
+      return Job.STATUS_FAILED;
+    }
+
+    callback.setStatus(Submission.STATUS_OUTPUT_RUNNING);
+
+    ContainerExecResponse output;
+    try {
+      output = execOutput(
+          c.getLocation(),
+          codeDir,
+          execution,
+          variant,
+          stepResults,
+          potteryProperties);
+    } catch (ApiUnavailableException e) {
+      throw new ApiUnavailableException("Container API unavailable when trying to execute output",
+          e);
+    }
+
+    callback.setOutput(output.response());
+
+    if (output.status() != Status.COMPLETED) {
+      callback.setStatus(Submission.STATUS_OUTPUT_FAILED);
+      callback.recordErrorReason(output, null);
+      return Job.STATUS_FAILED;
+    }
+    return Job.STATUS_OK;
+  }
+
+  @Nullable
+  private Execution getExecution(String variant, Map<String, Execution> executionMap) {
+    if (executionMap.containsKey(variant)) {
+      return executionMap.get(variant);
+    } else if (executionMap.containsKey(DEFAULT_EXECUTION)) {
+      return executionMap.get(DEFAULT_EXECUTION);
+    } else {
+      return null;
     }
   }
 }

@@ -1,0 +1,1 @@
+You can find the database schema at src/main/resources/uk/ac/cam/cl/dtg/teaching/pottery/database/schema.sql

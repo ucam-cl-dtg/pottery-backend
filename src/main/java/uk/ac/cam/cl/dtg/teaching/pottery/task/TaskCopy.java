@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -21,13 +21,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.LinkedList;
-import java.util.List;
+
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TwoPhaseLatch;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
@@ -66,7 +60,7 @@ public class TaskCopy implements AutoCloseable {
     super();
     this.copyId = copyId;
     this.config = config;
-    this.info = TaskInfos.load(taskId, config.getTaskCopyDir(copyId), listSkeleton());
+    this.info = TaskInfos.load(taskId, config.getTaskCopyDir(copyId));
   }
 
   public String getCopyId() {
@@ -81,53 +75,20 @@ public class TaskCopy implements AutoCloseable {
     return config.getTaskCopyDir(copyId);
   }
 
-  private List<String> listSkeleton() throws TaskStorageException {
-    File sourceLocation = config.getSkeletonDir(copyId);
-    if (!sourceLocation.exists()) {
-      return new LinkedList<>();
-    }
+  public File getStepLocation(String variant) {
+    return config.getStepDir(copyId, variant);
+  }
 
-    try {
-      List<String> result = new LinkedList<>();
-      Files.walkFileTree(
-          sourceLocation.toPath(),
-          new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-              Path localLocation = sourceLocation.toPath().relativize(file);
-              result.add(localLocation.toString());
-              return FileVisitResult.CONTINUE;
-            }
-          });
-      return result;
-    } catch (IOException e) {
-      throw new TaskStorageException(
-          "Failed to access skeleton files for task "
-              + info.getTaskId()
-              + " stored in copy "
-              + copyId,
-          e);
-    }
+  public File getSolutionLocation(String variant) {
+    return config.getSolutionDir(copyId, variant);
   }
 
   /**
    * Copy the skeleton files from this task copy to the target directory given (this will be in a
    * candidates repo).
    */
-  public ImmutableList<String> copySkeleton(File destination) throws IOException {
-    return FileUtil.copyFilesRecursively(config.getSkeletonDir(copyId), destination);
-  }
-
-  public File getCompileRoot() {
-    return config.getCompileDir(copyId);
-  }
-
-  public File getHarnessRoot() {
-    return config.getHarnessDir(copyId);
-  }
-
-  public File getValidatorRoot() {
-    return config.getValidatorDir(copyId);
+  public ImmutableList<String> copySkeleton(File destination, String variant) throws IOException {
+    return FileUtil.copyFilesRecursively(config.getSkeletonDir(copyId, variant), destination);
   }
 
   public boolean acquire() {

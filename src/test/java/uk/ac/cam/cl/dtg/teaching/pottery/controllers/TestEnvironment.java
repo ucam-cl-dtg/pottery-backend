@@ -1,6 +1,6 @@
 /*
  * pottery-backend - Backend API for testing programming exercises
- * Copyright © 2015 Andrew Rice (acr31@cam.ac.uk)
+ * Copyright © 2015-2018 Andrew Rice (acr31@cam.ac.uk), BlueOptima Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,7 +28,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.Calendar;
-import java.util.LinkedList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -38,7 +40,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.UncontainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.database.InMemoryDatabase;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
@@ -46,9 +47,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Criterion;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Execution;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
@@ -59,12 +60,10 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskInfos;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.BlockingWorker;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessPart;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.HarnessResponse;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.Measurement;
-import uk.ac.cam.cl.dtg.teaching.programmingtest.containerinterface.ValidatorResponse;
 
 class TestEnvironment {
+
+  public static final String VARIANT = "shell";
 
   private final String testRootDir;
   private final TaskFactory taskFactory;
@@ -111,13 +110,13 @@ class TestEnvironment {
           RepoExpiredException {
     Calendar calendar = Calendar.getInstance();
     calendar.add(Calendar.YEAR, 10);
-    Repo repo =
-        repoFactory.createInstance(
-            task.getTaskId(), true, calendar.getTime(), RepoInfo.REMOTE_UNSET);
     try (TaskCopy c = task.acquireTestingCopy()) {
+      Repo repo =
+          repoFactory.createInstance(task.getTaskId(), true,
+              calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET);
       repo.copyFiles(c);
+      return repo;
     }
-    return repo;
   }
 
   Task createNoOpTask()
@@ -137,51 +136,41 @@ class TestEnvironment {
             .setDirectory(copyRoot)
             .call()) {
 
-      mkJsonPrintingScript(copyRoot, "compile-test.sh", "Compiling test", g);
+      makeScript(copyRoot, "compile-test.sh", printingScript("Compiling test"), g);
 
-      mkJsonPrintingScript(copyRoot, "compile/compile-solution.sh", "Compiling solution", g);
+      makeScript(copyRoot, "steps/compile/" + VARIANT + "/compile-solution.sh", printingScript("Compiling solution"), g);
 
-      mkJsonPrintingScript(
-          copyRoot,
-          "harness/run-harness.sh",
-          new HarnessResponse(
-              new LinkedList<>(
-                  ImmutableList.of(
-                      new HarnessPart(
-                          "A no-op task",
-                          ImmutableList.of("Doing nothing"),
-                          ImmutableList.of(new Measurement("correctness", "true", "id")),
-                          null,
-                          null))),
-              true),
-          g);
+      makeScript(copyRoot, "steps/harness/" + VARIANT + "/run-harness.sh", printingScript("Harness output"), g);
 
-      mkJsonPrintingScript(copyRoot, "skeleton/skeleton.sh", "Skeleton", g);
+      makeScript(copyRoot, "skeleton/" + VARIANT + "/skeleton.sh", printingScript("Skeleton"), g);
 
+      makeScript(copyRoot, "output.sh", argListingScript(), g);
+
+      Map<String, String> variantSolutionMap = new HashMap<>();
+      variantSolutionMap.put("success", null);
       TaskInfo i =
           new TaskInfo(
               TaskInfo.TYPE_ALGORITHM,
               "Empty task",
-              ImmutableSet.of(new Criterion("correctness")),
-              "template:java",
+              ImmutableSet.of("correctness"),
               "easy",
               0,
-              "java",
               "Empty task",
-              ContainerRestrictions.candidateRestriction(null),
-              ContainerRestrictions.candidateRestriction(null),
-              ContainerRestrictions.candidateRestriction(null),
-              ContainerRestrictions.authorRestriction(null),
               ImmutableList.of(),
-              ImmutableList.of());
+              ImmutableSet.of(VARIANT),
+              Map.of(VARIANT, variantSolutionMap),
+              List.of(new Execution("template:java", "@TASK@/compile-test.sh", null)),
+              List.of(
+                new Step("compile", Map.of(VARIANT, new Execution("template:java", "@STEP@/compile-solution.sh", null))),
+                new Step("harness", Map.of(VARIANT, new Execution("template:java", "@STEP@/run-harness.sh", null))),
+                new Step("validate", Map.of("default", new Execution("template:java", "@SHARED@/run-validator.sh", null)))
+              ),
+              Map.of(VARIANT, new Execution("template:java", "@TASK@/output.sh", null))
+              );
       TaskInfos.save(i, copyRoot);
       g.add().addFilepattern("task.json").call();
 
-      mkJsonPrintingScript(
-          copyRoot,
-          "validator/run-validator.sh",
-          new ValidatorResponse(true, null, ImmutableList.of(), null),
-          g);
+      makeScript(copyRoot, "steps/validate/shared/run-validator.sh", printingScript("Validator output"), g);
 
       g.commit().setMessage("Empty task").call();
       g.push().call();
@@ -191,7 +180,7 @@ class TestEnvironment {
     return task;
   }
 
-  static String getScriptContents(Object toPrint) throws JsonProcessingException {
+  static String printingScript(Object toPrint) throws JsonProcessingException {
     return ImmutableList.of(
             "#!/bin/bash",
             "",
@@ -202,18 +191,28 @@ class TestEnvironment {
         .collect(Collectors.joining("\n"));
   }
 
-  private static void mkJsonPrintingScript(File root, String fileName, Object toPrint, Git git)
+  static String argListingScript() {
+    return ImmutableList.of(
+        "#!/bin/bash",
+        "",
+        "echo $@")
+        .stream()
+        .collect(Collectors.joining("\n"));
+  }
+
+  private static void makeScript(File root, String fileName, String scriptContents, Git git)
       throws IOException, GitAPIException {
     File file = new File(root, fileName);
     if (!file.getParentFile().exists() && !file.getParentFile().mkdirs()) {
       throw new IOException("Failed to create " + file.getParent());
     }
     try (PrintWriter w = new PrintWriter(new FileWriter(file))) {
-      w.print(getScriptContents(toPrint));
+      w.print(scriptContents);
     }
     if (!file.setExecutable(true)) {
       throw new IOException("Failed to chmod " + fileName);
     }
     git.add().addFilepattern(fileName).call();
   }
+
 }
