@@ -418,7 +418,8 @@ $(document).ready(
 			$("#requestTestForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
-					url: 'api/submissions/'+$("#repoId").val()+'/'+$("#submissionTag").val(),
+					url: 'api/submissions/'+$("#repoId").val()+'/'+$("#submissionTag").val()
+					     +'/'+$("#action").val(),
 					type: 'POST',
 					success: function (result) {
 						reportSuccess(result);
@@ -433,7 +434,8 @@ $(document).ready(
 			$("#pollStatusForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
-					url: 'api/submissions/'+$("#repoId").val()+'/'+$("#submissionTag").val(),
+					url: 'api/submissions/'+$("#repoId").val()+'/'+$("#submissionTag").val()
+					     +'/'+$("#action").val(),
 					type: 'GET',
 					success: function (result) {
 						reportSuccess(result);
@@ -448,7 +450,8 @@ $(document).ready(
 			$("#pollOutputForm").submit(function(event) {
 				event.preventDefault();
 				$.ajax({
-					url: 'api/submissions/'+$("#repoId").val()+'/'+$("#submissionTag").val()+'/output/'+$("#stepName").val(),
+					url: 'api/submissions/'+$("#repoId").val()+'/'+$("#submissionTag").val()
+					     +'/'+$("#action").val()+'/output/'+$("#stepName").val(),
 					type: 'GET',
 					success: function (result) {
 						reportSuccess(result);
