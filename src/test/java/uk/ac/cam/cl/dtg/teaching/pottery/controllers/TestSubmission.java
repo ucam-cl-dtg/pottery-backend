@@ -20,6 +20,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
+import static uk.ac.cam.cl.dtg.teaching.pottery.controllers.TestEnvironment.ACTION;
 
 import com.google.common.io.Files;
 import java.io.File;
@@ -75,55 +76,8 @@ public class TestSubmission {
       throws RepoStorageException, RepoExpiredException, SubmissionStorageException,
           SubmissionNotFoundException {
     String tag = repo.createNewTag();
-    repo.scheduleSubmission(tag, testEnvironment.getWorker(), testEnvironment.getDatabase());
-    Submission submission = repo.getSubmission(tag, testEnvironment.getDatabase());
+    repo.scheduleSubmission(tag, ACTION, testEnvironment.getWorker(), testEnvironment.getDatabase());
+    Submission submission = repo.getSubmission(tag, ACTION, testEnvironment.getDatabase());
     assertThat(submission.isComplete()).isTrue();
-  }
-
-  @Test
-  public void deleteSubmission_succeeds()
-      throws RepoStorageException, RepoExpiredException, SubmissionStorageException,
-          SubmissionNotFoundException, SubmissionAlreadyScheduledException {
-    String tag = repo.createNewTag();
-    Database database = testEnvironment.getDatabase();
-    repo.scheduleSubmission(tag, testEnvironment.getWorker(), database);
-    repo.deleteSubmission(tag, database);
-    try {
-      repo.getSubmission(tag, database);
-      fail("getSubmission should throw SubmissionNotFoundException");
-    } catch (SubmissionNotFoundException e) {
-      assertThat(e).hasMessageThat().contains(tag);
-    }
-  }
-
-  @Test
-  public void deleteSubmission_failsWhenBlocked()
-      throws RepoStorageException, RepoExpiredException, SubmissionStorageException,
-          SubmissionNotFoundException, InterruptedException {
-    String tag = repo.createNewTag();
-    Database database = testEnvironment.getDatabase();
-    testEnvironment.getContainerBackend().block();
-    Thread scheduleThread =
-        new Thread(
-            () -> {
-              try {
-                repo.scheduleSubmission(tag, testEnvironment.getWorker(), database);
-              } catch (RepoExpiredException | SubmissionStorageException | RepoStorageException e) {
-                throw new RuntimeException(e);
-              }
-            });
-    try {
-      scheduleThread.start();
-      testEnvironment.getContainerBackend().waitForBlocked();
-      try {
-        repo.deleteSubmission(tag, database);
-        fail("deleteSubmission should throw SubmissionAlreadyScheduledException");
-      } catch (SubmissionAlreadyScheduledException e) {
-        assertThat(e).hasMessageThat().contains("Submission is still active");
-      }
-    } finally {
-      testEnvironment.getContainerBackend().unblock();
-      scheduleThread.join(); // don't teardown the test until we've finished running the submission
-    }
   }
 }

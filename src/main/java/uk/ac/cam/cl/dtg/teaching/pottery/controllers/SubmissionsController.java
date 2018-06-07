@@ -55,32 +55,24 @@ public class SubmissionsController
   }
 
   @Override
-  public Submission scheduleTest(String repoId, String tag)
+  public Submission scheduleTest(String repoId, String tag, String action)
       throws RepoStorageException, RepoExpiredException, SubmissionStorageException,
           RepoNotFoundException {
     Repo r = repoFactory.getInstance(repoId);
-    return r.scheduleSubmission(tag, worker, database);
+    return r.scheduleSubmission(tag, action, worker, database);
   }
 
   @Override
-  public Submission getSubmission(String repoId, String tag)
+  public Submission getSubmission(String repoId, String tag, String action)
       throws SubmissionNotFoundException, RepoStorageException, SubmissionStorageException,
           RepoNotFoundException {
-    return repoFactory.getInstance(repoId).getSubmission(tag, database);
+    return repoFactory.getInstance(repoId).getSubmission(tag, action, database);
   }
 
   @Override
-  public String getSubmission(String repoId, String tag, String step)
+  public String getOutput(String repoId, String tag, String action, String step)
       throws SubmissionNotFoundException, RepoStorageException, SubmissionStorageException,
       RepoNotFoundException {
-    return repoFactory.getInstance(repoId).getSubmissionOutput(tag, step, database);
-  }
-
-  @Override
-  public Response deleteSubmission(String repoId, String tag)
-      throws RepoStorageException, RepoNotFoundException, SubmissionStorageException,
-          SubmissionNotFoundException, SubmissionAlreadyScheduledException {
-    repoFactory.getInstance(repoId).deleteSubmission(tag, database);
-    return Response.ok().build();
+    return repoFactory.getInstance(repoId).getSubmissionOutput(tag, action, step, database);
   }
 }

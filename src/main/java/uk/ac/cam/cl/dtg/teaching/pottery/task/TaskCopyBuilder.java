@@ -20,6 +20,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import java.io.File;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -40,6 +41,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.BuilderInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Execution;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Testcase;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -278,19 +280,19 @@ public class TaskCopyBuilder {
     builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTIONS);
 
     for (String variant : taskInfo.getVariants()) {
-      Map<String, String> testcases = taskInfo.getTaskTests().get(variant);
+      List<Testcase> testcases = taskInfo.getTaskTests().get(variant);
       File variantSolutions = taskCopy.getSolutionLocation(variant);
-      for (Map.Entry<String, String> testcase : testcases.entrySet()) {
-        String testName = testcase.getKey();
+      for (Testcase testcase : testcases) {
+        String testName = testcase.getDirectory();
         File testCodeFolder = new File(variantSolutions, testName);
-        String testExpectedFailureStep = testcase.getValue();
+        String testExpectedFailureStep = testcase.getExpectedFailureStep();
 
         final String taskName = variant + "/" + testName;
         final AtomicBoolean failedAsExpected = new AtomicBoolean(false);
 
         int result = containerManager.runSteps(
-            taskCopy, testCodeFolder, taskInfo, variant, new ContainerManager.StepRunnerCallback() {
-
+            taskCopy, testCodeFolder, taskInfo, testcase.getAction(), variant,
+            new ContainerManager.StepRunnerCallback() {
           @Override
           public void setStatus(String status) {
             LOG.info("{}: {}", taskName, status);

@@ -64,7 +64,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
@@ -112,7 +111,8 @@ public class Repo {
   /** Protects access to the git repo and working directory. */
   private final FourLevelLock lock = new FourLevelLock();
 
-  /** A map of submissions that have been tested. Keys are tags. You can only have one per tag. */
+  /** A map of submissions that have been tested. Keys are tag and an action separated by a comma.
+    * You can only have one per tag/action pair. */
   private ConcurrentHashMap<String, Submission> activeSubmissions;
 
   private Repo(RepoInfo repoInfo, RepoConfig c) {
@@ -233,16 +233,16 @@ public class Repo {
    * be submitted at most once. Poll this method to get updates on the submission testing process
    * for the tag under test or submitted for testing.
    */
-  public Submission getSubmission(String tag, Database database)
+  public Submission getSubmission(String tag, String action, Database database)
       throws SubmissionStorageException, SubmissionNotFoundException {
     synchronized (lockFields) {
-      Submission s = activeSubmissions.get(tag);
+      Submission s = activeSubmissions.get(getSubmissionKey(tag, action));
       if (s != null) {
         return s;
       }
     }
     try (TransactionQueryRunner q = database.getQueryRunner()) {
-      Submission s = Submissions.getByRepoIdAndTag(repoInfo.getRepoId(), tag, q);
+      Submission s = Submissions.getByRepoIdAndTagAndAction(repoInfo.getRepoId(), tag, action, q);
       if (s == null) {
         throw new SubmissionNotFoundException(
             "Failed to find a submission with tag "
@@ -258,7 +258,7 @@ public class Repo {
 
   /** Internal method to update the submission. */
   private void updateSubmission(Submission s) {
-    activeSubmissions.put(s.getTag(), s);
+    activeSubmissions.put(getSubmissionKey(s.getTag(), s.getAction()), s);
   }
 
   /** Convenience method for updating a submission from a builder. */
@@ -268,12 +268,12 @@ public class Repo {
   }
 
   /** Schedule a particular version of the repo for testing later. */
-  public Submission scheduleSubmission(String tag, Worker w, Database db)
+  public Submission scheduleSubmission(String tag, String action, Worker w, Database db)
       throws RepoExpiredException, SubmissionStorageException, RepoStorageException {
     throwIfRepoExpired();
 
     if (tag.equals("HEAD")) {
-      return scheduleSubmission(resolveHeadSha(), w, db);
+      return scheduleSubmission(resolveHeadSha(), action, w, db);
     }
 
     Submission currentSubmission;
@@ -283,12 +283,12 @@ public class Repo {
       // one atomically.
       try {
         // Means we've already scheduled (and possibly already run) the test for this tag
-        return getSubmission(tag, db);
+        return getSubmission(tag, action, db);
       } catch (SubmissionNotFoundException e) {
         // Lets make one
       }
 
-      builder = Submission.builder(repoInfo.getRepoId(), tag);
+      builder = Submission.builder(repoInfo.getRepoId(), tag, action);
       currentSubmission = builder.build();
       updateSubmission(currentSubmission);
     }
@@ -327,7 +327,7 @@ public class Repo {
                 File codeDir = repoTestingDirectory;
                 TaskInfo taskInfo = c.getInfo();
                 String variant = repoInfo.getVariant();
-                int result = containerManager.runSteps(c, codeDir, taskInfo, variant,
+                int result = containerManager.runSteps(c, codeDir, taskInfo, action, variant,
                     new ContainerManager.ErrorHandlingStepRunnerCallback() {
                   @Override
                   public void apiUnavailable(String errorMessage, Throwable exception) {
@@ -387,7 +387,7 @@ public class Repo {
                 }
               } catch (InterruptedException e) {
                 updateSubmission(
-                    Submission.builder(repoInfo.getRepoId(), tag)
+                    Submission.builder(repoInfo.getRepoId(), tag, action)
                         .addErrorMessage("Job was interrupted, retrying"));
                 return STATUS_RETRY;
               } finally {
@@ -402,7 +402,7 @@ public class Repo {
                     // This shouldn't happen, but if it does then we'll force
                     // an error message out to the user
                     updateSubmission(
-                        Submission.builder(repoInfo.getRepoId(), tag)
+                        Submission.builder(repoInfo.getRepoId(), tag, action)
                             .addErrorMessage(
                                 "Failed to store result in database: " + e.getMessage()));
                     return STATUS_FAILED;
@@ -866,37 +866,10 @@ public class Repo {
     return new Date().after(repoInfo.getExpiryDate());
   }
 
-  /**
-   * Delete this submission and remove it from the database. This method only succeeds if the
-   * submission has already completed testing.
-   */
-  public void deleteSubmission(String tag, Database database)
-      throws SubmissionAlreadyScheduledException, SubmissionNotFoundException,
-          SubmissionStorageException {
+  public String getSubmissionOutput(String tag, String action, String step, Database database)
+      throws SubmissionNotFoundException, SubmissionStorageException {
     synchronized (lockFields) {
-      Submission submission = activeSubmissions.get(tag);
-      if (submission == null) {
-        throw new SubmissionNotFoundException(
-            "Submission " + tag + " for repo " + repoInfo.getRepoId() + " not found.");
-      }
-      if (!submission.isComplete()) {
-        throw new SubmissionAlreadyScheduledException(
-            "Submission is still active. Wait for it to complete before deleting.");
-      }
-      try (TransactionQueryRunner q = database.getQueryRunner()) {
-        Submissions.delete(submission, q);
-        q.commit();
-        activeSubmissions.remove(tag);
-      } catch (SQLException e) {
-        throw new SubmissionStorageException("Failed to remove submission from database", e);
-      }
-    }
-  }
-
-  public String getSubmissionOutput(String tag, String step, Database database) throws
-      SubmissionNotFoundException, SubmissionStorageException {
-    synchronized (lockFields) {
-      Submission s = activeSubmissions.get(tag);
+      Submission s = activeSubmissions.get(getSubmissionKey(tag, action));
       if (s != null) {
         return s.getSteps().stream()
             .filter(stepResult -> step.equals(stepResult.getName())).findFirst().orElseThrow(
@@ -904,7 +877,7 @@ public class Repo {
       }
     }
     try (TransactionQueryRunner q = database.getQueryRunner()) {
-      Submission s = Submissions.getByRepoIdAndTag(repoInfo.getRepoId(), tag, q);
+      Submission s = Submissions.getByRepoIdAndTagAndAction(repoInfo.getRepoId(), tag, action, q);
       if (s == null) {
         throw new SubmissionNotFoundException(
             "Failed to find a submission with tag "
@@ -914,7 +887,8 @@ public class Repo {
       }
 
       if (s.getSteps().stream().anyMatch(stepResult -> step.equals(stepResult.getName()))) {
-        return Submissions.getOutputByRepoIdAndTagAndStep(repoInfo.getRepoId(), tag, step, q);
+        return Submissions.getOutputByRepoIdAndTagAndStep(
+            repoInfo.getRepoId(), tag, action, step,q);
       } else {
         throw new SubmissionNotFoundException("Output named " + step + " not found");
       }
@@ -922,5 +896,9 @@ public class Repo {
     } catch (SQLException e) {
       throw new SubmissionStorageException("Failed to load submission from database", e);
     }
+  }
+
+  private String getSubmissionKey(String tag, String action) {
+    return tag + "," + action;
   }
 }

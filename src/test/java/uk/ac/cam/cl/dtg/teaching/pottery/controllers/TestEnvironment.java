@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.Calendar;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -47,10 +46,12 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Action;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Execution;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Testcase;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
@@ -64,6 +65,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 class TestEnvironment {
 
   public static final String VARIANT = "shell";
+  public static final String ACTION = "validate";
 
   private final String testRootDir;
   private final TaskFactory taskFactory;
@@ -146,8 +148,6 @@ class TestEnvironment {
 
       makeScript(copyRoot, "output.sh", argListingScript(), g);
 
-      Map<String, String> variantSolutionMap = new HashMap<>();
-      variantSolutionMap.put("success", null);
       TaskInfo i =
           new TaskInfo(
               TaskInfo.TYPE_ALGORITHM,
@@ -158,12 +158,15 @@ class TestEnvironment {
               "Empty task",
               ImmutableList.of(),
               ImmutableSet.of(VARIANT),
-              Map.of(VARIANT, variantSolutionMap),
+              Map.of(VARIANT, List.of(new Testcase("success", ACTION, null))),
               List.of(new Execution("template:java", "@TASK@/compile-test.sh", null)),
-              List.of(
-                new Step("compile", Map.of(VARIANT, new Execution("template:java", "@STEP@/compile-solution.sh", null))),
-                new Step("harness", Map.of(VARIANT, new Execution("template:java", "@STEP@/run-harness.sh", null))),
-                new Step("validate", Map.of("default", new Execution("template:java", "@SHARED@/run-validator.sh", null)))
+              Map.of(
+                  "compile", new Step(Map.of(VARIANT, new Execution("template:java", "@STEP@/compile-solution.sh", null))),
+                  "harness", new Step(Map.of(VARIANT, new Execution("template:java", "@STEP@/run-harness.sh", null))),
+                  "validate", new Step(Map.of("default", new Execution("template:java", "@SHARED@/run-validator.sh", null)))
+              ),
+              Map.of(
+                  ACTION, new Action("Validate this solution", List.of("compile", "harness", "validate"))
               )
               );
       TaskInfos.save(i, copyRoot);

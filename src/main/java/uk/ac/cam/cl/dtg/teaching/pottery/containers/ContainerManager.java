@@ -25,10 +25,12 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -279,12 +281,12 @@ public class ContainerManager implements Stoppable {
     void apiUnavailable(String errorMessage, Throwable exception);
   }
 
-  public int runSteps(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
+  public int runSteps(TaskCopy c, File codeDir, TaskInfo taskInfo, String action, String variant,
                       ErrorHandlingStepRunnerCallback callback) {
     try {
       // The StepRunnerCallback cast is necessary to prevent a stack overflow since this would
       // become self-recursive
-      return runSteps(c, codeDir, taskInfo, variant, (StepRunnerCallback) callback
+      return runSteps(c, codeDir, taskInfo, action, variant, (StepRunnerCallback) callback
       );
     } catch (ApiUnavailableException e) {
       callback.apiUnavailable(e.getMessage(), e.getCause());
@@ -292,16 +294,18 @@ public class ContainerManager implements Stoppable {
     }
   }
 
-  public int runSteps(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
+  public int runSteps(TaskCopy c, File codeDir, TaskInfo taskInfo, String action, String variant,
                       StepRunnerCallback callback)
       throws ApiUnavailableException {
     callback.setStatus(Submission.STATUS_RUNNING);
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
 
-    for (Step step : taskInfo.getSteps()) {
+    List<String> steps = taskInfo.getActions().get(action).getSteps();
 
-      String stepName = step.getName();
+    for (String stepName : steps) {
+
+      Step step = taskInfo.getSteps().get(stepName);
       Map<String, Execution> executionMap = step.getExecutionMap();
       Execution execution = getExecution(variant, executionMap);
       if (execution == null) {
