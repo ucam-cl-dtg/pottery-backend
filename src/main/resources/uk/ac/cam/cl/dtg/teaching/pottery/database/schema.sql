@@ -34,6 +34,23 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
+-- Name: outputs; Type: TABLE; Schema: public; Owner: pottery
+--
+
+CREATE TABLE outputs (
+    repoid character varying(255) NOT NULL,
+    tag character varying(255) NOT NULL,
+    position integer NOT NULL,
+    step character varying(255) NOT NULL,
+    status character varying(255) NOT NULL,
+    timems bigint DEFAULT '-1'::integer NOT NULL,
+    output text
+);
+
+
+ALTER TABLE outputs OWNER TO pottery;
+
+--
 -- Name: repos; Type: TABLE; Schema: public; Owner: pottery
 --
 
@@ -57,8 +74,6 @@ CREATE TABLE submissions (
     repoid character varying(255) NOT NULL,
     tag character varying(255) NOT NULL,
     status character varying(255) NOT NULL,
-    output text,
-    waittimems bigint DEFAULT '-1'::integer NOT NULL,
     errormessage text,
     datescheduled timestamp without time zone
 );
@@ -81,6 +96,14 @@ CREATE TABLE tasks (
 
 
 ALTER TABLE tasks OWNER TO pottery;
+
+--
+-- Name: outputs_pkey; Type: CONSTRAINT; Schema: public; Owner: pottery
+--
+
+ALTER TABLE ONLY outputs
+    ADD CONSTRAINT outputs_pkey PRIMARY KEY (repoid, tag, position);
+
 
 --
 -- Name: repos_pkey; Type: CONSTRAINT; Schema: public; Owner: pottery

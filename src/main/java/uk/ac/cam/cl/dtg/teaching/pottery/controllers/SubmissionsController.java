@@ -55,7 +55,7 @@ public class SubmissionsController
   }
 
   @Override
-  public String scheduleTest(String repoId, String tag)
+  public Submission scheduleTest(String repoId, String tag)
       throws RepoStorageException, RepoExpiredException, SubmissionStorageException,
           RepoNotFoundException {
     Repo r = repoFactory.getInstance(repoId);
@@ -63,10 +63,17 @@ public class SubmissionsController
   }
 
   @Override
-  public String getSubmission(String repoId, String tag)
+  public Submission getSubmission(String repoId, String tag)
       throws SubmissionNotFoundException, RepoStorageException, SubmissionStorageException,
           RepoNotFoundException {
     return repoFactory.getInstance(repoId).getSubmission(tag, database);
+  }
+
+  @Override
+  public String getSubmission(String repoId, String tag, String step)
+      throws SubmissionNotFoundException, RepoStorageException, SubmissionStorageException,
+      RepoNotFoundException {
+    return repoFactory.getInstance(repoId).getSubmissionOutput(tag, step, database);
   }
 
   @Override

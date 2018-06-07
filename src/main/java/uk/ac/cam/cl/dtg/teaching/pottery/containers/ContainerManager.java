@@ -29,8 +29,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -267,83 +265,37 @@ public class ContainerManager implements Stoppable {
     return execute(execution, stepResults, bindings);
   }
 
-  /**
-   * Run a output and get the response.
-   */
-  public ContainerExecResponse execOutput(
-      File taskDirHost, File codeDirHost, @Nonnull Execution execution, String variant,
-      Map<String, ContainerExecResponse> stepResults,
-      ImmutableMap<String, String> potteryProperties)
-      throws ApiUnavailableException {
-    ImmutableMap<String, Binding> bindings = ImmutableMap.of(
-        IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH),
-        TASK_BINDING, new FileBinding(taskDirHost, true),
-        SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
-        VARIANT_BINDING, new TextBinding(variant)
-    );
-
-    Stream<String> commands = Stream.of(execution.getProgram());
-
-    commands =
-        Stream.concat(
-            commands,
-            stepResults
-                .entrySet()
-                .stream()
-                .map(
-                    entry ->
-                        String.format(
-                            "--input=%1$s:%2$s:%3$s:@%1$s@",
-                            entry.getKey(),
-                            entry.getValue().status(),
-                            entry.getValue().executionTimeMs())));
-
-    commands =
-        Stream.concat(
-            commands,
-            potteryProperties
-                .entrySet()
-                .stream()
-                .map(
-                    entry ->
-                        String.format("--pottery-%1$s=%2$s", entry.getKey(), entry.getValue())));
-
-    String command = commands.collect(Collectors.joining(" "));
-
-    return execute(execution.withProgram(command), stepResults, bindings);
-  }
-
   public interface StepRunnerCallback {
     void setStatus(String status);
 
     void recordErrorReason(ContainerExecResponse response, String stepName);
 
-    void setOutput(String output);
+    void startStep(String stepName);
+
+    void finishStep(String stepName, String status, long msec, String output);
   }
 
   public interface ErrorHandlingStepRunnerCallback extends StepRunnerCallback {
     void apiUnavailable(String errorMessage, Throwable exception);
   }
 
-  public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
-                               ErrorHandlingStepRunnerCallback callback,
-                               ImmutableMap<String, String> potteryProperties) {
+  public int runSteps(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
+                      ErrorHandlingStepRunnerCallback callback) {
     try {
       // The StepRunnerCallback cast is necessary to prevent a stack overflow since this would
       // become self-recursive
-      return runStepsAndOutput(c, codeDir, taskInfo, variant, (StepRunnerCallback) callback,
-          potteryProperties);
+      return runSteps(c, codeDir, taskInfo, variant, (StepRunnerCallback) callback
+      );
     } catch (ApiUnavailableException e) {
       callback.apiUnavailable(e.getMessage(), e.getCause());
       return Job.STATUS_RETRY;
     }
   }
 
-  public int runStepsAndOutput(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
-                               StepRunnerCallback callback,
-                               ImmutableMap<String, String> potteryProperties)
+  public int runSteps(TaskCopy c, File codeDir, TaskInfo taskInfo, String variant,
+                      StepRunnerCallback callback)
       throws ApiUnavailableException {
-    callback.setStatus(Submission.STATUS_STEPS_RUNNING);
+    callback.setStatus(Submission.STATUS_RUNNING);
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
 
@@ -355,6 +307,7 @@ public class ContainerManager implements Stoppable {
       if (execution == null) {
         continue;
       }
+      callback.startStep(stepName);
       try {
         ContainerExecResponse response = execStep(
             c.getStepLocation(stepName),
@@ -363,8 +316,15 @@ public class ContainerManager implements Stoppable {
             variant,
             stepResults);
         stepResults.put(stepName, response);
+        callback.finishStep(stepName,
+            response.status() == Status.COMPLETED
+                ? Submission.STATUS_COMPLETE
+                : Submission.STATUS_FAILED,
+            response.executionTimeMs(),
+            response.response()
+        );
         if (response.status() != Status.COMPLETED) {
-          callback.setStatus(Submission.STATUS_STEPS_FAILED);
+          callback.setStatus(Submission.STATUS_FAILED);
           callback.recordErrorReason(response, stepName);
           if (response.status() != Status.FAILED_EXITCODE) {
             return Job.STATUS_FAILED;
@@ -377,38 +337,6 @@ public class ContainerManager implements Stoppable {
       }
     }
 
-    Execution execution = getExecution(variant, taskInfo.getOutput());
-
-    if (execution == null) {
-      callback.setStatus(Submission.STATUS_OUTPUT_FAILED);
-      callback.recordErrorReason(ContainerExecResponse.create(Status.FAILED_UNKNOWN,
-          "No output was specified", 0), null);
-      return Job.STATUS_FAILED;
-    }
-
-    callback.setStatus(Submission.STATUS_OUTPUT_RUNNING);
-
-    ContainerExecResponse output;
-    try {
-      output = execOutput(
-          c.getLocation(),
-          codeDir,
-          execution,
-          variant,
-          stepResults,
-          potteryProperties);
-    } catch (ApiUnavailableException e) {
-      throw new ApiUnavailableException("Container API unavailable when trying to execute output",
-          e);
-    }
-
-    callback.setOutput(output.response());
-
-    if (output.status() != Status.COMPLETED) {
-      callback.setStatus(Submission.STATUS_OUTPUT_FAILED);
-      callback.recordErrorReason(output, null);
-      return Job.STATUS_FAILED;
-    }
     return Job.STATUS_OK;
   }
 
