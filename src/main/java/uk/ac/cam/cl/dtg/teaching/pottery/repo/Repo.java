@@ -113,14 +113,13 @@ public class Repo {
 
   /** A map of submissions that have been tested. Keys are tag and an action separated by a comma.
     * You can only have one per tag/action pair. */
-  private ConcurrentHashMap<String, Submission> activeSubmissions;
+  private final ConcurrentHashMap<String, Submission> activeSubmissions = new ConcurrentHashMap<>();
 
   private Repo(RepoInfo repoInfo, RepoConfig c) {
     this.repoInfo = repoInfo;
     this.repoDirectory = c.getRepoDir(repoInfo.getRepoId());
     this.repoTestingDirectory = c.getRepoTestingDir(repoInfo.getRepoId());
     this.webtagPrefix = c.getWebtagPrefix();
-    this.activeSubmissions = new ConcurrentHashMap<>();
   }
 
   /**
