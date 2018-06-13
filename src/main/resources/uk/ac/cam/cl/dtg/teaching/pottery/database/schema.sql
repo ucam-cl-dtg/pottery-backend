@@ -40,6 +40,7 @@ SET default_with_oids = false;
 CREATE TABLE outputs (
     repoid character varying(255) NOT NULL,
     tag character varying(255) NOT NULL,
+    action character varying(255) NOT NULL,
     position integer NOT NULL,
     step character varying(255) NOT NULL,
     status character varying(255) NOT NULL,
@@ -73,6 +74,7 @@ ALTER TABLE repos OWNER TO pottery;
 CREATE TABLE submissions (
     repoid character varying(255) NOT NULL,
     tag character varying(255) NOT NULL,
+    action character varying(255) NOT NULL,
     status character varying(255) NOT NULL,
     errormessage text,
     datescheduled timestamp without time zone
@@ -102,7 +104,7 @@ ALTER TABLE tasks OWNER TO pottery;
 --
 
 ALTER TABLE ONLY outputs
-    ADD CONSTRAINT outputs_pkey PRIMARY KEY (repoid, tag, position);
+    ADD CONSTRAINT outputs_pkey PRIMARY KEY (repoid, tag, action, position);
 
 
 --
@@ -118,7 +120,7 @@ ALTER TABLE ONLY repos
 --
 
 ALTER TABLE ONLY submissions
-    ADD CONSTRAINT submissions_pkey PRIMARY KEY (repoid, tag);
+    ADD CONSTRAINT submissions_pkey PRIMARY KEY (repoid, tag, action);
 
 
 --
