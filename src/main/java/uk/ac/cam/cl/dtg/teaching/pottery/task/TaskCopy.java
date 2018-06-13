@@ -21,7 +21,6 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
-
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TwoPhaseLatch;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;

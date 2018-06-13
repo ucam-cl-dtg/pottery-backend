@@ -19,10 +19,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.mchange.v2.c3p0.DataSources;
-
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
@@ -45,7 +42,7 @@ public class InMemoryDatabase implements Database {
         byte[] encoded = Database.class.getResourceAsStream("schema.sql").readAllBytes();
         String shape = new String(encoded);
         shape = Pattern.compile("--.*$", Pattern.MULTILINE).matcher(shape).replaceAll("");
-        for(String query : shape.split(";")) {
+        for (String query : shape.split(";")) {
           query = query.trim();
           if (query.toUpperCase().startsWith("CREATE TABLE")) {
             query = query.replaceAll("text", "character varying(65536)");

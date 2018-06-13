@@ -31,7 +31,7 @@ abstract class PathSpecification {
   abstract boolean readWrite();
 
   String toBindString() {
-    return DockerUtil.bind(host(),container(),!readWrite());
+    return DockerUtil.bind(host(), container(), !readWrite());
   }
 
   static PathSpecification create(File host, File container, boolean readWrite) {
@@ -41,5 +41,4 @@ abstract class PathSpecification {
   static PathSpecification create(File host, String container, boolean readWrite) {
     return create(host, new File(container), readWrite);
   }
-
 }

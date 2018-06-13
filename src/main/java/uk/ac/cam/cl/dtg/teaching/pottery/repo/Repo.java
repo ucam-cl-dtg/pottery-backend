@@ -19,7 +19,6 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
 import com.google.common.collect.ImmutableList;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -28,7 +27,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jgit.api.CommitCommand;
 import org.eclipse.jgit.api.Git;
@@ -111,8 +109,10 @@ public class Repo {
   /** Protects access to the git repo and working directory. */
   private final FourLevelLock lock = new FourLevelLock();
 
-  /** A map of submissions that have been tested. Keys are tag and an action separated by a comma.
-    * You can only have one per tag/action pair. */
+  /**
+   * A map of submissions that have been tested. Keys are tag and an action separated by a comma.
+   * You can only have one per tag/action pair.
+   */
   private final ConcurrentHashMap<String, Submission> activeSubmissions = new ConcurrentHashMap<>();
 
   private Repo(RepoInfo repoInfo, RepoConfig c) {
@@ -305,8 +305,7 @@ public class Repo {
             try {
               t = taskIndex.getTask(repoInfo.getTaskId());
             } catch (TaskNotFoundException e1) {
-              updateSubmission(
-                  builder.addErrorMessage("Task no longer available"));
+              updateSubmission(builder.addErrorMessage("Task no longer available"));
               return STATUS_FAILED;
             }
             try (TaskCopy c =
@@ -326,61 +325,69 @@ public class Repo {
                 File codeDir = repoTestingDirectory;
                 TaskInfo taskInfo = c.getInfo();
                 String variant = repoInfo.getVariant();
-                int result = containerManager.runSteps(c, codeDir, taskInfo, action, variant,
-                    new ContainerManager.ErrorHandlingStepRunnerCallback() {
-                  @Override
-                  public void apiUnavailable(String errorMessage, Throwable exception) {
-                    Repo.LOG.warn(
-                        errorMessage,
-                        exception);
-                    updateSubmission(
-                        builder
-                            .addErrorMessage(
-                                "Compilation failed, unable to contact the container API. "
-                                    + "Retrying...")
-                            .setRetry());
-                  }
+                int result =
+                    containerManager.runSteps(
+                        c,
+                        codeDir,
+                        taskInfo,
+                        action,
+                        variant,
+                        new ContainerManager.ErrorHandlingStepRunnerCallback() {
+                          @Override
+                          public void apiUnavailable(String errorMessage, Throwable exception) {
+                            Repo.LOG.warn(errorMessage, exception);
+                            updateSubmission(
+                                builder
+                                    .addErrorMessage(
+                                        "Compilation failed, unable to contact the container API. "
+                                            + "Retrying...")
+                                    .setRetry());
+                          }
 
-                  @Override
-                  public void setStatus(String status) {
-                    updateSubmission(builder.setStatus(status));
-                  }
+                          @Override
+                          public void setStatus(String status) {
+                            updateSubmission(builder.setStatus(status));
+                          }
 
-                  @Override
-                  public void recordErrorReason(ContainerExecResponse response, String stepName) {
-                    switch (response.status()) {
-                      case FAILED_UNKNOWN:
-                        updateSubmission(
-                            builder.addErrorMessage("Output failed, no tests were run"));
-                        break;
-                      case FAILED_DISK:
-                        updateSubmission(
-                            builder.addErrorMessage("Output failed, disk usage limit exceeded"));
-                        break;
-                      case FAILED_OOM:
-                        updateSubmission(
-                            builder.addErrorMessage("Output failed, memory usage limit exceeded"));
-                        break;
-                      case FAILED_TIMEOUT:
-                        updateSubmission(
-                            builder.addErrorMessage(
-                                "Output failed, execution time limit exceeded"));
-                        break;
-                      default:
-                        break;
-                    }
-                  }
+                          @Override
+                          public void recordErrorReason(
+                              ContainerExecResponse response, String stepName) {
+                            switch (response.status()) {
+                              case FAILED_UNKNOWN:
+                                updateSubmission(
+                                    builder.addErrorMessage("Output failed, no tests were run"));
+                                break;
+                              case FAILED_DISK:
+                                updateSubmission(
+                                    builder.addErrorMessage(
+                                        "Output failed, disk usage limit exceeded"));
+                                break;
+                              case FAILED_OOM:
+                                updateSubmission(
+                                    builder.addErrorMessage(
+                                        "Output failed, memory usage limit exceeded"));
+                                break;
+                              case FAILED_TIMEOUT:
+                                updateSubmission(
+                                    builder.addErrorMessage(
+                                        "Output failed, execution time limit exceeded"));
+                                break;
+                              default:
+                                break;
+                            }
+                          }
 
-                  @Override
-                  public void startStep(String stepName) {
-                    updateSubmission(builder.startStep(stepName));
-                  }
+                          @Override
+                          public void startStep(String stepName) {
+                            updateSubmission(builder.startStep(stepName));
+                          }
 
-                  @Override
-                  public void finishStep(String stepName, String status, long msec, String output) {
-                    updateSubmission(builder.completeStep(stepName, status, msec, output));
-                  }
-                });
+                          @Override
+                          public void finishStep(
+                              String stepName, String status, long msec, String output) {
+                            updateSubmission(builder.completeStep(stepName, status, msec, output));
+                          }
+                        });
                 if (result != STATUS_OK) {
                   return result;
                 }
@@ -630,9 +637,8 @@ public class Repo {
   /**
    * Set the contents of the repository to be the same as at the particular tag.
    *
-   * <p>Since jgit doesn't expose a multi-commit or no-commit revert command, we instead
-   * reset to the earlier point, put the HEAD pointer back where it was, and then do a
-   * manual commit.</p>
+   * <p>Since jgit doesn't expose a multi-commit or no-commit revert command, we instead reset to
+   * the earlier point, put the HEAD pointer back where it was, and then do a manual commit.
    *
    * @param tag the tag to reset to
    */
@@ -649,20 +655,18 @@ public class Repo {
               "Tag " + tag + " not found in repository " + repoInfo.getRepoId());
         }
 
-        ResetCommand reset = git.reset()
-            .setMode(ResetType.HARD)
-            .setRef(tagRef.getName());
+        ResetCommand reset = git.reset().setMode(ResetType.HARD).setRef(tagRef.getName());
 
         reset.call();
 
-        reset = git.reset()
-            .setMode(ResetType.SOFT)
-            .setRef(Constants.ORIG_HEAD); // The revision before the reset above
+        reset =
+            git.reset()
+                .setMode(ResetType.SOFT)
+                .setRef(Constants.ORIG_HEAD); // The revision before the reset above
 
         reset.call();
 
-        CommitCommand commit = git.commit()
-            .setMessage("Reverted to " + tag);
+        CommitCommand commit = git.commit().setMessage("Reverted to " + tag);
 
         commit.call();
 
@@ -870,9 +874,12 @@ public class Repo {
     synchronized (lockFields) {
       Submission s = activeSubmissions.get(getSubmissionKey(tag, action));
       if (s != null) {
-        return s.getSteps().stream()
-            .filter(stepResult -> step.equals(stepResult.getName())).findFirst().orElseThrow(
-                SubmissionNotFoundException::new).getOutput();
+        return s.getSteps()
+            .stream()
+            .filter(stepResult -> step.equals(stepResult.getName()))
+            .findFirst()
+            .orElseThrow(SubmissionNotFoundException::new)
+            .getOutput();
       }
     }
     try (TransactionQueryRunner q = database.getQueryRunner()) {
@@ -887,7 +894,7 @@ public class Repo {
 
       if (s.getSteps().stream().anyMatch(stepResult -> step.equals(stepResult.getName()))) {
         return Submissions.getOutputByRepoIdAndTagAndStep(
-            repoInfo.getRepoId(), tag, action, step,q);
+            repoInfo.getRepoId(), tag, action, step, q);
       } else {
         throw new SubmissionNotFoundException("Output named " + step + " not found");
       }

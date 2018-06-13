@@ -30,11 +30,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
@@ -107,10 +104,11 @@ public class ContainerManager implements Stoppable {
 
   private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
 
-  private ExecutionConfig.Builder applyBindings(String command,
-                                                ImmutableMap<String, Binding> bindings,
-                                                Map<String, ContainerExecResponse> stepResults,
-                                                File containerTempDir)
+  private ExecutionConfig.Builder applyBindings(
+      String command,
+      ImmutableMap<String, Binding> bindings,
+      Map<String, ContainerExecResponse> stepResults,
+      File containerTempDir)
       throws ContainerExecutionException {
     ExecutionConfig.Builder builder = ExecutionConfig.builder();
     StringBuilder finalCommand = new StringBuilder();
@@ -128,14 +126,14 @@ public class ContainerManager implements Stoppable {
         try (FileWriter w = new FileWriter(stepFile)) {
           w.write(stepResults.get(name).response());
         } catch (IOException e) {
-          throw new ContainerExecutionException("Couldn't create temporary file for binding " + name
-              + " for command " + command, e);
+          throw new ContainerExecutionException(
+              "Couldn't create temporary file for binding " + name + " for command " + command, e);
         }
         binding = new FileBinding(stepFile, false);
         mutableBindings.put(name, binding);
       } else {
-        throw new ContainerExecutionException("Couldn't find a binding called " + name
-            + " for command " + command);
+        throw new ContainerExecutionException(
+            "Couldn't find a binding called " + name + " for command " + command);
       }
       binding.applyBinding(builder, name);
       regexMatcher.appendReplacement(finalCommand, binding.getMountPoint(name));
@@ -206,24 +204,21 @@ public class ContainerManager implements Stoppable {
       this.text = text;
     }
 
-    /**
-     * Technically, this isn't a mount point, it's just a parameter.
-     */
+    /** Technically, this isn't a mount point, it's just a parameter. */
     @Override
     String getMountPoint(String name) {
       return text;
     }
   }
 
-  /**
-   * Execute a command inside a container.
-   */
-  private ContainerExecResponse execute(@Nonnull Execution execution,
-                                        Map<String, ContainerExecResponse> stepResults,
-                                        ImmutableMap<String, Binding> bindings)
+  /** Execute a command inside a container. */
+  private ContainerExecResponse execute(
+      @Nonnull Execution execution,
+      Map<String, ContainerExecResponse> stepResults,
+      ImmutableMap<String, Binding> bindings)
       throws ApiUnavailableException {
-    File containerTempDir = new File(config.getTempRoot(),
-        String.valueOf(tempDirCounter.incrementAndGet()));
+    File containerTempDir =
+        new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
     try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
       return containerBackend.executeContainer(
           applyBindings(execution.getProgram(), bindings, stepResults, containerTempDir)
@@ -232,38 +227,36 @@ public class ContainerManager implements Stoppable {
               .setLocalUserId(config.getUid())
               .build());
     } catch (ContainerExecutionException | IOException e) {
-      return ContainerExecResponse.create(
-          Status.FAILED_UNKNOWN, e.getMessage(), -1);
+      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
     }
   }
 
-  /**
-   * Run a compile task and get the response.
-   */
-  public ContainerExecResponse execTaskCompilation(
-      File taskDirHost, @Nonnull Execution execution)
+  /** Run a compile task and get the response. */
+  public ContainerExecResponse execTaskCompilation(File taskDirHost, @Nonnull Execution execution)
       throws ApiUnavailableException {
-    ImmutableMap<String, Binding> bindings = ImmutableMap.of(
-        TASK_BINDING, new FileBinding(taskDirHost, true),
-        IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH));
+    ImmutableMap<String, Binding> bindings =
+        ImmutableMap.of(
+            TASK_BINDING, new FileBinding(taskDirHost, true),
+            IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH));
     ImmutableMap<String, ContainerExecResponse> stepResults = ImmutableMap.of();
     return execute(execution, stepResults, bindings);
   }
 
-  /**
-   * Run a step and get the response.
-   */
+  /** Run a step and get the response. */
   public ContainerExecResponse execStep(
-      File taskStepsDirHost, File codeDirHost, @Nonnull Execution execution, String variant,
+      File taskStepsDirHost,
+      File codeDirHost,
+      @Nonnull Execution execution,
+      String variant,
       Map<String, ContainerExecResponse> stepResults)
       throws ApiUnavailableException {
-    ImmutableMap<String, Binding> bindings = ImmutableMap.of(
-        IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH),
-        SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
-        STEP_BINDING, new FileBinding(new File(taskStepsDirHost, variant), false),
-        SHARED_BINDING, new FileBinding(new File(taskStepsDirHost, "shared"), false),
-        VARIANT_BINDING, new TextBinding(variant)
-        );
+    ImmutableMap<String, Binding> bindings =
+        ImmutableMap.of(
+            IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH),
+            SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
+            STEP_BINDING, new FileBinding(new File(taskStepsDirHost, variant), false),
+            SHARED_BINDING, new FileBinding(new File(taskStepsDirHost, "shared"), false),
+            VARIANT_BINDING, new TextBinding(variant));
     return execute(execution, stepResults, bindings);
   }
 
@@ -281,21 +274,30 @@ public class ContainerManager implements Stoppable {
     void apiUnavailable(String errorMessage, Throwable exception);
   }
 
-  public int runSteps(TaskCopy c, File codeDir, TaskInfo taskInfo, String action, String variant,
-                      ErrorHandlingStepRunnerCallback callback) {
+  public int runSteps(
+      TaskCopy c,
+      File codeDir,
+      TaskInfo taskInfo,
+      String action,
+      String variant,
+      ErrorHandlingStepRunnerCallback callback) {
     try {
       // The StepRunnerCallback cast is necessary to prevent a stack overflow since this would
       // become self-recursive
-      return runSteps(c, codeDir, taskInfo, action, variant, (StepRunnerCallback) callback
-      );
+      return runSteps(c, codeDir, taskInfo, action, variant, (StepRunnerCallback) callback);
     } catch (ApiUnavailableException e) {
       callback.apiUnavailable(e.getMessage(), e.getCause());
       return Job.STATUS_RETRY;
     }
   }
 
-  public int runSteps(TaskCopy c, File codeDir, TaskInfo taskInfo, String action, String variant,
-                      StepRunnerCallback callback)
+  public int runSteps(
+      TaskCopy c,
+      File codeDir,
+      TaskInfo taskInfo,
+      String action,
+      String variant,
+      StepRunnerCallback callback)
       throws ApiUnavailableException {
     callback.setStatus(Submission.STATUS_RUNNING);
 
@@ -313,20 +315,16 @@ public class ContainerManager implements Stoppable {
       }
       callback.startStep(stepName);
       try {
-        ContainerExecResponse response = execStep(
-            c.getStepLocation(stepName),
-            codeDir,
-            execution,
-            variant,
-            stepResults);
+        ContainerExecResponse response =
+            execStep(c.getStepLocation(stepName), codeDir, execution, variant, stepResults);
         stepResults.put(stepName, response);
-        callback.finishStep(stepName,
+        callback.finishStep(
+            stepName,
             response.status() == Status.COMPLETED
                 ? Submission.STATUS_COMPLETE
                 : Submission.STATUS_FAILED,
             response.executionTimeMs(),
-            response.response()
-        );
+            response.response());
         if (response.status() != Status.COMPLETED) {
           callback.setStatus(Submission.STATUS_FAILED);
           callback.recordErrorReason(response, stepName);
@@ -336,8 +334,8 @@ public class ContainerManager implements Stoppable {
           break;
         }
       } catch (ApiUnavailableException e) {
-        throw new ApiUnavailableException("Container API unavailable when trying to execute "
-            + stepName + " step.", e);
+        throw new ApiUnavailableException(
+            "Container API unavailable when trying to execute " + stepName + " step.", e);
       }
     }
 

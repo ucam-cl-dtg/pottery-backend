@@ -18,10 +18,6 @@
 
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import java.io.IOException;
 import java.io.PrintWriter;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -45,12 +41,11 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 @SuppressWarnings("serial")
 @WebServlet(
-  urlPatterns = {"/git/*"},
-  initParams = {
-    @WebInitParam(name = "base-path", value = "/opt/pottery/tasks/def"),
-    @WebInitParam(name = "export-all", value = "true")
-  }
-)
+    urlPatterns = {"/git/*"},
+    initParams = {
+      @WebInitParam(name = "base-path", value = "/opt/pottery/tasks/def"),
+      @WebInitParam(name = "export-all", value = "true")
+    })
 public class GitServletV3 extends GitServlet {
 
   protected static final Logger LOG = LoggerFactory.getLogger(GitServletV3.class);

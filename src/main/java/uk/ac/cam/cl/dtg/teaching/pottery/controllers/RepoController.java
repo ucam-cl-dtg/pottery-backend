@@ -60,8 +60,12 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public RepoInfo makeRemoteRepo(String taskId, Boolean usingTestingVersion,
-                                 Integer validityMinutes, String variant, String remote)
+  public RepoInfo makeRemoteRepo(
+      String taskId,
+      Boolean usingTestingVersion,
+      Integer validityMinutes,
+      String variant,
+      String remote)
       throws TaskNotFoundException, RepoExpiredException, RepoStorageException,
           RetiredTaskException, RepoNotFoundException, TaskMissingVariantException {
     if (taskId == null) {
@@ -91,8 +95,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       if (!c.getInfo().getVariants().contains(variant)) {
         throw new TaskMissingVariantException("Variant " + variant + " is not defined");
       }
-      Repo r = repoFactory.createInstance(taskId, usingTestingVersion,
-          expiryDate, variant, remote);
+      Repo r = repoFactory.createInstance(taskId, usingTestingVersion, expiryDate, variant, remote);
       RepoInfo info = r.toRepoInfo();
       if (!info.isRemote()) {
         r.copyFiles(c);
@@ -102,12 +105,12 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public RepoInfo makeRepo(String taskId, Boolean usingTestingVersion, Integer validityMinutes,
-                           String variant)
+  public RepoInfo makeRepo(
+      String taskId, Boolean usingTestingVersion, Integer validityMinutes, String variant)
       throws TaskNotFoundException, RepoExpiredException, RepoNotFoundException,
           RetiredTaskException, RepoStorageException, TaskMissingVariantException {
-    return makeRemoteRepo(taskId, usingTestingVersion, validityMinutes, variant,
-        RepoInfo.REMOTE_UNSET);
+    return makeRemoteRepo(
+        taskId, usingTestingVersion, validityMinutes, variant, RepoInfo.REMOTE_UNSET);
   }
 
   @Override

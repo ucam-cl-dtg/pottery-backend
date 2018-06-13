@@ -19,7 +19,6 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.fail;
 import static uk.ac.cam.cl.dtg.teaching.pottery.controllers.TestEnvironment.ACTION;
 
 import com.google.common.io.Files;
@@ -31,13 +30,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
-import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionAlreadyScheduledException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
@@ -76,7 +73,8 @@ public class TestSubmission {
       throws RepoStorageException, RepoExpiredException, SubmissionStorageException,
           SubmissionNotFoundException {
     String tag = repo.createNewTag();
-    repo.scheduleSubmission(tag, ACTION, testEnvironment.getWorker(), testEnvironment.getDatabase());
+    repo.scheduleSubmission(
+        tag, ACTION, testEnvironment.getWorker(), testEnvironment.getDatabase());
     Submission submission = repo.getSubmission(tag, ACTION, testEnvironment.getDatabase());
     assertThat(submission.isComplete()).isTrue();
   }

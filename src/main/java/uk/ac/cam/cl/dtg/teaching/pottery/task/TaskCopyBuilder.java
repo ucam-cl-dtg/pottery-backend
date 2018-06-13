@@ -21,9 +21,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 import java.io.File;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -232,39 +230,42 @@ public class TaskCopyBuilder {
     builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TESTS);
 
     for (Execution compileStep : taskInfo.getTaskCompilation()) {
-      ContainerExecResponse r = containerManager.execTaskCompilation(taskCopy.getLocation(),
-          compileStep);
+      ContainerExecResponse r =
+          containerManager.execTaskCompilation(taskCopy.getLocation(), compileStep);
 
       switch (r.status()) {
         case FAILED_UNKNOWN:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
                   "Failed to compile testing code in task. "
-                      + "Compiler response was: " + r.response()));
+                      + "Compiler response was: "
+                      + r.response()));
           break;
         case FAILED_DISK:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
                   "Insufficient disk quota to compile testing code in task. "
-                      + "Compiler response was: " + r.response()));
+                      + "Compiler response was: "
+                      + r.response()));
           break;
         case FAILED_OOM:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
                   "Insufficient memory quota to compile testing code in task. "
-                      + "Compiler response was: " + r.response()));
+                      + "Compiler response was: "
+                      + r.response()));
           break;
         case FAILED_TIMEOUT:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
                   "Timeout when compiling testing code in task. "
-                      + "Compiler response was: " + r.response()));
+                      + "Compiler response was: "
+                      + r.response()));
           break;
         case FAILED_EXITCODE:
           builderInfo.setException(
               new InvalidTaskSpecificationException(
-                  "Compiler returned an error code. "
-                      + "Compiler response was: " + r.response()));
+                  "Compiler returned an error code. " + "Compiler response was: " + r.response()));
           break;
         default:
           break;
@@ -290,82 +291,105 @@ public class TaskCopyBuilder {
         final String taskName = variant + "/" + testName;
         final AtomicBoolean failedAsExpected = new AtomicBoolean(false);
 
-        int result = containerManager.runSteps(
-            taskCopy, testCodeFolder, taskInfo, testcase.getAction(), variant,
-            new ContainerManager.StepRunnerCallback() {
-          @Override
-          public void setStatus(String status) {
-            LOG.info("{}: {}", taskName, status);
-          }
+        int result =
+            containerManager.runSteps(
+                taskCopy,
+                testCodeFolder,
+                taskInfo,
+                testcase.getAction(),
+                variant,
+                new ContainerManager.StepRunnerCallback() {
+                  @Override
+                  public void setStatus(String status) {
+                    LOG.info("{}: {}", taskName, status);
+                  }
 
-          @Override
-          public void recordErrorReason(ContainerExecResponse response, String stepName) {
-            LOG.info(taskName + ": recordErrorReason " + response + " at " + stepName);
-            if (testExpectedFailureStep != null && testExpectedFailureStep.equals(stepName)) {
-              // All good, expected to fail here
-              failedAsExpected.set(true);
-            } else {
-              switch (response.status()) {
-                case FAILED_UNKNOWN:
-                  builderInfo.setException(
-                      new InvalidTaskSpecificationException(
-                          "Failed when testing " + taskName
-                              + " during registration. "
-                              + "Compiler response was: " + response.response()));
-                  break;
-                case FAILED_DISK:
-                  builderInfo.setException(
-                      new InvalidTaskSpecificationException(
-                          "Insufficient disk quota when testing "
-                              + taskName + " during registration. "
-                              + "Compiler response was: " + response.response()));
-                  break;
-                case FAILED_OOM:
-                  builderInfo.setException(
-                      new InvalidTaskSpecificationException(
-                          "Insufficient memory when testing " + taskName
-                              + " during registration. "
-                              + "Compiler response was: " + response.response()));
-                  break;
-                case FAILED_TIMEOUT:
-                  builderInfo.setException(
-                      new InvalidTaskSpecificationException(
-                          "Timeout when testing " + taskName
-                              + " during registration. "
-                              + "Compiler response was: " + response.response()));
-                  break;
-                default:
-                  break;
-              }
-            }
-          }
+                  @Override
+                  public void recordErrorReason(ContainerExecResponse response, String stepName) {
+                    LOG.info(taskName + ": recordErrorReason " + response + " at " + stepName);
+                    if (testExpectedFailureStep != null
+                        && testExpectedFailureStep.equals(stepName)) {
+                      // All good, expected to fail here
+                      failedAsExpected.set(true);
+                    } else {
+                      switch (response.status()) {
+                        case FAILED_UNKNOWN:
+                          builderInfo.setException(
+                              new InvalidTaskSpecificationException(
+                                  "Failed when testing "
+                                      + taskName
+                                      + " during registration. "
+                                      + "Compiler response was: "
+                                      + response.response()));
+                          break;
+                        case FAILED_DISK:
+                          builderInfo.setException(
+                              new InvalidTaskSpecificationException(
+                                  "Insufficient disk quota when testing "
+                                      + taskName
+                                      + " during registration. "
+                                      + "Compiler response was: "
+                                      + response.response()));
+                          break;
+                        case FAILED_OOM:
+                          builderInfo.setException(
+                              new InvalidTaskSpecificationException(
+                                  "Insufficient memory when testing "
+                                      + taskName
+                                      + " during registration. "
+                                      + "Compiler response was: "
+                                      + response.response()));
+                          break;
+                        case FAILED_TIMEOUT:
+                          builderInfo.setException(
+                              new InvalidTaskSpecificationException(
+                                  "Timeout when testing "
+                                      + taskName
+                                      + " during registration. "
+                                      + "Compiler response was: "
+                                      + response.response()));
+                          break;
+                        default:
+                          break;
+                      }
+                    }
+                  }
 
-              @Override
-              public void startStep(String stepName) {
-                // Don't care about the actual operation of steps
-              }
+                  @Override
+                  public void startStep(String stepName) {
+                    // Don't care about the actual operation of steps
+                  }
 
-              @Override
-              public void finishStep(String stepName, String status, long msec, String output) {
-                // Don't care about the actual operation of steps or the output
-              }
-            });
+                  @Override
+                  public void finishStep(String stepName, String status, long msec, String output) {
+                    // Don't care about the actual operation of steps or the output
+                  }
+                });
         if (testExpectedFailureStep != null) {
           if (!failedAsExpected.get()) {
             builderInfo.setStatus(BuilderInfo.STATUS_FAILURE);
-            builderInfo.addSolutionTestingResponse(taskName + " was expected to fail at step "
-                + testExpectedFailureStep + " but it didn't");
-            LOG.info("{}: {}", taskName, "Expected step " + testExpectedFailureStep
-                + " to fail, but it didn't");
+            builderInfo.addSolutionTestingResponse(
+                taskName
+                    + " was expected to fail at step "
+                    + testExpectedFailureStep
+                    + " but it didn't");
+            LOG.info(
+                "{}: {}",
+                taskName,
+                "Expected step " + testExpectedFailureStep + " to fail, but it didn't");
             return false;
           }
-          builderInfo.addSolutionTestingResponse(taskName + " failed at step "
-              + testExpectedFailureStep + " as expected");
+          builderInfo.addSolutionTestingResponse(
+              taskName + " failed at step " + testExpectedFailureStep + " as expected");
         } else {
           if (result != Job.STATUS_OK) {
             builderInfo.setStatus(BuilderInfo.STATUS_FAILURE);
-            builderInfo.addSolutionTestingResponse(taskName + " was expected to succeed but did not"
-                + "\r\n" + "Exception was " + builderInfo.getException());
+            builderInfo.addSolutionTestingResponse(
+                taskName
+                    + " was expected to succeed but did not"
+                    + "\r\n"
+                    + "Exception was "
+                    + builderInfo.getException());
             LOG.info("{}: {}", taskName, "Output script didn't return OK");
             return false;
           }
@@ -380,5 +404,4 @@ public class TaskCopyBuilder {
 
     return true;
   }
-
 }

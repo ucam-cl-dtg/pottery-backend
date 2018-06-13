@@ -38,9 +38,7 @@ public abstract class ContainerExecResponse {
 
   public abstract long executionTimeMs();
 
-  public static ContainerExecResponse create(Status status,
-                                             String response,
-                                             long executionTimeMs) {
+  public static ContainerExecResponse create(Status status, String response, long executionTimeMs) {
     return new AutoValue_ContainerExecResponse(status, response, executionTimeMs);
   }
 }

@@ -21,12 +21,11 @@ package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.Files;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
-
-import com.google.common.io.Files;
 import org.apache.commons.io.IOUtils;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 

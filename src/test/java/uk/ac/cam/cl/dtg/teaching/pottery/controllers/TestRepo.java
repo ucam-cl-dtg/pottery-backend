@@ -46,7 +46,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 
 public class TestRepo {
 
@@ -149,5 +148,4 @@ public class TestRepo {
     // ASSERT
     assertThat(foundSha).isEqualTo(headSha);
   }
-
 }

@@ -23,7 +23,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.commons.dbutils.QueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.StepResult;
@@ -35,19 +34,22 @@ public class Submissions {
     final String tag = rs.getString("tag");
     final String action = rs.getString("action");
 
-    List<StepResult> steps = q.query("select * from outputs where repoid = ? and tag = ?"
-            + " and action = ? order by position",
-        srs -> {
-          List<StepResult> stepResults = new ArrayList<>();
-          while (srs.next()) {
-            stepResults.add(new StepResult(
-                srs.getString("step"),
-                srs.getString("status"),
-                srs.getLong("timems")
-            ));
-          }
-          return stepResults;
-        }, repoId, tag, action);
+    List<StepResult> steps =
+        q.query(
+            "select * from outputs where repoid = ? and tag = ?"
+                + " and action = ? order by position",
+            srs -> {
+              List<StepResult> stepResults = new ArrayList<>();
+              while (srs.next()) {
+                stepResults.add(
+                    new StepResult(
+                        srs.getString("step"), srs.getString("status"), srs.getLong("timems")));
+              }
+              return stepResults;
+            },
+            repoId,
+            tag,
+            action);
     return new Submission(
         repoId,
         tag,
@@ -60,9 +62,8 @@ public class Submissions {
   }
 
   /** Lookup a Submission by its repoId and the tag (sha hash). */
-  public static Submission getByRepoIdAndTagAndAction(String repoId, String tag, String action,
-                                                      QueryRunner q)
-      throws SQLException {
+  public static Submission getByRepoIdAndTagAndAction(
+      String repoId, String tag, String action, QueryRunner q) throws SQLException {
     return q.query(
         "select * from submissions where repoid =? and tag = ? and action = ?",
         rs -> rs.next() ? resultSetToSubmission(rs, q) : null,
@@ -90,7 +91,8 @@ public class Submissions {
         new Timestamp(submission.getDateScheduled().getTime()));
     for (int i = 0; i < submission.getSteps().size(); i++) {
       StepResult step = submission.getSteps().get(i);
-      q.update("INSERT into outputs ("
+      q.update(
+          "INSERT into outputs ("
               + "repoid,"
               + "tag,"
               + "action,"
@@ -112,8 +114,8 @@ public class Submissions {
     q.commit();
   }
 
-  public static String getOutputByRepoIdAndTagAndStep(String repoId, String tag, String action,
-                                                      String step, TransactionQueryRunner q)
+  public static String getOutputByRepoIdAndTagAndStep(
+      String repoId, String tag, String action, String step, TransactionQueryRunner q)
       throws SQLException {
     return q.query(
         "select output from outputs where repoid =? and tag = ? and action = ? and step = ?"

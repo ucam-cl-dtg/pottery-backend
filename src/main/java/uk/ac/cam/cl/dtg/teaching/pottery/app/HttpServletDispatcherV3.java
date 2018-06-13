@@ -24,7 +24,6 @@ import org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher;
 
 @SuppressWarnings("serial")
 @WebServlet(
-  urlPatterns = {"/api/*"},
-  initParams = {@WebInitParam(name = "resteasy.servlet.mapping.prefix", value = "/api/")}
-)
+    urlPatterns = {"/api/*"},
+    initParams = {@WebInitParam(name = "resteasy.servlet.mapping.prefix", value = "/api/")})
 public class HttpServletDispatcherV3 extends HttpServletDispatcher {}

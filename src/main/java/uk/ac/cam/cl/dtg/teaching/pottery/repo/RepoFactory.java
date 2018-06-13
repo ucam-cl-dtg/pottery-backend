@@ -85,8 +85,7 @@ public class RepoFactory {
 
   /** Create a new repo for this task and return it. */
   public Repo createInstance(
-      String taskId, boolean usingTestingVersion, Date expiryDate,
-      String variant, String remote)
+      String taskId, boolean usingTestingVersion, Date expiryDate, String variant, String remote)
       throws RepoStorageException, RepoNotFoundException {
     final String newRepoId = uuidGenerator.generate();
     try {
@@ -94,8 +93,7 @@ public class RepoFactory {
           newRepoId,
           () ->
               Repo.createRepo(
-                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate,
-                      variant, remote),
+                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate, variant, remote),
                   config,
                   database));
     } catch (ExecutionException e) {

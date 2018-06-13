@@ -114,8 +114,8 @@ class TestEnvironment {
     calendar.add(Calendar.YEAR, 10);
     try (TaskCopy c = task.acquireTestingCopy()) {
       Repo repo =
-          repoFactory.createInstance(task.getTaskId(), true,
-              calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET);
+          repoFactory.createInstance(
+              task.getTaskId(), true, calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET);
       repo.copyFiles(c);
       return repo;
     }
@@ -140,9 +140,17 @@ class TestEnvironment {
 
       makeScript(copyRoot, "compile-test.sh", printingScript("Compiling test"), g);
 
-      makeScript(copyRoot, "steps/compile/" + VARIANT + "/compile-solution.sh", printingScript("Compiling solution"), g);
+      makeScript(
+          copyRoot,
+          "steps/compile/" + VARIANT + "/compile-solution.sh",
+          printingScript("Compiling solution"),
+          g);
 
-      makeScript(copyRoot, "steps/harness/" + VARIANT + "/run-harness.sh", printingScript("Harness output"), g);
+      makeScript(
+          copyRoot,
+          "steps/harness/" + VARIANT + "/run-harness.sh",
+          printingScript("Harness output"),
+          g);
 
       makeScript(copyRoot, "skeleton/" + VARIANT + "/skeleton.sh", printingScript("Skeleton"), g);
 
@@ -161,18 +169,32 @@ class TestEnvironment {
               Map.of(VARIANT, List.of(new Testcase("success", ACTION, null))),
               List.of(new Execution("template:java", "@TASK@/compile-test.sh", null)),
               Map.of(
-                  "compile", new Step(Map.of(VARIANT, new Execution("template:java", "@STEP@/compile-solution.sh", null))),
-                  "harness", new Step(Map.of(VARIANT, new Execution("template:java", "@STEP@/run-harness.sh", null))),
-                  "validate", new Step(Map.of("default", new Execution("template:java", "@SHARED@/run-validator.sh", null)))
-              ),
+                  "compile",
+                      new Step(
+                          Map.of(
+                              VARIANT,
+                              new Execution("template:java", "@STEP@/compile-solution.sh", null))),
+                  "harness",
+                      new Step(
+                          Map.of(
+                              VARIANT,
+                              new Execution("template:java", "@STEP@/run-harness.sh", null))),
+                  "validate",
+                      new Step(
+                          Map.of(
+                              "default",
+                              new Execution("template:java", "@SHARED@/run-validator.sh", null)))),
               Map.of(
-                  ACTION, new Action("Validate this solution", List.of("compile", "harness", "validate"))
-              )
-              );
+                  ACTION,
+                  new Action("Validate this solution", List.of("compile", "harness", "validate"))));
       TaskInfos.save(i, copyRoot);
       g.add().addFilepattern("task.json").call();
 
-      makeScript(copyRoot, "steps/validate/shared/run-validator.sh", printingScript("Validator output"), g);
+      makeScript(
+          copyRoot,
+          "steps/validate/shared/run-validator.sh",
+          printingScript("Validator output"),
+          g);
 
       g.commit().setMessage("Empty task").call();
       g.push().call();
@@ -194,10 +216,7 @@ class TestEnvironment {
   }
 
   static String argListingScript() {
-    return ImmutableList.of(
-        "#!/bin/bash",
-        "",
-        "echo $@")
+    return ImmutableList.of("#!/bin/bash", "", "echo $@")
         .stream()
         .collect(Collectors.joining("\n"));
   }
@@ -216,5 +235,4 @@ class TestEnvironment {
     }
     git.add().addFilepattern(fileName).call();
   }
-
 }

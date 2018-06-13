@@ -34,7 +34,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -229,9 +228,7 @@ public class DockerContainerImpl implements ContainerBackend {
 
           LOG.debug("Container response: {}", attachListener.getOutput());
           return ContainerExecResponse.create(
-              status,
-              attachListener.getOutput(),
-              System.currentTimeMillis() - startTime);
+              status, attachListener.getOutput(), System.currentTimeMillis() - startTime);
         } finally {
           diskUsageKillerFuture.cancel(false);
         }
