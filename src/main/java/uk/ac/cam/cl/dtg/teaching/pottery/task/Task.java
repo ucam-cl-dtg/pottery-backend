@@ -362,6 +362,10 @@ public class Task {
         if ("HEAD".equals(sha1)) {
           sha1 = getHeadSha();
         }
+        if (sha1.equals(registeredBuilder.getBuilderInfo().getSha1())) {
+          return registeredBuilder.getBuilderInfo();
+        }
+
         registeredBuilder =
             TaskCopyBuilder.createNew(
                 sha1, taskId, taskDefLocation, uuidGenerator.generate(), config);
