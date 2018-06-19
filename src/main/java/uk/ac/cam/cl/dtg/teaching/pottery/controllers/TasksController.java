@@ -135,6 +135,9 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
   @Override
   public BuilderInfo scheduleTaskRegistration(String taskId, String sha1)
       throws TaskNotFoundException, RetiredTaskException {
+    if (sha1 == null) {
+      sha1 = "HEAD";
+    }
     return taskIndex.getTask(taskId).scheduleBuildRegisteredCopy(sha1, worker);
   }
 
