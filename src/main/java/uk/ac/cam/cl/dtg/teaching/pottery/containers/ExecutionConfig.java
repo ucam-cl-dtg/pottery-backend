@@ -83,12 +83,16 @@ abstract class ExecutionConfig {
       return this;
     }
 
+    abstract ImmutableList<PathSpecification> pathSpecification();
+
     abstract ImmutableList.Builder<String> commandBuilder();
 
     Builder addCommand(String command) {
       commandBuilder().add(command);
       return this;
     }
+
+    abstract ImmutableList<String> command();
 
     abstract Builder setImageName(String imageName);
 
