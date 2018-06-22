@@ -22,14 +22,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
@@ -47,20 +44,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 
 @Singleton
 public class ContainerManager implements Stoppable {
-
-  private static final String POTTERY_BINARIES_PATH = "/pottery-binaries";
-
-  private static final String IMAGE_BINDING = "IMAGE";
-  private static final String SUBMISSION_BINDING = "SUBMISSION";
-  private static final String VARIANT_BINDING = "VARIANT";
-  private static final String TASK_BINDING = "TASK";
-  private static final String STEP_BINDING = "STEP";
-  private static final String SHARED_BINDING = "SHARED";
-
-  private static final String DEFAULT_EXECUTION = "default";
-
-  private static final Pattern COMMAND_TOKENIZER =
-      Pattern.compile("([^\"' ]|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')+");
 
   private final ContainerEnvConfig config;
   private final ContainerBackend containerBackend;
@@ -102,115 +85,6 @@ public class ContainerManager implements Stoppable {
     containerBackend.setTimeoutMultiplier(multiplier);
   }
 
-  private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
-
-  private ExecutionConfig.Builder applyBindings(
-      String command,
-      ImmutableMap<String, Binding> bindings,
-      Map<String, ContainerExecResponse> stepResults,
-      File containerTempDir)
-      throws ContainerExecutionException {
-    ExecutionConfig.Builder builder = ExecutionConfig.builder();
-    StringBuilder finalCommand = new StringBuilder();
-
-    Map<String, Binding> mutableBindings = new HashMap<String, Binding>(bindings);
-
-    Matcher regexMatcher = bindingRegex.matcher(command);
-    while (regexMatcher.find()) {
-      String name = regexMatcher.group(1);
-      Binding binding;
-      if (mutableBindings.containsKey(name)) {
-        binding = mutableBindings.get(name);
-      } else if (stepResults.containsKey(name)) {
-        File stepFile = new File(containerTempDir, name);
-        try (FileWriter w = new FileWriter(stepFile)) {
-          w.write(stepResults.get(name).response());
-        } catch (IOException e) {
-          throw new ContainerExecutionException(
-              "Couldn't create temporary file for binding " + name + " for command " + command, e);
-        }
-        binding = new FileBinding(stepFile, false);
-        mutableBindings.put(name, binding);
-      } else {
-        throw new ContainerExecutionException(
-            "Couldn't find a binding called " + name + " for command " + command);
-      }
-      binding.applyBinding(builder, name);
-      regexMatcher.appendReplacement(finalCommand, binding.getMountPoint(name));
-    }
-    regexMatcher.appendTail(finalCommand);
-
-    Matcher matcher = COMMAND_TOKENIZER.matcher(finalCommand);
-    while (matcher.find()) {
-      builder.addCommand(matcher.group());
-    }
-    return builder;
-  }
-
-  abstract class Binding {
-    abstract String getMountPoint(String name);
-
-    ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
-      return builder;
-    }
-  }
-
-  class FileBinding extends Binding {
-    private final File file;
-    private final boolean readWrite;
-    private boolean needsApplying;
-
-    FileBinding(File file, boolean readWrite) {
-      this.file = file;
-      this.readWrite = readWrite;
-      this.needsApplying = true;
-    }
-
-    @Override
-    ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
-      if (needsApplying) {
-        needsApplying = false;
-
-        return builder.addPathSpecification(
-            PathSpecification.create(file, getMountPoint(name), readWrite));
-      } else {
-        return builder;
-      }
-    }
-
-    @Override
-    String getMountPoint(String name) {
-      return containerBackend.getInternalMountPath() + "/" + name;
-    }
-  }
-
-  class ImageBinding extends Binding {
-    private final String path;
-
-    ImageBinding(String path) {
-      this.path = path;
-    }
-
-    @Override
-    String getMountPoint(String name) {
-      return path;
-    }
-  }
-
-  class TextBinding extends Binding {
-    private final String text;
-
-    TextBinding(String text) {
-      this.text = text;
-    }
-
-    /** Technically, this isn't a mount point, it's just a parameter. */
-    @Override
-    String getMountPoint(String name) {
-      return text;
-    }
-  }
-
   /** Execute a command inside a container. */
   private ContainerExecResponse execute(
       @Nonnull Execution execution,
@@ -221,7 +95,12 @@ public class ContainerManager implements Stoppable {
         new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
     try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
       return containerBackend.executeContainer(
-          applyBindings(execution.getProgram(), bindings, stepResults, containerTempDir)
+          Binding.applyBindings(
+                  execution.getProgram(),
+                  bindings,
+                  stepResults,
+                  containerTempDir,
+                  containerBackend.getInternalMountPath())
               .setImageName(execution.getImage())
               .setContainerRestrictions(execution.getRestrictions())
               .setLocalUserId(config.getUid())
@@ -236,8 +115,9 @@ public class ContainerManager implements Stoppable {
       throws ApiUnavailableException {
     ImmutableMap<String, Binding> bindings =
         ImmutableMap.of(
-            TASK_BINDING, new FileBinding(taskDirHost, true),
-            IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH));
+            Binding.TASK_BINDING,
+                new Binding.FileBinding(taskDirHost, true, containerBackend.getInternalMountPath()),
+            Binding.IMAGE_BINDING, new Binding.ImageBinding(Binding.POTTERY_BINARIES_PATH));
     ImmutableMap<String, ContainerExecResponse> stepResults = ImmutableMap.of();
     return execute(execution, stepResults, bindings);
   }
@@ -252,11 +132,20 @@ public class ContainerManager implements Stoppable {
       throws ApiUnavailableException {
     ImmutableMap<String, Binding> bindings =
         ImmutableMap.of(
-            IMAGE_BINDING, new ImageBinding(POTTERY_BINARIES_PATH),
-            SUBMISSION_BINDING, new FileBinding(codeDirHost, true),
-            STEP_BINDING, new FileBinding(new File(taskStepsDirHost, variant), false),
-            SHARED_BINDING, new FileBinding(new File(taskStepsDirHost, "shared"), false),
-            VARIANT_BINDING, new TextBinding(variant));
+            Binding.IMAGE_BINDING, new Binding.ImageBinding(Binding.POTTERY_BINARIES_PATH),
+            Binding.SUBMISSION_BINDING,
+                new Binding.FileBinding(codeDirHost, true, containerBackend.getInternalMountPath()),
+            Binding.STEP_BINDING,
+                new Binding.FileBinding(
+                    new File(taskStepsDirHost, variant),
+                    false,
+                    containerBackend.getInternalMountPath()),
+            Binding.SHARED_BINDING,
+                new Binding.FileBinding(
+                    new File(taskStepsDirHost, "shared"),
+                    false,
+                    containerBackend.getInternalMountPath()),
+            Binding.VARIANT_BINDING, new Binding.TextBinding(variant));
     return execute(execution, stepResults, bindings);
   }
 
@@ -346,8 +235,8 @@ public class ContainerManager implements Stoppable {
   private Execution getExecution(String variant, Map<String, Execution> executionMap) {
     if (executionMap.containsKey(variant)) {
       return executionMap.get(variant);
-    } else if (executionMap.containsKey(DEFAULT_EXECUTION)) {
-      return executionMap.get(DEFAULT_EXECUTION);
+    } else if (executionMap.containsKey(Binding.DEFAULT_EXECUTION)) {
+      return executionMap.get(Binding.DEFAULT_EXECUTION);
     } else {
       return null;
     }
