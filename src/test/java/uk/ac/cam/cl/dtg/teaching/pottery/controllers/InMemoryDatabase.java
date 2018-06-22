@@ -23,6 +23,7 @@ import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import javax.sql.DataSource;
+import org.apache.commons.io.IOUtils;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 
@@ -38,7 +39,7 @@ public class InMemoryDatabase implements Database {
       dataSource =
           DataSources.unpooledDataSource("jdbc:hsqldb:mem:" + counter.incrementAndGet(), "SA", "");
       try (TransactionQueryRunner queryRunner = getQueryRunner()) {
-        byte[] encoded = Database.class.getResourceAsStream("schema.sql").readAllBytes();
+        byte[] encoded = IOUtils.toByteArray(Database.class.getResourceAsStream("schema.sql"));
         String shape = new String(encoded);
         shape = Pattern.compile("--.*$", Pattern.MULTILINE).matcher(shape).replaceAll("");
         for (String query : shape.split(";")) {
