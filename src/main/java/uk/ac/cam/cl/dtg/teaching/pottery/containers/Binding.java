@@ -53,6 +53,7 @@ abstract class Binding {
 
     Map<String, Binding> mutableBindings = new HashMap<String, Binding>(bindings);
 
+    int previousMatchEnd = 0;
     Matcher regexMatcher = bindingRegex.matcher(command);
     while (regexMatcher.find()) {
       String name = regexMatcher.group(1);
@@ -74,9 +75,12 @@ abstract class Binding {
             "Couldn't find a binding called " + name + " for command " + command);
       }
       binding.applyBinding(builder, name);
-      regexMatcher.appendReplacement(finalCommand, binding.getMountPoint(name));
+      int currentMatchStart = regexMatcher.start();
+      finalCommand.append(command.substring(previousMatchEnd, currentMatchStart));
+      finalCommand.append(binding.getMountPoint(name));
+      previousMatchEnd = regexMatcher.end();
     }
-    regexMatcher.appendTail(finalCommand);
+    finalCommand.append(command.substring(previousMatchEnd));
 
     Matcher matcher = COMMAND_TOKENIZER.matcher(finalCommand);
     while (matcher.find()) {
