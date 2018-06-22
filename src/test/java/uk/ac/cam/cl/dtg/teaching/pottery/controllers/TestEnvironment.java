@@ -20,6 +20,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.io.File;
 import java.io.FileWriter;
@@ -165,27 +166,27 @@ class TestEnvironment {
               "Empty task",
               ImmutableList.of(),
               ImmutableSet.of(VARIANT),
-              Map.of(VARIANT, List.of(new Testcase("success", ACTION, null))),
-              List.of(new Execution("template:java", "@TASK@/compile-test.sh", null)),
-              Map.of(
+              ImmutableMap.of(VARIANT, ImmutableList.of(new Testcase("success", ACTION, null))),
+              ImmutableList.of(new Execution("template:java", "@TASK@/compile-test.sh", null)),
+              ImmutableMap.of(
                   "compile",
                       new Step(
-                          Map.of(
+                          ImmutableMap.of(
                               VARIANT,
                               new Execution("template:java", "@STEP@/compile-solution.sh", null))),
                   "harness",
                       new Step(
-                          Map.of(
+                          ImmutableMap.of(
                               VARIANT,
                               new Execution("template:java", "@STEP@/run-harness.sh", null))),
                   "validate",
                       new Step(
-                          Map.of(
+                          ImmutableMap.of(
                               "default",
                               new Execution("template:java", "@SHARED@/run-validator.sh", null)))),
-              Map.of(
+              ImmutableMap.of(
                   ACTION,
-                  new Action("Validate this solution", List.of("compile", "harness", "validate"))));
+                  new Action("Validate this solution", ImmutableList.of("compile", "harness", "validate"))));
       TaskInfos.save(i, copyRoot);
       g.add().addFilepattern("task.json").call();
 
