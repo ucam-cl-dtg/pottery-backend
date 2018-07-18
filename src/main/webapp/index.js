@@ -225,10 +225,9 @@ $(document).ready(
 					function(e) {
 						e.preventDefault();
 						$.ajax({
-							url: 'api/tasks/'+$("#taskId").val()+"/files",
+							url: 'api/tasks/'+$("#taskId").val()+"/skeleton/"+$("#variantTask").val(),
 							type: 'GET',
-							data: {"usingTestingVersion": !$("#registeredTask").is(":checked"),
-							    "variant": $("#variantTask").val()},
+							data: {"usingTestingVersion": !$("#registeredTask").is(":checked")},
 							success: function (result) {
 								reportSuccess(result);
 							},
@@ -242,10 +241,9 @@ $(document).ready(
 					function(e) {
 						e.preventDefault();
 						$.ajax({
-							url: 'api/tasks/'+$("#taskId").val()+"/files/" + $("#taskFileName").val(),
+							url: 'api/tasks/'+$("#taskId").val()+"/skeleton/"+$("#variantTask").val()+"/" + $("#taskFileName").val(),
 							type: 'GET',
-							data: {"usingTestingVersion": !$("#registeredTask").is(":checked"),
-							    "variant": $("#variantTask").val()},
+							data: {"usingTestingVersion": !$("#registeredTask").is(":checked")},
 							success: function (result) {
 								reportSuccess(result);
 							},

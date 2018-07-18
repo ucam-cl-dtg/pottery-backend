@@ -25,8 +25,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
@@ -94,14 +94,14 @@ public class TaskCopy implements AutoCloseable {
     return config.getSkeletonDir(copyId, variant);
   }
 
-  public List<String> listSkeleton(String variant) throws TaskStorageException {
+  public List<String> listSkeletonFiles(String variant) throws TaskStorageException {
     File sourceLocation = getSkeletonLocation(variant);
     if (!sourceLocation.exists()) {
       return Collections.emptyList();
     }
 
     try {
-      List<String> result = new LinkedList<>();
+      List<String> result = new ArrayList<>();
       Files.walkFileTree(
           sourceLocation.toPath(),
           new SimpleFileVisitor<Path>() {
