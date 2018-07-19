@@ -20,6 +20,15 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TwoPhaseLatch;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
@@ -79,6 +88,39 @@ public class TaskCopy implements AutoCloseable {
 
   public File getSolutionLocation(String variant) {
     return config.getSolutionDir(copyId, variant);
+  }
+
+  public File getSkeletonLocation(String variant) {
+    return config.getSkeletonDir(copyId, variant);
+  }
+
+  public List<String> listSkeletonFiles(String variant) throws TaskStorageException {
+    File sourceLocation = getSkeletonLocation(variant);
+    if (!sourceLocation.exists()) {
+      return Collections.emptyList();
+    }
+
+    try {
+      List<String> result = new ArrayList<>();
+      Files.walkFileTree(
+          sourceLocation.toPath(),
+          new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+              Path localLocation = sourceLocation.toPath().relativize(file);
+              result.add(localLocation.toString());
+              return FileVisitResult.CONTINUE;
+            }
+          });
+      return result;
+    } catch (IOException e) {
+      throw new TaskStorageException(
+          "Failed to access skeleton files for task "
+              + info.getTaskId()
+              + " stored in copy "
+              + copyId,
+          e);
+    }
   }
 
   /**

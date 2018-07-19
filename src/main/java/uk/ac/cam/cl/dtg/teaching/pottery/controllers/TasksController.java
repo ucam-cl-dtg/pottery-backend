@@ -19,15 +19,21 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+
+import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskMissingVariantException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.BuilderInfo;
@@ -35,6 +41,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskLocation;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -154,6 +161,44 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
   @Override
   public BuilderInfo pollTaskTestingStatus(String taskId) throws TaskNotFoundException {
     return taskIndex.getTask(taskId).getTestingCopyBuilderInfo();
+  }
+
+  @Override
+  public List<String> listSkeletonFiles(String taskId, String variant, Boolean usingTestingVersion)
+      throws TaskNotFoundException, TaskMissingVariantException, TaskStorageException {
+    Task t = taskIndex.getTask(taskId);
+    LOG.info("Listing skeleton files {}, {}, {}", t, variant, usingTestingVersion);
+    try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
+      if (!c.getInfo().getVariants().contains(variant)) {
+        throw new TaskMissingVariantException("Variant " + variant + " is not defined");
+      }
+
+      return c.listSkeletonFiles(variant);
+    }
+  }
+
+  @Override
+  public Response readSkeletonFile(String taskId, String variant, String fileName,
+                                   Boolean usingTestingVersion)
+      throws TaskNotFoundException, TaskMissingVariantException {
+    Task t = taskIndex.getTask(taskId);
+    try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
+      if (!c.getInfo().getVariants().contains(variant)) {
+        throw new TaskMissingVariantException("Variant " + variant + " is not defined");
+      }
+
+      final File skeletonLocation = c.getSkeletonLocation(variant).getCanonicalFile();
+      File filePath = new File(skeletonLocation, fileName).getCanonicalFile();
+      if (!filePath.getPath().startsWith(skeletonLocation.getPath())) {
+        LOG.info("Illegal path {} requested for skeleton of {}, {}, {}",
+            filePath.getPath(), t, variant, usingTestingVersion);
+        throw new TaskNotFoundException("The requested path is illegal");
+      }
+      // Response is smart enough to return the contents of the file, not just the name.
+      return Response.ok(filePath, MediaType.APPLICATION_OCTET_STREAM).build();
+    } catch (IOException e) {
+      throw new TaskNotFoundException("The requested file was not found.");
+    }
   }
 
   @Override

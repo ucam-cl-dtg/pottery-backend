@@ -221,6 +221,38 @@ $(document).ready(
 						});
 					});
 
+			$("#listTaskFilesButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							url: 'api/tasks/'+$("#taskId").val()+"/skeleton/"+$("#variantTask").val(),
+							type: 'GET',
+							data: {"usingTestingVersion": !$("#registeredTask").is(":checked")},
+							success: function (result) {
+								reportSuccess(result);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+
+			$("#getTaskFileButton").click(
+					function(e) {
+						e.preventDefault();
+						$.ajax({
+							url: 'api/tasks/'+$("#taskId").val()+"/skeleton/"+$("#variantTask").val()+"/" + $("#taskFileName").val(),
+							type: 'GET',
+							data: {"usingTestingVersion": !$("#registeredTask").is(":checked")},
+							success: function (result) {
+								reportSuccess(result);
+							},
+							error : function(xhr,textStatus,errorThrown) {
+								reportError(xhr);
+							}
+						});
+					});
+
 			$("#createRemoteTaskForm").submit(function(event) {
 			  event.preventDefault();
 			  $.ajax({
