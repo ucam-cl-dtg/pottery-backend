@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
@@ -52,7 +53,10 @@ public class TaskIndex {
       try {
         Task t = taskFactory.getInstance(taskId);
         definedTasks.put(taskId, t);
-      } catch (TaskNotFoundException | InvalidTaskSpecificationException | TaskStorageException e) {
+      } catch (TaskNotFoundException
+          | InvalidTaskSpecificationException
+          | TaskStorageException
+          | TaskCopyNotFoundException e) {
         LOG.warn("Ignoring task " + taskId, e);
       }
     }

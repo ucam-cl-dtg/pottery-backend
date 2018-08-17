@@ -33,6 +33,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskCopyNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 
@@ -52,7 +53,9 @@ public class TaskFactory {
           .build(
               new CacheLoader<String, Task>() {
                 @Override
-                public Task load(String key) throws Exception {
+                public Task load(String key)
+                    throws TaskNotFoundException, InvalidTaskSpecificationException,
+                        TaskStorageException, TaskCopyNotFoundException {
                   return Task.openTask(key, uuidGenerator, database, config);
                 }
               });
@@ -79,7 +82,8 @@ public class TaskFactory {
   }
 
   public Task getInstance(String taskId)
-      throws InvalidTaskSpecificationException, TaskStorageException, TaskNotFoundException {
+      throws InvalidTaskSpecificationException, TaskStorageException, TaskNotFoundException,
+          TaskCopyNotFoundException {
     try {
       return cache.get(taskId);
     } catch (ExecutionException e) {
@@ -90,6 +94,8 @@ public class TaskFactory {
         throw (TaskStorageException) e.getCause();
       } else if (e.getCause() instanceof TaskNotFoundException) {
         throw (TaskNotFoundException) e.getCause();
+      } else if (e.getCause() instanceof TaskCopyNotFoundException) {
+        throw (TaskCopyNotFoundException) e.getCause();
       } else {
         throw new Error(e);
       }
