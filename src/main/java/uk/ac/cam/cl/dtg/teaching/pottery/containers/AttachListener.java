@@ -36,7 +36,9 @@ class AttachListener implements WebSocketListener {
   }
 
   @Override
-  public void onWebSocketConnect(Session session) {}
+  public void onWebSocketConnect(Session session) {
+    session.setIdleTimeout(0);
+  }
 
   @Override
   public synchronized void onWebSocketError(Throwable cause) {
