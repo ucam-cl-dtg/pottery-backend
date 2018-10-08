@@ -17,6 +17,9 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -25,20 +28,28 @@ import com.google.inject.Singleton;
 import java.io.File;
 import java.io.IOException;
 import java.util.Date;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidParameterisationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskInvalidParametersException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Parameterisation;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Parameterisations;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 
 @Singleton
 public class RepoFactory {
 
   /** This object is used to generate new uuids for repos. */
   private UuidGenerator uuidGenerator = new UuidGenerator();
+
+  private ObjectMapper objectMapper = new ObjectMapper();
 
   private Database database;
   private RepoConfig config;
@@ -77,36 +88,58 @@ public class RepoFactory {
     try {
       return cache.get(repoId);
     } catch (ExecutionException e) {
-      rethrowExecutionException(e);
+      rethrowExecutionException(e, RepoStorageException.class);
+      rethrowExecutionException(e, RepoNotFoundException.class);
       throw new Error(e);
     }
   }
 
   /** Create a new repo for this task and return it. */
-  public Repo createInstance(
-      String taskId, boolean usingTestingVersion, Date expiryDate, String variant, String remote)
-      throws RepoStorageException, RepoNotFoundException {
+  public Repo createInstance(TaskCopy taskCopy, boolean usingTestingVersion, Date expiryDate,
+                             String variant, String remote, int seed, String extraParametersString)
+      throws RepoStorageException, RepoNotFoundException, TaskInvalidParametersException,
+      InvalidParameterisationException {
     final String newRepoId = uuidGenerator.generate();
     try {
       return cache.get(
           newRepoId,
-          () ->
-              Repo.createRepo(
-                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate, variant, remote),
-                  config,
-                  database));
+          () -> {
+            JsonNode extraParameters = objectMapper.readTree(extraParametersString);
+            if (extraParameters.isNull()) {
+              extraParameters = objectMapper.createObjectNode();
+            }
+            if (!extraParameters.isObject()) {
+              throw new TaskInvalidParametersException();
+            }
+            ObjectNode parameters = (ObjectNode) extraParameters;
+            Optional<Parameterisation> parameterisation = taskCopy.getInfo().getParameterisation();
+            int mutation;
+            if (parameterisation.isPresent()) {
+              Parameterisation p = parameterisation.get();
+              mutation = seed % Parameterisations.getCount(p);
+              parameters.putAll(Parameterisations.generateParameters(p, mutation));
+            } else {
+              mutation = -1;
+            }
+
+            return Repo.createRepo(new RepoInfo(newRepoId, taskCopy.getInfo().getTaskId(),
+                    usingTestingVersion, expiryDate, variant, remote, mutation, parameters),
+                config,
+                database);
+          });
     } catch (ExecutionException e) {
-      rethrowExecutionException(e);
+      rethrowExecutionException(e, RepoStorageException.class);
+      rethrowExecutionException(e, RepoNotFoundException.class);
+      rethrowExecutionException(e, TaskInvalidParametersException.class);
+      rethrowExecutionException(e, InvalidParameterisationException.class);
       throw new Error(e);
     }
   }
 
-  private void rethrowExecutionException(ExecutionException e)
-      throws RepoStorageException, RepoNotFoundException {
-    if (e.getCause() instanceof RepoStorageException) {
-      throw (RepoStorageException) e.getCause();
-    } else if (e.getCause() instanceof RepoNotFoundException) {
-      throw (RepoNotFoundException) e.getCause();
+  private <T extends Exception> void rethrowExecutionException(ExecutionException e, Class<T> klass)
+      throws T {
+    if (klass.isAssignableFrom(e.getCause().getClass())) {
+      throw (T) e.getCause();
     }
   }
 }

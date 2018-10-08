@@ -135,6 +135,10 @@ public class FileUtil {
     return copiedFiles.build();
   }
 
+  public static void renameIn(File basePath, String oldFile, String newFile) throws IOException {
+    Files.move(new File(basePath, oldFile).toPath(), new File(basePath, newFile).toPath());
+  }
+
   public static class AutoDelete implements AutoCloseable {
 
     private boolean persist;

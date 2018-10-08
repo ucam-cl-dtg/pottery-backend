@@ -17,6 +17,9 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -25,34 +28,48 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 
 public class RepoInfos {
 
+  private static ObjectMapper objectMapper = new ObjectMapper();
+
   /** Look up a repo from the database by its repoId. */
   public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
     return q.query(
-        "SELECT repoid,taskid,using_testing_version,expiryDate,variant,remote from"
-            + " repos where repoid=?",
+        "SELECT repoid,taskid,using_testing_version,expiryDate,variant,remote,mutation,"
+            + "parameters from repos where repoid=?",
         rs -> {
           rs.next();
-          return new RepoInfo(
-              rs.getString("repoid"),
-              rs.getString("taskid"),
-              rs.getBoolean("using_testing_version"),
-              new Date(rs.getTimestamp("expiryDate").getTime()),
-              rs.getString("variant"),
-              rs.getString("remote"));
+          try {
+            return new RepoInfo(
+                rs.getString("repoid"),
+                rs.getString("taskid"),
+                rs.getBoolean("using_testing_version"),
+                new Date(rs.getTimestamp("expiryDate").getTime()),
+                rs.getString("variant"),
+                rs.getString("remote"),
+                rs.getInt("mutation"),
+                objectMapper.readTree(rs.getString("parameters")));
+          } catch (IOException e) {
+            throw new SQLException("Couldn't deserialize parameters JSON", e);
+          }
         },
         repoId);
   }
 
   /** Insert this repo in to the database. */
   public static void insert(RepoInfo repoInfo, QueryRunner q) throws SQLException {
-    q.update(
-        "INSERT INTO repos(repoid,taskid,using_testing_version,expiryDate,variant,"
-            + "remote) values (?,?,?,?,?,?)",
-        repoInfo.getRepoId(),
-        repoInfo.getTaskId(),
-        repoInfo.isUsingTestingVersion(),
-        new Timestamp(repoInfo.getExpiryDate().getTime()),
-        repoInfo.getVariant(),
-        repoInfo.getRemote());
+    try {
+      q.update(
+          "INSERT INTO repos(repoid,taskid,using_testing_version,expiryDate,variant,"
+              + "remote,mutation,parameters) values (?,?,?,?,?,?,?,?)",
+          repoInfo.getRepoId(),
+          repoInfo.getTaskId(),
+          repoInfo.isUsingTestingVersion(),
+          new Timestamp(repoInfo.getExpiryDate().getTime()),
+          repoInfo.getVariant(),
+          repoInfo.getRemote(),
+          repoInfo.getMutation(),
+          objectMapper.writeValueAsString(repoInfo.getParameters()));
+    } catch (JsonProcessingException e) {
+      throw new SQLException("Couldn't serialize parameters JSON", e);
+    }
   }
 }

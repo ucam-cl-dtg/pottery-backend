@@ -71,25 +71,18 @@
 
 		<h2>Repositories</h2>
 		<p>Commence on a task (create a repository)</p>
-		<form id="startTaskForm">
-			<p>Validity (minutes): <input type="text" id="validity" name="validity" value="60"/></p>
-			<p>Variant: <input type="text" id="variant" name="variant" value="java"/></p>
-			<p><input type="submit" value="Start task" /></p>
-		</form>
+		<p>Validity (minutes): <input type="text" id="validity" name="validity" value="60"/></p>
+		<p>Variant: <input type="text" id="variant" name="variant" value="java"/></p>
+		<p>Seed: <input type="text" id="seed" name="seed" value=""/></p>
+		<p><input type="submit" value="Start task" id="startTask"/></p>
+		<p><input type="submit" value="Start task (use testing version of task)" id="startTestingTask"/></p>
+		<p>Remote: <input type="text" id="repoRemote" name="repoRemote" value="ssh://"/></p>
+		<p><input type="submit" value="Start task (remote repo)" id="startRemoteTask"/></p>
 
-		<form id="startTestingTaskForm">
-			<p>Validity (minutes): <input type="text" id="validityTest" name="validityTest" value="60"/></p>
-			<p>Variant: <input type="text" id="variantTest" name="variantTest" value="java"/></p>
-			<p><input type="submit" value="Start task (use testing version of task)" /></p>
+		<p>Parameterisation</p>
+		<form id="showParameterisation">
+			<p><input type="submit" value="Get problem statement"/></p>
 		</form>
-
-		<form id="startRemoteTaskForm">
-			<p>Validity (minutes): <input type="text" id="validityRemote" name="validityRemote" value="60"/></p>
-			<p>Variant: <input type="text" id="variantRemote" name="variantRemote" value="java"/></p>
-			<p>Remote: <input type="text" id="repoRemote" name="repoRemote" value="ssh://"/></p>
-			<p><input type="submit" value="Start task (remote repo)" /></p>
-		</form>
-
 
 		<p>List tags in repo</p>
 		<form id="listRepoTags">

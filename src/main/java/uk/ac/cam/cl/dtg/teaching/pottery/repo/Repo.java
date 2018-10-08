@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
@@ -64,9 +65,11 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Parameterisation;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Parameterisations;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
@@ -201,7 +204,8 @@ public class Repo {
     try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         try {
-          List<String> copiedFiles = task.copySkeleton(repoDirectory, repoInfo.getVariant());
+          List<String> copiedFiles = task.copySkeleton(repoDirectory, repoInfo.getVariant(),
+              repoInfo.getParameters());
           if (!copiedFiles.isEmpty()) {
             for (String f : copiedFiles) {
               git.add().addFilepattern(f).call();
@@ -330,7 +334,7 @@ public class Repo {
                         codeDir,
                         taskInfo,
                         action,
-                        variant,
+                        repoInfo,
                         new ContainerManager.ErrorHandlingStepRunnerCallback() {
                           @Override
                           public void apiUnavailable(String errorMessage, Throwable exception) {
@@ -905,5 +909,20 @@ public class Repo {
 
   private String getSubmissionKey(String tag, String action) {
     return tag + "," + action;
+  }
+
+  public String getParameterisedProblemStatement(TaskIndex taskIndex) throws TaskNotFoundException {
+    Task t = taskIndex.getTask(repoInfo.getTaskId());
+    TaskCopy c =
+        repoInfo.isUsingTestingVersion() ? t.acquireTestingCopy() : t.acquireRegisteredCopy();
+
+    Optional<Parameterisation> parameterisation = c.getInfo().getParameterisation();
+
+    if (parameterisation.isPresent()) {
+      return Parameterisations.makeSubstitutions(parameterisation.get().getProblemStatement(),
+          repoInfo.getParameters());
+    } else {
+      return c.getInfo().getProblemStatement();
+    }
   }
 }

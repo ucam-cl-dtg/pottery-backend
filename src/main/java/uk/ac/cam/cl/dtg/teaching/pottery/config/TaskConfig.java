@@ -50,8 +50,8 @@ public class TaskConfig {
     return getTaskCopySubDir(copyId, "solution", variant);
   }
 
-  public File getStepDir(String copyId, String variant) {
-    return getTaskCopySubDir(copyId, "steps", variant);
+  public File getStepDir(String copyId, String step) {
+    return getTaskCopySubDir(copyId, "steps", step);
   }
 
   public File getSkeletonDir(String copyId, String variant) {

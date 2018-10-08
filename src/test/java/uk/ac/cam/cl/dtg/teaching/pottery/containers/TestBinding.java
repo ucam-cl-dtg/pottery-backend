@@ -57,11 +57,10 @@ public class TestBinding {
     String command = String.format("before @%s@ after", Binding.VARIANT_BINDING);
     ImmutableMap<String, Binding> bindings =
         ImmutableMap.of(Binding.VARIANT_BINDING, new Binding.TextBinding(variant));
-    ImmutableMap<String, ContainerExecResponse> stepResults = ImmutableMap.of();
 
     // ACT
     ImmutableList<String> expandedCommand =
-        Binding.applyBindings(command, bindings, stepResults, tempDirHost, POTTERY_PREFIX_CONTAINER)
+        Binding.applyBindings(command, bindings, name -> null)
             .command();
 
     // ASSERT
@@ -75,11 +74,10 @@ public class TestBinding {
     String command = String.format("before @%s@ after", Binding.IMAGE_BINDING);
     ImmutableMap<String, Binding> bindings =
         ImmutableMap.of(Binding.IMAGE_BINDING, new Binding.ImageBinding(image));
-    ImmutableMap<String, ContainerExecResponse> stepResults = ImmutableMap.of();
 
     // ACT
     ImmutableList<String> expandedCommand =
-        Binding.applyBindings(command, bindings, stepResults, tempDirHost, POTTERY_PREFIX_CONTAINER)
+        Binding.applyBindings(command, bindings,  name -> null)
             .command();
 
     // ASSERT
@@ -95,14 +93,11 @@ public class TestBinding {
         ImmutableMap.of(
             Binding.SUBMISSION_BINDING,
             new Binding.FileBinding(codeDirHost, /* readWrite = */ true, POTTERY_PREFIX_CONTAINER));
-    ImmutableMap<String, ContainerExecResponse> stepResults = ImmutableMap.of();
     String expectedMountPointContainer =
         POTTERY_PREFIX_CONTAINER + "/" + Binding.SUBMISSION_BINDING;
 
     // ACT
-    ExecutionConfig.Builder builder =
-        Binding.applyBindings(
-            command, bindings, stepResults, tempDirHost, POTTERY_PREFIX_CONTAINER);
+    ExecutionConfig.Builder builder = Binding.applyBindings(command, bindings, name -> null);
 
     // ASSERT
     assertThat(builder.command()).containsExactly("before", expectedMountPointContainer, "after");
@@ -117,19 +112,14 @@ public class TestBinding {
     ImmutableMap<String, Binding> bindings = ImmutableMap.of();
     String previousStepName = "test-step";
     String previousStepResponse = "test-response";
-    ImmutableMap<String, ContainerExecResponse> stepResults =
-        ImmutableMap.of(
-            previousStepName,
-            ContainerExecResponse.create(
-                ContainerExecResponse.Status.COMPLETED, previousStepResponse, 0L));
     String command = String.format("before @%s@ after", previousStepName);
     String expectedMountPointContainer = POTTERY_PREFIX_CONTAINER + "/" + previousStepName;
     File expectedTempFileHost = new File(tempDirHost, previousStepName);
 
     // ACT
-    ExecutionConfig.Builder builder =
-        Binding.applyBindings(
-            command, bindings, stepResults, tempDirHost, POTTERY_PREFIX_CONTAINER);
+    ExecutionConfig.Builder builder = Binding.applyBindings(command, bindings, name ->
+        name.equals(previousStepName) ? new Binding.TemporaryFileBinding(tempDirHost,
+            previousStepResponse, POTTERY_PREFIX_CONTAINER) : null);
 
     // ASSERT
     assertThat(builder.command()).containsExactly("before", expectedMountPointContainer, "after");

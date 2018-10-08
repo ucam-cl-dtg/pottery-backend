@@ -19,6 +19,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -28,8 +29,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.Calendar;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -39,13 +38,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.UncontainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.*;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Action;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Execution;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
@@ -109,13 +102,14 @@ class TestEnvironment {
 
   Repo createRepo(Task task)
       throws RepoStorageException, RepoNotFoundException, TaskNotFoundException,
-          RepoExpiredException {
+      RepoExpiredException, TaskInvalidParametersException, InvalidParameterisationException {
     Calendar calendar = Calendar.getInstance();
     calendar.add(Calendar.YEAR, 10);
     try (TaskCopy c = task.acquireTestingCopy()) {
       Repo repo =
           repoFactory.createInstance(
-              task.getTaskId(), true, calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET);
+              c, true, calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET, 0,
+              "{}");
       repo.copyFiles(c);
       return repo;
     }
@@ -186,7 +180,8 @@ class TestEnvironment {
                               new Execution("template:java", "@SHARED@/run-validator.sh", null)))),
               ImmutableMap.of(
                   ACTION,
-                  new Action("Validate this solution", ImmutableList.of("compile", "harness", "validate"))));
+                  new Action("Validate this solution", ImmutableList.of("compile", "harness", "validate"))),
+              null);
       TaskInfos.save(i, copyRoot);
       g.add().addFilepattern("task.json").call();
 

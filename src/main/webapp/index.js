@@ -20,17 +20,22 @@ $(document).ready(
 
 			var submissionId = 0;
 
-			var reportSuccess = function(result) {
+			var reportSuccess = function(result, xhr) {
 //				$("#assignmentsList pre").text(JSON.stringify(result,undefined,2));
 //				$("#error pre").text("");
 				$("#error").text("");
                 if (Object.prototype.toString.call(result) === '[object String]') {
-                    try {
-                        result = JSON.parse(result);
-                    } catch {
-                        $("#json").html("<pre>").children().text(result);
+                    if (xhr && xhr.getResponseHeader("Content-Type") == "text/html") {
+                        $("#json").html(result);
                         return;
-                    }
+                    } else {
+                        try {
+                            result = JSON.parse(result);
+                        } catch {
+                            $("#json").html("<pre>").children().text(result);
+                            return;
+                        }
+                     }
                 }
                 $("#json").JSONView(result, {nl2br:true});
 			}
@@ -269,60 +274,52 @@ $(document).ready(
               })
             });
 
-			$("#startTaskForm").submit(function(event) {
-				event.preventDefault();
-				$.ajax({
-					url: 'api/repo',
-					type: 'POST',
-					data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validity").val(), "variant": $("#variant").val() },
-					success: function (result) {
-						reportSuccess(result);
-						$("#repoId").val(result.repoId);
-					},
-					error : function(xhr,textStatus,errorThrown) {
-						reportError(xhr);
-					}
-				});
-
-				return false;
-			});
-
-			$("#startTestingTaskForm").submit(function(event) {
-				event.preventDefault();
-				$.ajax({
-					url: 'api/repo',
-					type: 'POST',
-					data : {"taskId" : $("#taskId").val(), "usingTestingVersion":"true", "validityMinutes": $("#validityTest").val(), "variant": $("#variantTest").val() },
-					success: function (result) {
-						reportSuccess(result);
-						$("#repoId").val(result.repoId);
-					},
-					error : function(xhr,textStatus,errorThrown) {
-						reportError(xhr);
-					}
-				});
-
-				return false;
-			});
-
-
-            $("#startRemoteTaskForm").submit(function(event) {
-                event.preventDefault();
-                $.ajax({
-                    url: 'api/repo/remote',
-                    type: 'POST',
-                    data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validityRemote").val(),"remote":$("#repoRemote").val(), "variant": $("#variantRemote").val() },
-                    success: function (result) {
-                        reportSuccess(result);
-                        $("#repoId").val(result.repoId);
-                    },
-                    error : function(xhr,textStatus,errorThrown) {
-                        reportError(xhr);
+            function startTask(data) {
+                return function(event) {
+                    event.preventDefault();
+                    if ($("#seed").val() != "") {
+                        data = {...data, "seed": $("#seed").val() };
                     }
-                });
+                    $.ajax({
+                        url: 'api/repo',
+                        type: 'POST',
+                        data : {...data, "extraParameters": "{}", "taskId" : $("#taskId").val(), "validityMinutes": $("#validity").val(), "variant": $("#variant").val()},
+                        success: function (result) {
+                            reportSuccess(result, xhr);
+                            $("#repoId").val(result.repoId);
+                        },
+                        error : function(xhr,textStatus,errorThrown) {
+                            reportError(xhr);
+                        }
+                    });
 
-                return false;
+                    return false;
+                };
+            }
+
+			$("#startTask").click(startTask({}));
+
+			$("#startTestingTask").click(startTask({"usingTestingVersion":"true"}));
+
+			$("#startRemoteTask").click((event) => {
+			    return startTask({"remote":$("#repoRemote").val()})(event);
             });
+
+            $("#showParameterisation").submit(function(event) {
+				event.preventDefault();
+				$.ajax({
+					url: 'api/repo/'+$("#repoId").val()+'/problemStatement',
+					type: 'GET',
+					success: function (result, textStatus, xhr) {
+						reportSuccess(result, xhr);
+					},
+					error : function(xhr,textStatus,errorThrown) {
+						reportError(xhr);
+					}
+				});
+
+				return false;
+			});
 
 
             $("#listRepoTags").submit(function(event) {

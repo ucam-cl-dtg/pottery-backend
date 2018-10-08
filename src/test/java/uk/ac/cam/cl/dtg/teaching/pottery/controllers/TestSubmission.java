@@ -29,15 +29,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.*;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
@@ -52,8 +44,9 @@ public class TestSubmission {
   @Before
   public void setup()
       throws IOException, GitAPIException, TaskStorageException, SQLException,
-          TaskNotFoundException, CriterionNotFoundException, RetiredTaskException,
-          RepoExpiredException, RepoNotFoundException, RepoStorageException {
+      TaskNotFoundException, CriterionNotFoundException, RetiredTaskException,
+      RepoExpiredException, RepoNotFoundException, RepoStorageException,
+      TaskInvalidParametersException, InvalidParameterisationException {
 
     this.testRootDir = Files.createTempDir().getCanonicalFile();
     this.testEnvironment = new TestEnvironment(testRootDir.getPath());

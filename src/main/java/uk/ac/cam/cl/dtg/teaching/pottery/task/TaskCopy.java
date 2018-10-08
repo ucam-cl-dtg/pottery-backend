@@ -17,6 +17,7 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
@@ -82,8 +83,8 @@ public class TaskCopy implements AutoCloseable {
     return config.getTaskCopyDir(copyId);
   }
 
-  public File getStepLocation(String variant) {
-    return config.getStepDir(copyId, variant);
+  public File getStepLocation(String step) {
+    return config.getStepDir(copyId, step);
   }
 
   public File getSolutionLocation(String variant) {
@@ -127,8 +128,34 @@ public class TaskCopy implements AutoCloseable {
    * Copy the skeleton files from this task copy to the target directory given (this will be in a
    * candidates repo).
    */
-  public ImmutableList<String> copySkeleton(File destination, String variant) throws IOException {
-    return FileUtil.copyFilesRecursively(config.getSkeletonDir(copyId, variant), destination);
+  public ImmutableList<String> copySkeleton(File destination, String variant, JsonNode parameters)
+      throws IOException {
+    ImmutableList<String> fileList = FileUtil.copyFilesRecursively(
+        config.getSkeletonDir(copyId, variant), destination);
+    ImmutableList.Builder<String> newFileListBuilder =
+        ImmutableList.builderWithExpectedSize(fileList.size());
+    boolean namesChanged = false;
+    for (String file : fileList) {
+      // Substitute file name
+      String newFile = Parameterisations.makeSubstitutions(file, parameters);
+      newFileListBuilder.add(newFile);
+      if (!file.equals(newFile)) {
+        FileUtil.renameIn(destination, file, newFile);
+        namesChanged = true;
+      }
+      // Substitute file contents
+      final Path newFilePath = new File(destination, newFile).toPath();
+      String oldContents = new String(Files.readAllBytes(newFilePath));
+      String newContents = Parameterisations.makeSubstitutions(oldContents, parameters);
+      if (!oldContents.equals(newContents)) {
+        Files.write(newFilePath, newContents.getBytes());
+      }
+    }
+    if (namesChanged) {
+      return newFileListBuilder.build();
+    } else {
+      return fileList;
+    }
   }
 
   public boolean acquire() {

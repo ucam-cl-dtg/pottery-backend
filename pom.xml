@@ -229,6 +229,14 @@
             <version>1.1</version>
         </dependency>
 
+        <!-- ANTLR StringTemplate library for templating, BSD license http://www.stringtemplate.org/license.html -->
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>stringtemplate</artifactId>
+            <version>4.0.2</version>
+        </dependency>
+
+
     </dependencies>
 
     <build>
