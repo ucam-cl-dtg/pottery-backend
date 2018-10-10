@@ -123,7 +123,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public String getParameterisedProblemStatement(String repoId)
+  public String getProblemStatement(String repoId)
       throws RepoStorageException, RepoNotFoundException, TaskNotFoundException {
     return repoFactory.getInstance(repoId).getParameterisedProblemStatement(taskIndex);
   }
