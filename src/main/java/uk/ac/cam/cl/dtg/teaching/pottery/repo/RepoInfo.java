@@ -84,6 +84,10 @@ public class RepoInfo {
     return !remote.equals(REMOTE_UNSET);
   }
 
+  public RepoInfo withExpiryDate(Date newExpiryDate) {
+    return new RepoInfo(repoId, taskId, usingTestingVersion, newExpiryDate, variant, remote);
+  }
+
   public RepoInfoWithStatus withStatusReady() {
     return withStatus(true);
   }
@@ -92,7 +96,7 @@ public class RepoInfo {
     return withStatus(false);
   }
 
-  private RepoInfoWithStatus withStatus(boolean ready) {
+  public RepoInfoWithStatus withStatus(boolean ready) {
     boolean expired = this.getExpiryDate() != null
         && new Date().after(this.getExpiryDate());
     RepoStatus status = ready

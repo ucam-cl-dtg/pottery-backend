@@ -18,8 +18,6 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.google.inject.Inject;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -27,6 +25,8 @@ import javax.ws.rs.core.StreamingOutput;
 import org.eclipse.jgit.lib.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
@@ -44,49 +44,43 @@ import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.RepoController {
 
   protected static final Logger LOG = LoggerFactory.getLogger(RepoController.class);
   private RepoFactory repoFactory;
   private TaskIndex taskIndex;
+  private Worker worker;
 
   /** Create a new RepoController. */
   @Inject
-  public RepoController(RepoFactory repoFactory, TaskIndex taskIndex) {
+  public RepoController(RepoFactory repoFactory, TaskIndex taskIndex, Worker worker) {
     super();
     this.repoFactory = repoFactory;
     this.taskIndex = taskIndex;
+    this.worker = worker;
   }
 
   @Override
   public RepoInfoWithStatus makeRemoteRepo(
       String taskId,
-      Boolean usingTestingVersion,
-      Integer validityMinutes,
+      Boolean usingTestingVersionBoolean,
+      Integer validityMinutesInteger,
       String variant,
       String remote)
-      throws TaskNotFoundException, RepoExpiredException, RepoStorageException,
-          RetiredTaskException, RepoNotFoundException, TaskMissingVariantException {
+      throws TaskNotFoundException, RepoStorageException, RetiredTaskException,
+      RepoNotFoundException, TaskMissingVariantException {
     if (taskId == null) {
       throw new TaskNotFoundException("No taskId specified");
     }
-    if (usingTestingVersion == null) {
-      usingTestingVersion = false;
-    }
-    if (validityMinutes == null) {
-      validityMinutes = 60;
-    }
+    final boolean usingTestingVersion = usingTestingVersionBoolean == null ? false
+        : usingTestingVersionBoolean;
+    final int validityMinutes = validityMinutesInteger == null ? 60 : validityMinutesInteger;
     if (remote == null) {
       throw new TaskNotFoundException("No remote specified");
     }
-    Calendar cal = Calendar.getInstance();
-    if (validityMinutes == -1) {
-      cal.add(Calendar.YEAR, 1000);
-    } else {
-      cal.add(Calendar.MINUTE, validityMinutes);
-    }
-    Date expiryDate = cal.getTime();
     Task t = taskIndex.getTask(taskId);
     if (t.isRetired()) {
       throw new RetiredTaskException("Cannot start a new repository for task " + taskId);
@@ -95,19 +89,43 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       if (!c.getInfo().getVariants().contains(variant)) {
         throw new TaskMissingVariantException("Variant " + variant + " is not defined");
       }
-      Repo r = repoFactory.createInstance(taskId, usingTestingVersion, expiryDate, variant, remote);
-      RepoInfo info = r.toRepoInfo();
-      if (!info.isRemote()) {
-        r.copyFiles(c);
-      }
-      return info.withStatusReady();
     }
+    Repo r = repoFactory.createInstance(taskId, usingTestingVersion, null, variant, remote);
+    final String repoId = r.getRepoId();
+    worker.schedule(
+        new Job() {
+          @Override
+          public int execute(
+              TaskIndex taskIndex,
+              RepoFactory repoFactory,
+              ContainerManager containerManager,
+              Database database) {
+            try {
+              Task t = taskIndex.getTask(taskId);
+              try (TaskCopy c =
+                  usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
+                repoFactory.initialiseInstance(repoId, c, validityMinutes);
+              }
+            } catch (TaskNotFoundException | RepoNotFoundException | RepoExpiredException
+                | RepoStorageException e) {
+              LOG.error("Failed to initialise repository", e);
+              return Job.STATUS_FAILED;
+            }
+            return Job.STATUS_OK;
+          }
+
+          @Override
+          public String getDescription() {
+            return "Initialising repository";
+          }
+        });
+    return r.toRepoInfoWithStatus();
   }
 
   @Override
   public RepoInfoWithStatus makeRepo(
       String taskId, Boolean usingTestingVersion, Integer validityMinutes, String variant)
-      throws TaskNotFoundException, RepoExpiredException, RepoNotFoundException,
+      throws TaskNotFoundException, RepoNotFoundException,
           RetiredTaskException, RepoStorageException, TaskMissingVariantException {
     return makeRemoteRepo(
         taskId, usingTestingVersion, validityMinutes, variant, RepoInfo.REMOTE_UNSET);
@@ -116,7 +134,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   @Override
   public RepoInfoWithStatus getStatus(String repoId)
       throws RepoStorageException, RepoNotFoundException {
-    return repoFactory.getInstance(repoId).toRepoInfo().withStatusReady();
+    return repoFactory.getInstance(repoId, true).toRepoInfoWithStatus();
   }
 
   @Override
