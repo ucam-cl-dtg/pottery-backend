@@ -865,7 +865,7 @@ public class Repo {
 
   /** Return true if this repo has expired. */
   public boolean isExpired() {
-    return new Date().after(repoInfo.getExpiryDate());
+    return repoInfo.getExpiryDate() != null && new Date().after(repoInfo.getExpiryDate());
   }
 
   public String getSubmissionOutput(String tag, String action, String step, Database database)
