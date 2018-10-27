@@ -36,11 +36,11 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskMissingVariantException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.FileData;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfoWithStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
@@ -100,7 +100,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       if (!info.isRemote()) {
         r.copyFiles(c);
       }
-      return new RepoInfoWithStatus(info, true);
+      return info.withStatusReady();
     }
   }
 
@@ -116,7 +116,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   @Override
   public RepoInfoWithStatus getStatus(String repoId)
       throws RepoStorageException, RepoNotFoundException {
-    return new RepoInfoWithStatus(repoFactory.getInstance(repoId).toRepoInfo(), true);
+    return repoFactory.getInstance(repoId).toRepoInfo().withStatusReady();
   }
 
   @Override
