@@ -75,9 +75,9 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
     if (taskId == null) {
       throw new TaskNotFoundException("No taskId specified");
     }
-    final boolean usingTestingVersion = usingTestingVersionBoolean == null ? false
+    boolean usingTestingVersion = usingTestingVersionBoolean == null ? false
         : usingTestingVersionBoolean;
-    final int validityMinutes = validityMinutesInteger == null ? 60 : validityMinutesInteger;
+    int validityMinutes = validityMinutesInteger == null ? 60 : validityMinutesInteger;
     if (remote == null) {
       throw new TaskNotFoundException("No remote specified");
     }
@@ -91,7 +91,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       }
     }
     Repo r = repoFactory.createInstance(taskId, usingTestingVersion, null, variant, remote);
-    final String repoId = r.getRepoId();
+    String repoId = r.getRepoId();
     worker.schedule(
         new Job() {
           @Override
