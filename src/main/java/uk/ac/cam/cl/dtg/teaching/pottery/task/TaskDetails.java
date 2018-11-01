@@ -21,16 +21,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 
-public class TaskInfos {
+public class TaskDetails {
 
   /** Read the json file specifying this TaskInfo from disk and parse it into an object. */
-  public static TaskInfo load(String taskId, File taskDirectory)
+  public static TaskDetail load(String taskId, File taskDirectory)
       throws InvalidTaskSpecificationException {
     ObjectMapper o = new ObjectMapper();
     try {
-      TaskInfo t = o.readValue(new File(taskDirectory, "task.json"), TaskInfo.class);
+      TaskDetail t = o.readValue(new File(taskDirectory, "task.json"), TaskDetail.class);
       t.setTaskId(taskId);
       return t;
     } catch (IOException e) {
@@ -40,7 +39,7 @@ public class TaskInfos {
   }
 
   /** Write this task info back to disk. */
-  public static void save(TaskInfo taskInfo, File taskDirectory) throws IOException {
+  public static void save(TaskDetail taskInfo, File taskDirectory) throws IOException {
     ObjectMapper o = new ObjectMapper();
     o.writeValue(new File(taskDirectory, "task.json"), taskInfo);
   }

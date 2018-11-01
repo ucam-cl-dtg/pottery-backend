@@ -70,6 +70,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskDetail;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -344,13 +345,13 @@ public class Repo {
                 }
 
                 File codeDir = repoTestingDirectory;
-                TaskInfo taskInfo = c.getInfo();
+                TaskDetail taskDetail = c.getDetail();
                 String variant = repoInfo.getVariant();
                 int result =
                     containerManager.runSteps(
                         c,
                         codeDir,
-                        taskInfo,
+                        taskDetail,
                         action,
                         variant,
                         new ContainerManager.ErrorHandlingStepRunnerCallback() {

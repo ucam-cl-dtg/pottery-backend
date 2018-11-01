@@ -220,13 +220,13 @@ public class TaskCopyBuilder {
 
   private boolean compileFiles(ContainerManager containerManager) throws ApiUnavailableException {
     String copyId = taskCopy.getCopyId();
-    TaskInfo taskInfo = taskCopy.getInfo();
+    TaskDetail taskDetail = taskCopy.getDetail();
 
-    LOG.info("Compiling tests for task {} in {}", taskInfo.getTaskId(), copyId);
+    LOG.info("Compiling tests for task {} in {}", taskDetail.getTaskId(), copyId);
 
     builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TESTS);
 
-    for (Execution compileStep : taskInfo.getTaskCompilation()) {
+    for (Execution compileStep : taskDetail.getTaskCompilation()) {
       ContainerExecResponse r =
           containerManager.execTaskCompilation(taskCopy.getLocation(), compileStep);
 
@@ -277,8 +277,8 @@ public class TaskCopyBuilder {
 
     builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTIONS);
 
-    for (String variant : taskInfo.getVariants()) {
-      List<Testcase> testcases = taskInfo.getTaskTests().get(variant);
+    for (String variant : taskDetail.getVariants()) {
+      List<Testcase> testcases = taskDetail.getTaskTests().get(variant);
       File variantSolutions = taskCopy.getSolutionLocation(variant);
       for (Testcase testcase : testcases) {
         String testName = testcase.getDirectory();
@@ -292,7 +292,7 @@ public class TaskCopyBuilder {
             containerManager.runSteps(
                 taskCopy,
                 testCodeFolder,
-                taskInfo,
+                taskDetail,
                 testcase.getAction(),
                 variant,
                 new ContainerManager.StepRunnerCallback() {
