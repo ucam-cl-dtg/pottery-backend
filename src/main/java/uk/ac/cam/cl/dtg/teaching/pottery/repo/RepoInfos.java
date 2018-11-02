@@ -21,7 +21,6 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import org.apache.commons.dbutils.QueryRunner;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 
 public class RepoInfos {
 
@@ -32,11 +31,12 @@ public class RepoInfos {
             + " repos where repoid=?",
         rs -> {
           rs.next();
+          Timestamp expiryDate = rs.getTimestamp("expiryDate");
           return new RepoInfo(
               rs.getString("repoid"),
               rs.getString("taskid"),
               rs.getBoolean("using_testing_version"),
-              new Date(rs.getTimestamp("expiryDate").getTime()),
+              expiryDate != null ? new Date(expiryDate.getTime()) : null,
               rs.getString("variant"),
               rs.getString("remote"));
         },
@@ -51,7 +51,7 @@ public class RepoInfos {
         repoInfo.getRepoId(),
         repoInfo.getTaskId(),
         repoInfo.isUsingTestingVersion(),
-        new Timestamp(repoInfo.getExpiryDate().getTime()),
+        repoInfo.getExpiryDate() != null ? new Timestamp(repoInfo.getExpiryDate().getTime()) : null,
         repoInfo.getVariant(),
         repoInfo.getRemote());
   }

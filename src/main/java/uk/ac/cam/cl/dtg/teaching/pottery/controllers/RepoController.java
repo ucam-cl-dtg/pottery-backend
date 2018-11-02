@@ -36,10 +36,11 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskMissingVariantException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.FileData;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfoWithStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoTag;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
@@ -59,7 +60,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public RepoInfo makeRemoteRepo(
+  public RepoInfoWithStatus makeRemoteRepo(
       String taskId,
       Boolean usingTestingVersion,
       Integer validityMinutes,
@@ -99,17 +100,23 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       if (!info.isRemote()) {
         r.copyFiles(c);
       }
-      return info;
+      return info.withStatusReady();
     }
   }
 
   @Override
-  public RepoInfo makeRepo(
+  public RepoInfoWithStatus makeRepo(
       String taskId, Boolean usingTestingVersion, Integer validityMinutes, String variant)
       throws TaskNotFoundException, RepoExpiredException, RepoNotFoundException,
           RetiredTaskException, RepoStorageException, TaskMissingVariantException {
     return makeRemoteRepo(
         taskId, usingTestingVersion, validityMinutes, variant, RepoInfo.REMOTE_UNSET);
+  }
+
+  @Override
+  public RepoInfoWithStatus getStatus(String repoId)
+      throws RepoStorageException, RepoNotFoundException {
+    return repoFactory.getInstance(repoId).toRepoInfo().withStatusReady();
   }
 
   @Override

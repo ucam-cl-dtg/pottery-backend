@@ -32,7 +32,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfo;
 
 @Singleton
 public class RepoFactory {
