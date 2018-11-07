@@ -27,8 +27,8 @@ public class RepoInfos {
   /** Look up a repo from the database by its repoId. */
   public static RepoInfo getByRepoId(String repoId, QueryRunner q) throws SQLException {
     return q.query(
-        "SELECT repoid,taskid,using_testing_version,expiryDate,variant,remote from"
-            + " repos where repoid=?",
+        "SELECT repoid,taskid,using_testing_version,expiryDate,variant,remote,errormessage"
+            + " from repos where repoid=?",
         rs -> {
           rs.next();
           Timestamp expiryDate = rs.getTimestamp("expiryDate");
@@ -38,7 +38,8 @@ public class RepoInfos {
               rs.getBoolean("using_testing_version"),
               expiryDate != null ? new Date(expiryDate.getTime()) : null,
               rs.getString("variant"),
-              rs.getString("remote"));
+              rs.getString("remote"),
+              rs.getString("errormessage"));
         },
         repoId);
   }
@@ -47,25 +48,27 @@ public class RepoInfos {
   public static void insert(RepoInfo repoInfo, QueryRunner q) throws SQLException {
     q.update(
         "INSERT INTO repos(repoid,taskid,using_testing_version,expiryDate,variant,"
-            + "remote) values (?,?,?,?,?,?)",
+            + "remote, errormessage) values (?,?,?,?,?,?,?)",
         repoInfo.getRepoId(),
         repoInfo.getTaskId(),
         repoInfo.isUsingTestingVersion(),
         repoInfo.getExpiryDate() != null ? new Timestamp(repoInfo.getExpiryDate().getTime()) : null,
         repoInfo.getVariant(),
-        repoInfo.getRemote());
+        repoInfo.getRemote(),
+        repoInfo.getErrorMessage());
   }
 
   /** Update this repo in the database. */
   public static void update(RepoInfo repoInfo, QueryRunner q) throws SQLException {
     q.update(
-        "UPDATE repos SET taskid = ?, using_testing_version = ?, expiryDate = ?, variant = ?, "
-            + "remote = ? WHERE repoid = ?",
+        "UPDATE repos SET taskid = ?, using_testing_version = ?, expiryDate = ?, variant = ?,"
+            + " remote = ?, errormessage = ? WHERE repoid = ?",
         repoInfo.getTaskId(),
         repoInfo.isUsingTestingVersion(),
         repoInfo.getExpiryDate() != null ? new Timestamp(repoInfo.getExpiryDate().getTime()) : null,
         repoInfo.getVariant(),
         repoInfo.getRemote(),
+        repoInfo.getErrorMessage(),
         repoInfo.getRepoId());
   }
 }

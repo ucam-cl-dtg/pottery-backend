@@ -108,7 +108,8 @@ public class RepoFactory {
           newRepoId,
           () ->
               Repo.createRepo(
-                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate, variant, remote),
+                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate, variant, remote,
+                      null),
                   config,
                   database));
     } catch (ExecutionException e) {

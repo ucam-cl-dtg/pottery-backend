@@ -1,5 +1,5 @@
 /*
- * pottery-backend-interface - Backend API for testing programming exercises
+ * pottery-backend - Backend API for testing programming exercises
  * Copyright © 2015-2018 BlueOptima Limited, Andrew Rice (acr31@cam.ac.uk)
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,15 +15,13 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Date;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfoWithStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoStatus;
-
-import java.util.Date;
 
 public class RepoInfo {
 
@@ -39,6 +37,9 @@ public class RepoInfo {
   /** If this value is set then indicates that this repo is hosted remotely. */
   private String remote;
 
+  /** If this value is set then indicates that this repo had an error when being created. */
+  private String errorMessage;
+
   @JsonCreator
   public RepoInfo(
       @JsonProperty("repoId") String repoId,
@@ -46,7 +47,8 @@ public class RepoInfo {
       @JsonProperty("usingTestingVersion") boolean usingTestingVersion,
       @JsonProperty("expiryDate") Date expiryDate,
       @JsonProperty("variant") String variant,
-      @JsonProperty("remote") String remote) {
+      @JsonProperty("remote") String remote,
+      @JsonProperty("errorMessage") String errorMessage) {
     super();
     this.repoId = repoId;
     this.taskId = taskId;
@@ -54,6 +56,7 @@ public class RepoInfo {
     this.expiryDate = expiryDate;
     this.variant = variant;
     this.remote = remote;
+    this.errorMessage = errorMessage;
   }
 
   public Date getExpiryDate() {
@@ -85,24 +88,25 @@ public class RepoInfo {
   }
 
   public RepoInfo withExpiryDate(Date newExpiryDate) {
-    return new RepoInfo(repoId, taskId, usingTestingVersion, newExpiryDate, variant, remote);
+    return new RepoInfo(repoId, taskId, usingTestingVersion, newExpiryDate, variant, remote,
+        errorMessage);
   }
 
-  public RepoInfoWithStatus withStatusReady() {
-    return withStatus(true);
-  }
-
-  public RepoInfoWithStatus withStatusCreating() {
-    return withStatus(false);
+  public RepoInfo withError(String message) {
+    return new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate, variant, remote, message);
   }
 
   public RepoInfoWithStatus withStatus(boolean ready) {
     boolean expired = this.getExpiryDate() != null
         && new Date().after(this.getExpiryDate());
-    RepoStatus status = ready
-        ? (expired ? RepoStatus.EXPIRED : RepoStatus.READY)
+    RepoStatus status = errorMessage != null ? RepoStatus.ERROR :
+        ready ? (expired ? RepoStatus.EXPIRED : RepoStatus.READY)
         : RepoStatus.CREATING;
     return new RepoInfoWithStatus(repoId, taskId, usingTestingVersion, status, expiryDate, variant,
-        remote);
+        remote, errorMessage);
+  }
+
+  public String getErrorMessage() {
+    return errorMessage;
   }
 }
