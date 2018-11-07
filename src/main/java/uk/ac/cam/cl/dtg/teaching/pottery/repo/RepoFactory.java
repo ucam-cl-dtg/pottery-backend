@@ -121,6 +121,8 @@ public class RepoFactory {
       throws RepoStorageException, RepoExpiredException, RepoNotFoundException {
     Repo repo = getInstance(repoId, true);
     RepoInfo info = repo.toRepoInfo();
+    // TODO: Handle remote repositories by cloning the remote repo, write the files in and then
+    // pushing it back, and bork if we get a merge conflict.
     if (!info.isRemote()) {
       repo.copyFiles(c);
     }
