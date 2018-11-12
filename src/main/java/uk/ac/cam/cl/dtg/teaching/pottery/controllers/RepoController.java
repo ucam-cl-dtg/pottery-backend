@@ -109,6 +109,11 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
             } catch (TaskNotFoundException | RepoNotFoundException | RepoExpiredException
                 | RepoStorageException e) {
               LOG.error("Failed to initialise repository", e);
+              try {
+                r.markError(database, e.getMessage());
+              } catch (RepoStorageException e1) {
+                LOG.error("Double fault trying to record repository error message", e1);
+              }
               return Job.STATUS_FAILED;
             }
             return Job.STATUS_OK;

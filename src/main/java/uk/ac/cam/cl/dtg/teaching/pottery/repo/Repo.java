@@ -249,6 +249,19 @@ public class Repo {
     }
   }
 
+
+  public void markError(Database database, String message) throws RepoStorageException {
+    synchronized (lockFields) {
+      this.repoInfo = this.repoInfo.withError(message);
+      try (TransactionQueryRunner t = database.getQueryRunner()) {
+        RepoInfos.update(repoInfo, t);
+        t.commit();
+      } catch (SQLException e) {
+        throw new RepoStorageException("Failed to store repository details", e);
+      }
+    }
+  }
+
   /**
    * Return the submission object for the given tag. Each tagged version in the repository can only
    * be submitted at most once. Poll this method to get updates on the submission testing process
