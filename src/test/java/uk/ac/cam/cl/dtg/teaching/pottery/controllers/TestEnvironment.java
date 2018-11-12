@@ -45,10 +45,18 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.*;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Action;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Execution;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Step;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskDetail;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Testcase;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.BlockingWorker;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
@@ -177,7 +185,7 @@ class TestEnvironment {
               ImmutableMap.of(
                   ACTION,
                   new Action("Validate this solution", ImmutableList.of("compile", "harness", "validate"))));
-      TaskDetails.save(d, copyRoot);
+      TaskDetail.save(d, copyRoot);
       g.add().addFilepattern("task.json").call();
 
       makeScript(

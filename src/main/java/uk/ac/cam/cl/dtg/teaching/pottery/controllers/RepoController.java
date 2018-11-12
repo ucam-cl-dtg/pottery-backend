@@ -134,7 +134,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   @Override
   public RepoInfoWithStatus getStatus(String repoId)
       throws RepoStorageException, RepoNotFoundException {
-    return repoFactory.getInstance(repoId, true).toRepoInfoWithStatus();
+    return repoFactory.getInstanceIncludingCreating(repoId).toRepoInfoWithStatus();
   }
 
   @Override

@@ -67,7 +67,7 @@ public class TaskCopy implements AutoCloseable {
     super();
     this.copyId = copyId;
     this.config = config;
-    this.detail = TaskDetails.load(taskId, config.getTaskCopyDir(copyId));
+    this.detail = TaskDetail.load(taskId, config.getTaskCopyDir(copyId));
   }
 
   public String getCopyId() {

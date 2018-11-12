@@ -20,9 +20,13 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wordnik.swagger.annotations.ApiModelProperty;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -230,5 +234,25 @@ public class TaskDetail {
   public TaskInfo toTaskInfo() {
     return new TaskInfo(taskId, type, name, criteria, difficulty, recommendedTimeMinutes,
         problemStatement, questions, variants, actions.keySet());
+  }
+
+  /** Read the json file specifying this TaskDetail from disk and parse it into an object. */
+  public static TaskDetail load(String taskId, File taskDirectory)
+      throws InvalidTaskSpecificationException {
+    ObjectMapper o = new ObjectMapper();
+    try {
+      TaskDetail t = o.readValue(new File(taskDirectory, "task.json"), TaskDetail.class);
+      t.setTaskId(taskId);
+      return t;
+    } catch (IOException e) {
+      throw new InvalidTaskSpecificationException(
+          "Failed to load task information for task " + taskId, e);
+    }
+  }
+
+  /** Write this task info back to disk. */
+  public static void save(TaskDetail taskInfo, File taskDirectory) throws IOException {
+    ObjectMapper o = new ObjectMapper();
+    o.writeValue(new File(taskDirectory, "task.json"), taskInfo);
   }
 }

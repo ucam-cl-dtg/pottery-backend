@@ -79,7 +79,13 @@ public class RepoFactory {
     return getInstance(repoId, false);
   }
 
-  public Repo getInstance(String repoId, boolean includeCreating)
+  /** Lookup a repo by its repoId, including those in the process of being created. */
+  public Repo getInstanceIncludingCreating(String repoId)
+      throws RepoStorageException, RepoNotFoundException {
+    return getInstance(repoId, true);
+  }
+
+  private Repo getInstance(String repoId, boolean includeCreating)
       throws RepoStorageException, RepoNotFoundException {
     try {
       Repo instance = cache.get(repoId);
