@@ -1,5 +1,5 @@
 /*
- * pottery-backend-interface - Backend API for testing programming exercises
+ * pottery-backend - Backend API for testing programming exercises
  * Copyright © 2015-2018 BlueOptima Limited, Andrew Rice (acr31@cam.ac.uk)
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -84,6 +83,10 @@ public class RepoInfo {
     return !remote.equals(REMOTE_UNSET);
   }
 
+  public RepoInfo withExpiryDate(Date newExpiryDate) {
+    return new RepoInfo(repoId, taskId, usingTestingVersion, newExpiryDate, variant, remote);
+  }
+
   public RepoInfoWithStatus withStatusReady() {
     return withStatus(true);
   }
@@ -92,7 +95,7 @@ public class RepoInfo {
     return withStatus(false);
   }
 
-  private RepoInfoWithStatus withStatus(boolean ready) {
+  public RepoInfoWithStatus withStatus(boolean ready) {
     boolean expired = this.getExpiryDate() != null
         && new Date().after(this.getExpiryDate());
     RepoStatus status = ready

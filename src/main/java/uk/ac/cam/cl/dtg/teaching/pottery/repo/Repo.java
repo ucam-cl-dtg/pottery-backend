@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,10 +65,12 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoTagNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfoWithStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskDetail;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
@@ -89,7 +92,8 @@ public class Repo {
 
   protected static final Logger LOG = LoggerFactory.getLogger(Repo.class);
 
-  private final RepoInfo repoInfo;
+  private volatile RepoInfo repoInfo;
+  private volatile boolean ready = false;
 
   /** The directory holding this repository. */
   private final File repoDirectory;
@@ -225,6 +229,26 @@ public class Repo {
     }
   }
 
+  public void markReady(Database database, int validityMinutes) throws RepoStorageException {
+    synchronized (lockFields) {
+      this.ready = true;
+      Calendar cal = Calendar.getInstance();
+      if (validityMinutes == -1) {
+        cal.add(Calendar.YEAR, 1000);
+      } else {
+        cal.add(Calendar.MINUTE, validityMinutes);
+      }
+      Date expiryDate = cal.getTime();
+      this.repoInfo = this.repoInfo.withExpiryDate(expiryDate);
+      try (TransactionQueryRunner t = database.getQueryRunner()) {
+        RepoInfos.update(repoInfo, t);
+        t.commit();
+      } catch (SQLException e) {
+        throw new RepoStorageException("Failed to store repository details", e);
+      }
+    }
+  }
+
   /**
    * Return the submission object for the given tag. Each tagged version in the repository can only
    * be submitted at most once. Poll this method to get updates on the submission testing process
@@ -321,13 +345,13 @@ public class Repo {
                 }
 
                 File codeDir = repoTestingDirectory;
-                TaskInfo taskInfo = c.getInfo();
+                TaskDetail taskDetail = c.getDetail();
                 String variant = repoInfo.getVariant();
                 int result =
                     containerManager.runSteps(
                         c,
                         codeDir,
-                        taskInfo,
+                        taskDetail,
                         action,
                         variant,
                         new ContainerManager.ErrorHandlingStepRunnerCallback() {
@@ -858,8 +882,16 @@ public class Repo {
     return repoInfo.isUsingTestingVersion();
   }
 
-  public RepoInfo toRepoInfo() {
+  RepoInfo toRepoInfo() {
     return repoInfo;
+  }
+
+  public RepoInfoWithStatus toRepoInfoWithStatus() {
+    return repoInfo.withStatus(ready);
+  }
+
+  public boolean isReady() {
+    return ready;
   }
 
   /** Return true if this repo has expired. */

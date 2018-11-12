@@ -30,8 +30,11 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfoWithStatus;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 
 @Singleton
 public class RepoFactory {
@@ -73,8 +76,28 @@ public class RepoFactory {
 
   /** Lookup a repo by its repoId. */
   public Repo getInstance(String repoId) throws RepoStorageException, RepoNotFoundException {
+    return getInstance(repoId, false);
+  }
+
+  /** Lookup a repo by its repoId, including those in the process of being created. */
+  public Repo getInstanceIncludingCreating(String repoId)
+      throws RepoStorageException, RepoNotFoundException {
+    return getInstance(repoId, true);
+  }
+
+  private Repo getInstance(String repoId, boolean includeCreating)
+      throws RepoStorageException, RepoNotFoundException {
     try {
-      return cache.get(repoId);
+      Repo instance = cache.get(repoId);
+      if (instance.isReady()) {
+        return instance;
+      } else {
+        if (includeCreating) {
+          return instance;
+        } else {
+          throw new RepoNotFoundException("Repository is still being created.");
+        }
+      }
     } catch (ExecutionException e) {
       rethrowExecutionException(e);
       throw new Error(e);
@@ -98,6 +121,16 @@ public class RepoFactory {
       rethrowExecutionException(e);
       throw new Error(e);
     }
+  }
+
+  public void initialiseInstance(String repoId, TaskCopy c, int validityMinutes)
+      throws RepoStorageException, RepoExpiredException, RepoNotFoundException {
+    Repo repo = getInstance(repoId, true);
+    RepoInfo info = repo.toRepoInfo();
+    if (!info.isRemote()) {
+      repo.copyFiles(c);
+    }
+    repo.markReady(database, validityMinutes);
   }
 
   private void rethrowExecutionException(ExecutionException e)

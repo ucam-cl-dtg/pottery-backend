@@ -25,7 +25,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerHostConfig;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.ContainerRestrictions;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.ContainerRestrictions;
 
 @AutoValue
 abstract class ExecutionConfig {

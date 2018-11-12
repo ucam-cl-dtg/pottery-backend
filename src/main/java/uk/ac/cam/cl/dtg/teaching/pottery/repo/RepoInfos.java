@@ -55,4 +55,17 @@ public class RepoInfos {
         repoInfo.getVariant(),
         repoInfo.getRemote());
   }
+
+  /** Update this repo in the database. */
+  public static void update(RepoInfo repoInfo, QueryRunner q) throws SQLException {
+    q.update(
+        "UPDATE repos SET taskid = ?, using_testing_version = ?, expiryDate = ?, variant = ?, "
+            + "remote = ? WHERE repoid = ?",
+        repoInfo.getTaskId(),
+        repoInfo.isUsingTestingVersion(),
+        repoInfo.getExpiryDate() != null ? new Timestamp(repoInfo.getExpiryDate().getTime()) : null,
+        repoInfo.getVariant(),
+        repoInfo.getRemote(),
+        repoInfo.getRepoId());
+  }
 }

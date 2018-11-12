@@ -49,7 +49,7 @@ public class TaskCopy implements AutoCloseable {
 
   private String copyId;
   private TaskConfig config;
-  private TaskInfo info;
+  private TaskDetail detail;
   private TwoPhaseLatch latch = new TwoPhaseLatch();
 
   /**
@@ -67,7 +67,7 @@ public class TaskCopy implements AutoCloseable {
     super();
     this.copyId = copyId;
     this.config = config;
-    this.info = TaskInfos.load(taskId, config.getTaskCopyDir(copyId));
+    this.detail = TaskDetail.load(taskId, config.getTaskCopyDir(copyId));
   }
 
   public String getCopyId() {
@@ -75,7 +75,11 @@ public class TaskCopy implements AutoCloseable {
   }
 
   public TaskInfo getInfo() {
-    return info;
+    return detail.toTaskInfo();
+  }
+
+  public TaskDetail getDetail() {
+    return detail;
   }
 
   public File getLocation() {
@@ -116,7 +120,7 @@ public class TaskCopy implements AutoCloseable {
     } catch (IOException e) {
       throw new TaskStorageException(
           "Failed to access skeleton files for task "
-              + info.getTaskId()
+              + detail.getTaskId()
               + " stored in copy "
               + copyId,
           e);

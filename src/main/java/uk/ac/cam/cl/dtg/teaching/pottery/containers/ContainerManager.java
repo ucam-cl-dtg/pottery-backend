@@ -34,11 +34,12 @@ import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Execution;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Step;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Execution;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Step;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskDetail;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 
 @Singleton
@@ -165,14 +166,14 @@ public class ContainerManager implements Stoppable {
   public int runSteps(
       TaskCopy c,
       File codeDir,
-      TaskInfo taskInfo,
+      TaskDetail taskDetail,
       String action,
       String variant,
       ErrorHandlingStepRunnerCallback callback) {
     try {
       // The StepRunnerCallback cast is necessary to prevent a stack overflow since this would
       // become self-recursive
-      return runSteps(c, codeDir, taskInfo, action, variant, (StepRunnerCallback) callback);
+      return runSteps(c, codeDir, taskDetail, action, variant, (StepRunnerCallback) callback);
     } catch (ApiUnavailableException e) {
       callback.apiUnavailable(e.getMessage(), e.getCause());
       return Job.STATUS_RETRY;
@@ -182,7 +183,7 @@ public class ContainerManager implements Stoppable {
   public int runSteps(
       TaskCopy c,
       File codeDir,
-      TaskInfo taskInfo,
+      TaskDetail taskDetail,
       String action,
       String variant,
       StepRunnerCallback callback)
@@ -191,11 +192,11 @@ public class ContainerManager implements Stoppable {
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
 
-    List<String> steps = taskInfo.getActions().get(action).getSteps();
+    List<String> steps = taskDetail.getActions().get(action).getSteps();
 
     for (String stepName : steps) {
 
-      Step step = taskInfo.getSteps().get(stepName);
+      Step step = taskDetail.getSteps().get(stepName);
       Map<String, Execution> executionMap = step.getExecutionMap();
       Execution execution = getExecution(variant, executionMap);
       if (execution == null) {

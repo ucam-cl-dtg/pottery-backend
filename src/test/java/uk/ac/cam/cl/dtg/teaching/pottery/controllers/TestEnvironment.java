@@ -28,8 +28,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.Calendar;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -46,19 +44,19 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RetiredTaskException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Action;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Execution;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.Testcase;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Action;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Execution;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskDetail;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskInfos;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Testcase;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.BlockingWorker;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
@@ -156,8 +154,8 @@ class TestEnvironment {
 
       makeScript(copyRoot, "output.sh", argListingScript(), g);
 
-      TaskInfo i =
-          new TaskInfo(
+      TaskDetail d =
+          new TaskDetail(
               TaskInfo.TYPE_ALGORITHM,
               "Empty task",
               ImmutableSet.of("correctness"),
@@ -187,7 +185,7 @@ class TestEnvironment {
               ImmutableMap.of(
                   ACTION,
                   new Action("Validate this solution", ImmutableList.of("compile", "harness", "validate"))));
-      TaskInfos.save(i, copyRoot);
+      TaskDetail.save(d, copyRoot);
       g.add().addFilepattern("task.json").call();
 
       makeScript(
