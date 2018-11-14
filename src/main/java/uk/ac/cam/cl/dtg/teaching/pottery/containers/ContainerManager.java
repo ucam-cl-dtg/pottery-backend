@@ -22,7 +22,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,39 +88,32 @@ public class ContainerManager implements Stoppable {
 
   /** Execute a command inside a container. */
   private ContainerExecResponse execute(
-      @Nonnull Execution execution,
-      Map<String, ContainerExecResponse> stepResults,
-      ImmutableMap<String, Binding> bindings)
-      throws ApiUnavailableException {
-    File containerTempDir =
-        new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
-    try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
-      return containerBackend.executeContainer(
-          Binding.applyBindings(
-                  execution.getProgram(),
-                  bindings,
-                  stepResults,
-                  containerTempDir,
-                  containerBackend.getInternalMountPath())
-              .setImageName(execution.getImage())
-              .setContainerRestrictions(execution.getRestrictions())
-              .setLocalUserId(config.getUid())
-              .build());
-    } catch (ContainerExecutionException | IOException e) {
-      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
-    }
+      @Nonnull Execution execution, ExecutionConfig.Builder bindingsBuilder)
+      throws ApiUnavailableException, ContainerExecutionException {
+    return containerBackend.executeContainer(
+        bindingsBuilder
+            .setImageName(execution.getImage())
+            .setContainerRestrictions(execution.getRestrictions())
+            .setLocalUserId(config.getUid())
+            .build());
   }
 
   /** Run a compile task and get the response. */
   public ContainerExecResponse execTaskCompilation(File taskDirHost, @Nonnull Execution execution)
       throws ApiUnavailableException {
-    ImmutableMap<String, Binding> bindings =
-        ImmutableMap.of(
-            Binding.TASK_BINDING,
-                new Binding.FileBinding(taskDirHost, true, containerBackend.getInternalMountPath()),
-            Binding.IMAGE_BINDING, new Binding.ImageBinding(Binding.POTTERY_BINARIES_PATH));
-    ImmutableMap<String, ContainerExecResponse> stepResults = ImmutableMap.of();
-    return execute(execution, stepResults, bindings);
+    ImmutableMap<String, Binding> bindings = baseImageBinding()
+        .put(Binding.TASK_BINDING, new Binding.FileBinding(taskDirHost, true,
+            containerBackend.getInternalMountPath()))
+        .build();
+    try {
+      return execute(execution, Binding.applyBindings(
+          execution.getProgram(),
+          bindings,
+          stepName -> null
+          ));
+    } catch (ContainerExecutionException e) {
+      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
+    }
   }
 
   /** Run a step and get the response. */
@@ -132,21 +124,48 @@ public class ContainerManager implements Stoppable {
       RepoInfo repoInfo,
       Map<String, ContainerExecResponse> stepResults)
       throws ApiUnavailableException {
-    String variant = repoInfo.getVariant();
-    ImmutableMap<String, Binding> bindings = ImmutableMap.<String, Binding>builder()
-        .put(Binding.IMAGE_BINDING, new Binding.ImageBinding(Binding.POTTERY_BINARIES_PATH))
+    ImmutableMap<String, Binding> bindings = addRepoInfoToBinding(baseImageBinding(), repoInfo)
         .put(Binding.SUBMISSION_BINDING, new Binding.FileBinding(codeDirHost, true,
             containerBackend.getInternalMountPath()))
-        .put(Binding.STEP_BINDING, new Binding.FileBinding(new File(taskStepsDirHost, variant),
-            false, containerBackend.getInternalMountPath()))
+        .put(Binding.STEP_BINDING, new Binding.FileBinding(
+            new File(taskStepsDirHost, repoInfo.getVariant()),
+            false,
+            containerBackend.getInternalMountPath()))
         .put(Binding.SHARED_BINDING, new Binding.FileBinding(
             new File(taskStepsDirHost, "shared"),
             false,
             containerBackend.getInternalMountPath()))
-        .put(Binding.VARIANT_BINDING, new Binding.TextBinding(variant))
-        .put(Binding.MUTATION_ID_BINDING, new Binding.TextBinding("" + repoInfo.getMutationId()))
         .build();
-    return execute(execution, stepResults, bindings);
+
+    File containerTempDir =
+        new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
+    try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
+      return execute(execution, Binding.applyBindings(
+          execution.getProgram(),
+          bindings,
+          stepName -> {
+            if (stepResults.containsKey(stepName)) {
+              return new Binding.TemporaryFileBinding(containerTempDir,
+                  stepResults.get(stepName).response(),
+                  containerBackend.getInternalMountPath());
+            }
+            return null;
+          }));
+    } catch (ContainerExecutionException | IOException e) {
+      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
+    }
+  }
+
+  private ImmutableMap.Builder<String, Binding> baseImageBinding() {
+    return ImmutableMap.<String, Binding>builder()
+        .put(Binding.IMAGE_BINDING, new Binding.ImageBinding(Binding.POTTERY_BINARIES_PATH));
+  }
+
+  private ImmutableMap.Builder<String, Binding> addRepoInfoToBinding(
+      ImmutableMap.Builder<String, Binding> binding, RepoInfo repoInfo) {
+    return binding
+        .put(Binding.VARIANT_BINDING, new Binding.TextBinding(repoInfo.getVariant()))
+        .put(Binding.MUTATION_ID_BINDING, new Binding.TextBinding("" + repoInfo.getMutationId()));
   }
 
   public interface StepRunnerCallback {
@@ -243,8 +262,21 @@ public class ContainerManager implements Stoppable {
     if (execution == null) {
       return null;
     }
-    return execStep(c.getStepLocation("parameterisation"), codeDir, execution, repoInfo,
-        Collections.EMPTY_MAP);
+    ImmutableMap<String, Binding> bindings = addRepoInfoToBinding(baseImageBinding(), repoInfo)
+        .put(Binding.TASK_BINDING, new Binding.FileBinding(c.getLocation(), false,
+                containerBackend.getInternalMountPath()))
+        .put(Binding.SUBMISSION_BINDING, new Binding.FileBinding(codeDir, true,
+            containerBackend.getInternalMountPath()))
+        .build();
+    try {
+      return execute(execution, Binding.applyBindings(
+          execution.getProgram(),
+          bindings,
+          stepName -> null
+      ));
+    } catch (ContainerExecutionException e) {
+      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
+    }
   }
 
   @Nullable
