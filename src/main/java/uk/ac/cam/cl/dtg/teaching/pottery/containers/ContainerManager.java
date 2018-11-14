@@ -22,19 +22,21 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Execution;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
@@ -127,25 +129,23 @@ public class ContainerManager implements Stoppable {
       File taskStepsDirHost,
       File codeDirHost,
       @Nonnull Execution execution,
-      String variant,
+      RepoInfo repoInfo,
       Map<String, ContainerExecResponse> stepResults)
       throws ApiUnavailableException {
-    ImmutableMap<String, Binding> bindings =
-        ImmutableMap.of(
-            Binding.IMAGE_BINDING, new Binding.ImageBinding(Binding.POTTERY_BINARIES_PATH),
-            Binding.SUBMISSION_BINDING,
-                new Binding.FileBinding(codeDirHost, true, containerBackend.getInternalMountPath()),
-            Binding.STEP_BINDING,
-                new Binding.FileBinding(
-                    new File(taskStepsDirHost, variant),
-                    false,
-                    containerBackend.getInternalMountPath()),
-            Binding.SHARED_BINDING,
-                new Binding.FileBinding(
-                    new File(taskStepsDirHost, "shared"),
-                    false,
-                    containerBackend.getInternalMountPath()),
-            Binding.VARIANT_BINDING, new Binding.TextBinding(variant));
+    String variant = repoInfo.getVariant();
+    ImmutableMap<String, Binding> bindings = ImmutableMap.<String, Binding>builder()
+        .put(Binding.IMAGE_BINDING, new Binding.ImageBinding(Binding.POTTERY_BINARIES_PATH))
+        .put(Binding.SUBMISSION_BINDING, new Binding.FileBinding(codeDirHost, true,
+            containerBackend.getInternalMountPath()))
+        .put(Binding.STEP_BINDING, new Binding.FileBinding(new File(taskStepsDirHost, variant),
+            false, containerBackend.getInternalMountPath()))
+        .put(Binding.SHARED_BINDING, new Binding.FileBinding(
+            new File(taskStepsDirHost, "shared"),
+            false,
+            containerBackend.getInternalMountPath()))
+        .put(Binding.VARIANT_BINDING, new Binding.TextBinding(variant))
+        .put(Binding.MUTATION_ID_BINDING, new Binding.TextBinding("" + repoInfo.getMutationId()))
+        .build();
     return execute(execution, stepResults, bindings);
   }
 
@@ -168,12 +168,12 @@ public class ContainerManager implements Stoppable {
       File codeDir,
       TaskDetail taskDetail,
       String action,
-      String variant,
+      RepoInfo repoInfo,
       ErrorHandlingStepRunnerCallback callback) {
     try {
       // The StepRunnerCallback cast is necessary to prevent a stack overflow since this would
       // become self-recursive
-      return runSteps(c, codeDir, taskDetail, action, variant, (StepRunnerCallback) callback);
+      return runSteps(c, codeDir, taskDetail, action, repoInfo, (StepRunnerCallback) callback);
     } catch (ApiUnavailableException e) {
       callback.apiUnavailable(e.getMessage(), e.getCause());
       return Job.STATUS_RETRY;
@@ -185,7 +185,7 @@ public class ContainerManager implements Stoppable {
       File codeDir,
       TaskDetail taskDetail,
       String action,
-      String variant,
+      RepoInfo repoInfo,
       StepRunnerCallback callback)
       throws ApiUnavailableException {
     callback.setStatus(Submission.STATUS_RUNNING);
@@ -197,15 +197,14 @@ public class ContainerManager implements Stoppable {
     for (String stepName : steps) {
 
       Step step = taskDetail.getSteps().get(stepName);
-      Map<String, Execution> executionMap = step.getExecutionMap();
-      Execution execution = getExecution(variant, executionMap);
+      Execution execution = getExecution(repoInfo, step);
       if (execution == null) {
         continue;
       }
       callback.startStep(stepName);
       try {
-        ContainerExecResponse response =
-            execStep(c.getStepLocation(stepName), codeDir, execution, variant, stepResults);
+        ContainerExecResponse response = execStep(c.getStepLocation(stepName), codeDir, execution,
+            repoInfo, stepResults);
         stepResults.put(stepName, response);
         callback.finishStep(
             stepName,
@@ -231,8 +230,27 @@ public class ContainerManager implements Stoppable {
     return Job.STATUS_OK;
   }
 
+  public ContainerExecResponse runParameterisation(
+      TaskCopy c,
+      File codeDir,
+      RepoInfo repoInfo)
+      throws ApiUnavailableException {
+    if (!c.getDetail().getParameterisation().isPresent()) {
+      return null;
+    }
+    Step step = c.getDetail().getParameterisation().get().getGenerator();
+    Execution execution = getExecution(repoInfo, step);
+    if (execution == null) {
+      return null;
+    }
+    return execStep(c.getStepLocation("parameterisation"), codeDir, execution, repoInfo,
+        Collections.EMPTY_MAP);
+  }
+
   @Nullable
-  private Execution getExecution(String variant, Map<String, Execution> executionMap) {
+  private Execution getExecution(RepoInfo repoInfo, Step step) {
+    Map<String, Execution> executionMap = step.getExecutionMap();
+    String variant = repoInfo.getVariant();
     if (executionMap.containsKey(variant)) {
       return executionMap.get(variant);
     } else if (executionMap.containsKey(Binding.DEFAULT_EXECUTION)) {

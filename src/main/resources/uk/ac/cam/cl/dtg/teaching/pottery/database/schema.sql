@@ -80,7 +80,9 @@ CREATE TABLE repos (
     expirydate timestamp with time zone,
     remote character varying(255) DEFAULT '' NOT NULL,
     variant character varying(255) NOT NULL,
-    errormessage text
+    errormessage text,
+    mutationid integer NOT NULL,
+    problemstatement text
 );
 
 

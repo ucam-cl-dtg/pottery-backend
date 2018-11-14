@@ -113,7 +113,7 @@ class TestEnvironment {
     try (TaskCopy c = task.acquireTestingCopy()) {
       Repo repo =
           repoFactory.createInstance(
-              task.getTaskId(), true, calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET);
+              task.getTaskId(), true, calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET, 0);
       repo.copyFiles(c);
       return repo;
     }
@@ -184,7 +184,8 @@ class TestEnvironment {
                               new Execution("template:java", "@SHARED@/run-validator.sh", null)))),
               ImmutableMap.of(
                   ACTION,
-                  new Action("Validate this solution", ImmutableList.of("compile", "harness", "validate"))));
+                  new Action("Validate this solution", ImmutableList.of("compile", "harness", "validate"))),
+              null);
       TaskDetail.save(d, copyRoot);
       g.add().addFilepattern("task.json").call();
 

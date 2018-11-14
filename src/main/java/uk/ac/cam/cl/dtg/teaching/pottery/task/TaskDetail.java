@@ -18,16 +18,19 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wordnik.swagger.annotations.ApiModelProperty;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -121,6 +124,11 @@ public class TaskDetail {
   @ApiModelProperty("Actions that can be requested for this task")
   private Map<String, Action> actions;
 
+  @ApiModelProperty("Instructions for parameterising this task")
+  @Nullable
+  @JsonProperty("parameterisation")
+  private Parameterisation parameterisation;
+
   public TaskDetail(String taskId) {
     super();
     this.taskId = taskId;
@@ -139,7 +147,8 @@ public class TaskDetail {
       @JsonProperty("taskTests") Map<String, List<Testcase>> taskTests,
       @JsonProperty("taskCompilation") List<Execution> taskCompilation,
       @JsonProperty("steps") Map<String, Step> steps,
-      @JsonProperty("actions") Map<String, Action> actions) {
+      @JsonProperty("actions") Map<String, Action> actions,
+      @JsonProperty("parameterisation") Parameterisation parameterisation) {
     super();
     this.taskId = taskId;
     this.type = type;
@@ -172,6 +181,12 @@ public class TaskDetail {
                             .withDefaultContainerRestriction(
                                 ContainerRestrictions.DEFAULT_CANDIDATE_RESTRICTIONS)));
     this.actions = actions;
+    if (parameterisation != null) {
+      this.parameterisation = parameterisation.withDefaultContainerRestrictions(
+          ContainerRestrictions.DEFAULT_AUTHOR_RESTRICTIONS);
+    } else {
+      this.parameterisation = null;
+    }
   }
 
   public String getTaskId() {
@@ -224,6 +239,11 @@ public class TaskDetail {
 
   public Map<String, Action> getActions() {
     return actions;
+  }
+
+  @JsonIgnore
+  public Optional<Parameterisation> getParameterisation() {
+    return Optional.ofNullable(parameterisation);
   }
 
   public void setTaskId(String taskId) {

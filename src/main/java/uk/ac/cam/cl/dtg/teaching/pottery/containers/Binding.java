@@ -31,6 +31,7 @@ abstract class Binding {
 
   private static final Pattern COMMAND_TOKENIZER =
       Pattern.compile("([^\"' ]|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')+");
+
   static final String POTTERY_BINARIES_PATH = "/pottery-binaries";
   static final String IMAGE_BINDING = "IMAGE";
   static final String SUBMISSION_BINDING = "SUBMISSION";
@@ -39,6 +40,8 @@ abstract class Binding {
   static final String STEP_BINDING = "STEP";
   static final String SHARED_BINDING = "SHARED";
   static final String DEFAULT_EXECUTION = "default";
+  static final String MUTATION_ID_BINDING = "mutation";
+
   private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
 
   static ExecutionConfig.Builder applyBindings(
