@@ -17,8 +17,6 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
@@ -83,8 +81,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskDetail;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
-
-import static uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status.COMPLETED;
 
 /**
  * A repo represents the candidate's attempt at a task.
@@ -243,7 +239,7 @@ public class Repo {
     }
   }
 
-  /** Parameterise this task */
+  /** Parameterise this task. */
   public void doParameterisation(Worker w, Database database,
                                  TaskCopy c,
                                  Runnable successCallback,
@@ -277,7 +273,7 @@ public class Repo {
                       c,
                       repoTestingDirectory,
                       repoInfo);
-                  if (response.status() != COMPLETED) {
+                  if (response.status() != ContainerExecResponse.Status.COMPLETED) {
                     failureCallback.accept("Failed to run parameterisation. Error was: "
                         + response.response());
                     return STATUS_FAILED;
@@ -285,15 +281,15 @@ public class Repo {
                 } catch (InterruptedException e) {
                   return STATUS_RETRY;
                 }
-              } catch (TaskNotFoundException|ApiUnavailableException e) {
+              } catch (TaskNotFoundException | ApiUnavailableException e) {
                 LOG.error("doParameterisation failed due to exception", e);
                 failureCallback.accept(e.getMessage());
                 return STATUS_FAILED;
               }
               try {
-                String parameterisationJSON = response.response();
+                String parameterisationJson = response.response();
                 ParameterisationResult parameterisationResult =
-                    objectMapper.readValue(parameterisationJSON, ParameterisationResult.class);
+                    objectMapper.readValue(parameterisationJson, ParameterisationResult.class);
                 saveProblemStatement(database, parameterisationResult.getProblemStatement());
               } catch (RepoStorageException | IOException e) {
                 LOG.error("Fault recording task is ready", e);

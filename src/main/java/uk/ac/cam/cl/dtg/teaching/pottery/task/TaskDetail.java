@@ -18,21 +18,18 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wordnik.swagger.annotations.ApiModelProperty;
-import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
-
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
+import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 
 public class TaskDetail {
 
@@ -180,8 +177,8 @@ public class TaskDetail {
                             .withDefaultContainerRestriction(
                                 ContainerRestrictions.DEFAULT_CANDIDATE_RESTRICTIONS)));
     this.actions = actions;
-    Task.LOG.info("Building TaskDetail with name " + name + " and parameterisation " + parameterisation + " with count " +
-        (parameterisation != null ? parameterisation.getCount() : "none"));
+    Task.LOG.info("Building TaskDetail with name " + name + " with parameterisation count "
+        + (parameterisation != null ? parameterisation.getCount() : "none"));
     if (parameterisation != null) {
       this.parameterisation = parameterisation.withDefaultContainerRestrictions(
           ContainerRestrictions.DEFAULT_AUTHOR_RESTRICTIONS);
