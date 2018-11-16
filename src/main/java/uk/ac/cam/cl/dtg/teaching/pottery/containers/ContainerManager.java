@@ -46,6 +46,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 @Singleton
 public class ContainerManager implements Stoppable {
 
+  static final String DEFAULT_EXECUTION = "default";
+
   private final ContainerEnvConfig config;
   private final ContainerBackend containerBackend;
   private final AtomicInteger tempDirCounter = new AtomicInteger(0);
@@ -285,8 +287,8 @@ public class ContainerManager implements Stoppable {
     String variant = repoInfo.getVariant();
     if (executionMap.containsKey(variant)) {
       return executionMap.get(variant);
-    } else if (executionMap.containsKey(Binding.DEFAULT_EXECUTION)) {
-      return executionMap.get(Binding.DEFAULT_EXECUTION);
+    } else if (executionMap.containsKey(DEFAULT_EXECUTION)) {
+      return executionMap.get(DEFAULT_EXECUTION);
     } else {
       return null;
     }

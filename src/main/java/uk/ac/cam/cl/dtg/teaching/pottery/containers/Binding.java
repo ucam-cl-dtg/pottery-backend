@@ -40,8 +40,7 @@ abstract class Binding {
   static final String TASK_BINDING = "TASK";
   static final String STEP_BINDING = "STEP";
   static final String SHARED_BINDING = "SHARED";
-  static final String DEFAULT_EXECUTION = "default";
-  static final String MUTATION_ID_BINDING = "mutation";
+  static final String MUTATION_ID_BINDING = "MUTATION";
 
   private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
 
