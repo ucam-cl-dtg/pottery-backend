@@ -34,7 +34,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
-@Singleton
 public class ThreadPoolWorker implements Worker {
 
   protected static final Logger LOG = LoggerFactory.getLogger(ThreadPoolWorker.class);

@@ -55,6 +55,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.controllers.TasksController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.WorkerController;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.PostgresDatabase;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
@@ -100,6 +101,8 @@ public class ApplicationModule implements Module {
 
     binder.bind(Database.class).to(PostgresDatabase.class).in(Singleton.class);
     binder.bind(Worker.class).to(ThreadPoolWorker.class).in(Singleton.class);
+    binder.bind(Worker.class).annotatedWith(Names.named(Repo.PARAMETERISATION_WORKER_NAME))
+        .to(ThreadPoolWorker.class).in(Singleton.class);
     binder.bind(ContainerBackend.class).to(DockerContainerImpl.class).in(Singleton.class);
 
     binder.bind(GuiceDependencyController.class);

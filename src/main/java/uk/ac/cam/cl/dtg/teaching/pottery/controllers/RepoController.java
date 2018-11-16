@@ -20,6 +20,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 import com.google.inject.Inject;
 import java.util.List;
 import java.util.Optional;
+import javax.inject.Named;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -48,6 +49,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
+import static uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo.PARAMETERISATION_WORKER_NAME;
+
 public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.RepoController {
 
   protected static final Logger LOG = LoggerFactory.getLogger(RepoController.class);
@@ -57,7 +60,8 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
 
   /** Create a new RepoController. */
   @Inject
-  public RepoController(RepoFactory repoFactory, TaskIndex taskIndex, Worker worker) {
+  public RepoController(RepoFactory repoFactory, TaskIndex taskIndex,
+                        @Named(PARAMETERISATION_WORKER_NAME) Worker worker) {
     super();
     this.repoFactory = repoFactory;
     this.taskIndex = taskIndex;

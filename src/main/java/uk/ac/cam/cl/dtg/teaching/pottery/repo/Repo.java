@@ -104,6 +104,7 @@ public class Repo {
   protected static final Logger LOG = LoggerFactory.getLogger(Repo.class);
 
   protected static final ObjectMapper objectMapper = new ObjectMapper();
+  public static final String PARAMETERISATION_WORKER_NAME = "PARAMETERISATION_WORKER";
 
   private volatile RepoInfo repoInfo;
   private volatile boolean ready = false;
