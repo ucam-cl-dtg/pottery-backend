@@ -17,6 +17,9 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -72,6 +75,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfoWithStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Parameterisation;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.ParameterisationResult;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
@@ -98,6 +102,8 @@ import static uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse
 public class Repo {
 
   protected static final Logger LOG = LoggerFactory.getLogger(Repo.class);
+
+  protected static final ObjectMapper objectMapper = new ObjectMapper();
 
   private volatile RepoInfo repoInfo;
   private volatile boolean ready = false;
@@ -240,7 +246,8 @@ public class Repo {
   public void doParameterisation(Worker w, Database database,
                                  TaskCopy c,
                                  Runnable successCallback,
-                                 Consumer<String> failureCallback) throws RepoStorageException, RepoExpiredException {
+                                 Consumer<String> failureCallback)
+      throws RepoStorageException, RepoExpiredException {
     LOG.info("Doing parameterisation with " + c.getDetail().getParameterisation());
     if (c.getDetail().getParameterisation() != null) {
       w.schedule(
@@ -283,8 +290,11 @@ public class Repo {
                 return STATUS_FAILED;
               }
               try {
-                saveProblemStatement(database, response.response());
-              } catch (RepoStorageException e) {
+                String parameterisationJSON = response.response();
+                ParameterisationResult parameterisationResult =
+                    objectMapper.readValue(parameterisationJSON, ParameterisationResult.class);
+                saveProblemStatement(database, parameterisationResult.getProblemStatement());
+              } catch (RepoStorageException | IOException e) {
                 LOG.error("Fault recording task is ready", e);
                 failureCallback.accept(e.getMessage());
                 return STATUS_FAILED;
