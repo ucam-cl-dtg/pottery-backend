@@ -74,20 +74,11 @@
 		<form id="startTaskForm">
 			<p>Validity (minutes): <input type="text" id="validity" name="validity" value="60"/></p>
 			<p>Variant: <input type="text" id="variant" name="variant" value="java"/></p>
-			<p><input type="submit" value="Start task" /></p>
-		</form>
-
-		<form id="startTestingTaskForm">
-			<p>Validity (minutes): <input type="text" id="validityTest" name="validityTest" value="60"/></p>
-			<p>Variant: <input type="text" id="variantTest" name="variantTest" value="java"/></p>
-			<p><input type="submit" value="Start task (use testing version of task)" /></p>
-		</form>
-
-		<form id="startRemoteTaskForm">
-			<p>Validity (minutes): <input type="text" id="validityRemote" name="validityRemote" value="60"/></p>
-			<p>Variant: <input type="text" id="variantRemote" name="variantRemote" value="java"/></p>
+			<p>Seed: <input type="text" id="seed" name="seed" value=""/></p>
+			<p><input type="submit" id="startTask" value="Start task" /></p>
+			<p><input type="submit" id="startTestingTask" value="Start task (use testing version of task)" /></p>
 			<p>Remote: <input type="text" id="repoRemote" name="repoRemote" value="ssh://"/></p>
-			<p><input type="submit" value="Start task (remote repo)" /></p>
+			<p><input type="submit" id="startTaskRemote" value="Start task (remote repo)" /></p>
 		</form>
 
 		<p>Get repo status</p>
