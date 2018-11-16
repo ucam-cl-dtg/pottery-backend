@@ -126,7 +126,6 @@ public class TaskDetail {
 
   @ApiModelProperty("Instructions for parameterising this task")
   @Nullable
-  @JsonProperty("parameterisation")
   private Parameterisation parameterisation;
 
   public TaskDetail(String taskId) {
@@ -181,6 +180,8 @@ public class TaskDetail {
                             .withDefaultContainerRestriction(
                                 ContainerRestrictions.DEFAULT_CANDIDATE_RESTRICTIONS)));
     this.actions = actions;
+    Task.LOG.info("Building TaskDetail with name " + name + " and parameterisation " + parameterisation + " with count " +
+        (parameterisation != null ? parameterisation.getCount() : "none"));
     if (parameterisation != null) {
       this.parameterisation = parameterisation.withDefaultContainerRestrictions(
           ContainerRestrictions.DEFAULT_AUTHOR_RESTRICTIONS);
@@ -241,9 +242,9 @@ public class TaskDetail {
     return actions;
   }
 
-  @JsonIgnore
-  public Optional<Parameterisation> getParameterisation() {
-    return Optional.ofNullable(parameterisation);
+  @Nullable
+  public Parameterisation getParameterisation() {
+    return parameterisation;
   }
 
   public void setTaskId(String taskId) {

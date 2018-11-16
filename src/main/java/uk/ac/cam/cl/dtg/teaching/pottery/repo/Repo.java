@@ -241,7 +241,8 @@ public class Repo {
                                  TaskCopy c,
                                  Runnable successCallback,
                                  Consumer<String> failureCallback) throws RepoStorageException, RepoExpiredException {
-    if (c.getDetail().getParameterisation().isPresent()) {
+    LOG.info("Doing parameterisation with " + c.getDetail().getParameterisation());
+    if (c.getDetail().getParameterisation() != null) {
       w.schedule(
           new Job() {
             @Override

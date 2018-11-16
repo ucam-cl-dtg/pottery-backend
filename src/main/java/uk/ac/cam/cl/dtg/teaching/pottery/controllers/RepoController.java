@@ -19,6 +19,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.google.inject.Inject;
 import java.util.List;
+import java.util.Optional;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -91,7 +92,8 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       if (!c.getInfo().getVariants().contains(variant)) {
         throw new TaskMissingVariantException("Variant " + variant + " is not defined");
       }
-      mutationId = c.getDetail().getParameterisation().map(p -> seed % p.getCount()).orElse(-1);
+      mutationId = Optional.ofNullable(c.getDetail().getParameterisation())
+          .map(p -> seed % p.getCount()).orElse(-1);
     }
     Repo r = repoFactory.createInstance(taskId, usingTestingVersion, null, variant,
         remote, mutationId);
@@ -108,6 +110,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
               Task t = taskIndex.getTask(taskId);
               try (TaskCopy c =
                   usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
+                LOG.info("Initialising instance for repo " + repoId);
                 repoFactory.initialiseInstance(c, worker, database, repoId, validityMinutes);
               }
             } catch (TaskNotFoundException | RepoNotFoundException | RepoExpiredException

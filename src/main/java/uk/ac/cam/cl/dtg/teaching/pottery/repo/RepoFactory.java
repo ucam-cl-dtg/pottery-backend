@@ -133,6 +133,7 @@ public class RepoFactory {
     repo.doParameterisation(w, db, c,
         () -> {
           try {
+            Repo.LOG.info("Marking repo " + repoId + " ready");
             repo.markReady(database, validityMinutes);
           } catch (RepoStorageException e) {
             Repo.LOG.error("Fault logging success", e);

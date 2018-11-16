@@ -256,10 +256,10 @@ public class ContainerManager implements Stoppable {
       File codeDir,
       RepoInfo repoInfo)
       throws ApiUnavailableException {
-    if (!c.getDetail().getParameterisation().isPresent()) {
+    if (c.getDetail().getParameterisation() == null) {
       return null;
     }
-    Step step = c.getDetail().getParameterisation().get().getGenerator();
+    Step step = c.getDetail().getParameterisation().getGenerator();
     Execution execution = getExecution(repoInfo, step);
     if (execution == null) {
       return null;
