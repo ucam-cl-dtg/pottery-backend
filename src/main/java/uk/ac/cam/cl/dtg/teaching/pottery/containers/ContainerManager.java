@@ -17,6 +17,7 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -256,14 +257,12 @@ public class ContainerManager implements Stoppable {
       File codeDir,
       RepoInfo repoInfo)
       throws ApiUnavailableException {
-    if (c.getDetail().getParameterisation() == null) {
-      return null;
-    }
+    Preconditions.checkNotNull(c.getDetail().getParameterisation());
+
     Step step = c.getDetail().getParameterisation().getGenerator();
     Execution execution = getExecution(repoInfo, step);
-    if (execution == null) {
-      return null;
-    }
+    Preconditions.checkNotNull(execution);
+
     ImmutableMap<String, Binding> bindings = addRepoInfoToBinding(baseImageBinding(), repoInfo)
         .put(Binding.TASK_BINDING, new Binding.FileBinding(c.getLocation(), false,
                 containerBackend.getInternalMountPath()))
