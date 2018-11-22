@@ -309,6 +309,7 @@ public class Repo {
       if (!repoInfo.isRemote()) {
         copyFiles(c);
       }
+      saveProblemStatement(database, c.getDetail().getProblemStatement());
       successCallback.run();
     }
   }
