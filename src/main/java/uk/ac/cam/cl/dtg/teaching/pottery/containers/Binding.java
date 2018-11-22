@@ -18,6 +18,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -26,9 +27,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import com.google.common.io.CharSink;
-import com.google.common.io.Files;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
 abstract class Binding {
