@@ -269,12 +269,12 @@ $(document).ready(
               })
             });
 
-			$("#startTaskForm").submit(function(event) {
+			$("#startTask").click(function(event) {
 				event.preventDefault();
 				$.ajax({
 					url: 'api/repo',
 					type: 'POST',
-					data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validity").val(), "variant": $("#variant").val() },
+					data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validity").val(), "variant": $("#variant").val(), "seed": $("#seed").val() },
 					success: function (result) {
 						reportSuccess(result);
 						$("#repoId").val(result.repoId);
@@ -287,12 +287,12 @@ $(document).ready(
 				return false;
 			});
 
-			$("#startTestingTaskForm").submit(function(event) {
+			$("#startTestingTask").click(function(event) {
 				event.preventDefault();
 				$.ajax({
 					url: 'api/repo',
 					type: 'POST',
-					data : {"taskId" : $("#taskId").val(), "usingTestingVersion":"true", "validityMinutes": $("#validityTest").val(), "variant": $("#variantTest").val() },
+					data : {"taskId" : $("#taskId").val(), "usingTestingVersion":"true", "validityMinutes": $("#validity").val(), "variant": $("#variant").val(), "seed": $("#seed").val() },
 					success: function (result) {
 						reportSuccess(result);
 						$("#repoId").val(result.repoId);
@@ -305,13 +305,12 @@ $(document).ready(
 				return false;
 			});
 
-
-            $("#startRemoteTaskForm").submit(function(event) {
+            $("#startTaskRemote").click(function(event) {
                 event.preventDefault();
                 $.ajax({
                     url: 'api/repo/remote',
                     type: 'POST',
-                    data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validityRemote").val(),"remote":$("#repoRemote").val(), "variant": $("#variantRemote").val() },
+                    data : {"taskId" : $("#taskId").val(), "validityMinutes": $("#validity").val(),"remote":$("#repoRemote").val(), "variant": $("#variant").val(), "seed": $("#seed").val() },
                     success: function (result) {
                         reportSuccess(result);
                         $("#repoId").val(result.repoId);

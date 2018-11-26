@@ -17,6 +17,7 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -25,7 +26,10 @@ import java.sql.SQLException;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jgit.api.CommitCommand;
@@ -48,6 +52,7 @@ import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock.AutoCloseableLock;
@@ -67,7 +72,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfoWithStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Parameterisation;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.ParameterisationResult;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskDetail;
@@ -91,6 +98,9 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 public class Repo {
 
   protected static final Logger LOG = LoggerFactory.getLogger(Repo.class);
+
+  protected static final ObjectMapper objectMapper = new ObjectMapper();
+  public static final String PARAMETERISATION_WORKER_NAME = "PARAMETERISATION_WORKER";
 
   private volatile RepoInfo repoInfo;
   private volatile boolean ready = false;
@@ -229,17 +239,86 @@ public class Repo {
     }
   }
 
-  public void markReady(Database database, int validityMinutes) throws RepoStorageException {
-    synchronized (lockFields) {
-      this.ready = true;
-      Calendar cal = Calendar.getInstance();
-      if (validityMinutes == -1) {
-        cal.add(Calendar.YEAR, 1000);
-      } else {
-        cal.add(Calendar.MINUTE, validityMinutes);
+  /** Parameterise this task. */
+  public void doParameterisation(Worker w, Database database,
+                                 TaskCopy c,
+                                 Runnable successCallback,
+                                 Consumer<String> failureCallback)
+      throws RepoStorageException, RepoExpiredException {
+    LOG.info("Doing parameterisation with " + c.getDetail().getParameterisation());
+    if (c.getDetail().getParameterisation() != null) {
+      w.schedule(
+          new Job() {
+            @Override
+            public int execute(
+                TaskIndex taskIndex,
+                RepoFactory repoFactory,
+                ContainerManager containerManager,
+                Database database) {
+              Task t;
+              try {
+                t = taskIndex.getTask(repoInfo.getTaskId());
+              } catch (TaskNotFoundException e) {
+                LOG.error("Fault loading task for repo " + getRepoId(), e);
+                failureCallback.accept(e.getMessage());
+                return STATUS_FAILED;
+              }
+              ContainerExecResponse response;
+              try (TaskCopy c =
+                       repoInfo.isUsingTestingVersion()
+                           ? t.acquireTestingCopy()
+                           : t.acquireRegisteredCopy()) {
+                try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
+                  response = containerManager.runParameterisation(
+                      c,
+                      repoTestingDirectory,
+                      repoInfo);
+                  if (response.status() != ContainerExecResponse.Status.COMPLETED) {
+                    failureCallback.accept("Failed to run parameterisation. Error was: "
+                        + response.response());
+                    return STATUS_FAILED;
+                  }
+                } catch (InterruptedException e) {
+                  return STATUS_RETRY;
+                }
+              } catch (TaskNotFoundException | ApiUnavailableException e) {
+                LOG.error("doParameterisation failed due to exception", e);
+                failureCallback.accept(e.getMessage());
+                return STATUS_FAILED;
+              }
+              try {
+                String parameterisationJson = response.response();
+                ParameterisationResult parameterisationResult =
+                    objectMapper.readValue(parameterisationJson, ParameterisationResult.class);
+                saveProblemStatement(database, parameterisationResult.getProblemStatement());
+              } catch (RepoStorageException | IOException e) {
+                LOG.error("Fault recording task is ready", e);
+                failureCallback.accept(e.getMessage());
+                return STATUS_FAILED;
+              }
+              successCallback.run();
+              return Job.STATUS_OK;
+            }
+
+            @Override
+            public String getDescription() {
+              return "Parameterising repo" + repoInfo.getRepoId();
+            }
+          });
+    } else {
+      if (!repoInfo.isRemote()) {
+        copyFiles(c);
       }
-      Date expiryDate = cal.getTime();
-      this.repoInfo = this.repoInfo.withExpiryDate(expiryDate);
+      saveProblemStatement(database, c.getDetail().getProblemStatement());
+      successCallback.run();
+    }
+  }
+
+  private void saveProblemStatement(Database database, String problemStatement)
+      throws RepoStorageException {
+    synchronized (lockFields) {
+      this.repoInfo = this.repoInfo
+          .withProblemStatement(problemStatement);
       try (TransactionQueryRunner t = database.getQueryRunner()) {
         RepoInfos.update(repoInfo, t);
         t.commit();
@@ -249,6 +328,27 @@ public class Repo {
     }
   }
 
+  void markReady(Database database, int validityMinutes)
+      throws RepoStorageException {
+    synchronized (lockFields) {
+      this.ready = true;
+      Calendar cal = Calendar.getInstance();
+      if (validityMinutes == -1) {
+        cal.add(Calendar.YEAR, 1000);
+      } else {
+        cal.add(Calendar.MINUTE, validityMinutes);
+      }
+      Date expiryDate = cal.getTime();
+      this.repoInfo = this.repoInfo
+          .withExpiryDate(expiryDate);
+      try (TransactionQueryRunner t = database.getQueryRunner()) {
+        RepoInfos.update(repoInfo, t);
+        t.commit();
+      } catch (SQLException e) {
+        throw new RepoStorageException("Failed to store repository details", e);
+      }
+    }
+  }
 
   public void markError(Database database, String message) throws RepoStorageException {
     synchronized (lockFields) {
@@ -359,14 +459,13 @@ public class Repo {
 
                 File codeDir = repoTestingDirectory;
                 TaskDetail taskDetail = c.getDetail();
-                String variant = repoInfo.getVariant();
                 int result =
                     containerManager.runSteps(
                         c,
                         codeDir,
                         taskDetail,
                         action,
-                        variant,
+                        repoInfo,
                         new ContainerManager.ErrorHandlingStepRunnerCallback() {
                           @Override
                           public void apiUnavailable(String errorMessage, Throwable exception) {

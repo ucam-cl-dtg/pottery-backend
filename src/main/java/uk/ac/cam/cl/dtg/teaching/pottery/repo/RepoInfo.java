@@ -20,6 +20,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.repo;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Date;
+import javax.annotation.Nullable;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfoWithStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoStatus;
 
@@ -40,6 +41,13 @@ public class RepoInfo {
   /** If this value is set then indicates that this repo had an error when being created. */
   private String errorMessage;
 
+  /** The identifier of the mutation for this repo, or -1 if this repo has no mutations. */
+  private int mutationId;
+
+  /** The customised problemStatement for this repo. */
+  @Nullable
+  private String problemStatement;
+
   @JsonCreator
   public RepoInfo(
       @JsonProperty("repoId") String repoId,
@@ -48,7 +56,10 @@ public class RepoInfo {
       @JsonProperty("expiryDate") Date expiryDate,
       @JsonProperty("variant") String variant,
       @JsonProperty("remote") String remote,
-      @JsonProperty("errorMessage") String errorMessage) {
+      @JsonProperty("errorMessage") String errorMessage,
+      @JsonProperty("mutationId") int mutationId,
+      @JsonProperty("problemStatement") String problemStatement
+      ) {
     super();
     this.repoId = repoId;
     this.taskId = taskId;
@@ -57,6 +68,8 @@ public class RepoInfo {
     this.variant = variant;
     this.remote = remote;
     this.errorMessage = errorMessage;
+    this.mutationId = mutationId;
+    this.problemStatement = problemStatement;
   }
 
   public Date getExpiryDate() {
@@ -87,13 +100,32 @@ public class RepoInfo {
     return !remote.equals(REMOTE_UNSET);
   }
 
+  public String getErrorMessage() {
+    return errorMessage;
+  }
+
+  public int getMutationId() {
+    return mutationId;
+  }
+
+  @Nullable
+  public String getProblemStatement() {
+    return problemStatement;
+  }
+
   public RepoInfo withExpiryDate(Date newExpiryDate) {
     return new RepoInfo(repoId, taskId, usingTestingVersion, newExpiryDate, variant, remote,
-        errorMessage);
+        errorMessage, mutationId, problemStatement);
   }
 
   public RepoInfo withError(String message) {
-    return new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate, variant, remote, message);
+    return new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate, variant, remote, message,
+        mutationId, problemStatement);
+  }
+
+  public RepoInfo withProblemStatement(String newProblemStatement) {
+    return new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate, variant, remote,
+        errorMessage, mutationId, newProblemStatement);
   }
 
   public RepoInfoWithStatus withStatus(boolean ready) {
@@ -103,10 +135,6 @@ public class RepoInfo {
         ready ? (expired ? RepoStatus.EXPIRED : RepoStatus.READY)
         : RepoStatus.CREATING;
     return new RepoInfoWithStatus(repoId, taskId, usingTestingVersion, status, expiryDate, variant,
-        remote, errorMessage);
-  }
-
-  public String getErrorMessage() {
-    return errorMessage;
+        remote, errorMessage, problemStatement);
   }
 }

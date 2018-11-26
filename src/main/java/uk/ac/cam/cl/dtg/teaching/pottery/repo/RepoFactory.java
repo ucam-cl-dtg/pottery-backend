@@ -33,8 +33,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
-import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfoWithStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 @Singleton
 public class RepoFactory {
@@ -105,8 +105,8 @@ public class RepoFactory {
   }
 
   /** Create a new repo for this task and return it. */
-  public Repo createInstance(
-      String taskId, boolean usingTestingVersion, Date expiryDate, String variant, String remote)
+  public Repo createInstance(String taskId, boolean usingTestingVersion, Date expiryDate,
+                             String variant, String remote, int mutationId)
       throws RepoStorageException, RepoNotFoundException {
     final String newRepoId = uuidGenerator.generate();
     try {
@@ -115,7 +115,7 @@ public class RepoFactory {
           () ->
               Repo.createRepo(
                   new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate, variant, remote,
-                      null),
+                      null, mutationId, null),
                   config,
                   database));
     } catch (ExecutionException e) {
@@ -124,16 +124,27 @@ public class RepoFactory {
     }
   }
 
-  public void initialiseInstance(String repoId, TaskCopy c, int validityMinutes)
+  public void initialiseInstance(TaskCopy c, Worker w, Database db, String repoId,
+                                 int validityMinutes)
       throws RepoStorageException, RepoExpiredException, RepoNotFoundException {
     Repo repo = getInstance(repoId, true);
-    RepoInfo info = repo.toRepoInfo();
-    // TODO: Handle remote repositories by cloning the remote repo, write the files in and then
-    // pushing it back, and bork if we get a merge conflict.
-    if (!info.isRemote()) {
-      repo.copyFiles(c);
-    }
-    repo.markReady(database, validityMinutes);
+    // TODO: Handle remote repositories by cloning the remote repo, write the files in below
+    // TODO: and then pushing it back in the callback below, and bork if we get a merge conflict.
+    repo.doParameterisation(w, db, c,
+        () -> {
+          try {
+            Repo.LOG.info("Marking repo " + repoId + " ready");
+            repo.markReady(database, validityMinutes);
+          } catch (RepoStorageException e) {
+            Repo.LOG.error("Fault logging success", e);
+          }
+        }, error -> {
+          try {
+            repo.markError(database, error);
+          } catch (RepoStorageException e) {
+            Repo.LOG.error("Double fault logging failure", e);
+          }
+        });
   }
 
   private void rethrowExecutionException(ExecutionException e)

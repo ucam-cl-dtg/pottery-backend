@@ -19,6 +19,8 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.google.inject.Inject;
 import java.util.List;
+import java.util.Optional;
+import javax.inject.Named;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -56,7 +58,8 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
 
   /** Create a new RepoController. */
   @Inject
-  public RepoController(RepoFactory repoFactory, TaskIndex taskIndex, Worker worker) {
+  public RepoController(RepoFactory repoFactory, TaskIndex taskIndex,
+                        @Named(Repo.PARAMETERISATION_WORKER_NAME) Worker worker) {
     super();
     this.repoFactory = repoFactory;
     this.taskIndex = taskIndex;
@@ -69,7 +72,8 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       Boolean usingTestingVersionBoolean,
       Integer validityMinutesInteger,
       String variant,
-      String remote)
+      String remote,
+      Integer seed)
       throws TaskNotFoundException, RepoStorageException, RetiredTaskException,
       RepoNotFoundException, TaskMissingVariantException {
     if (taskId == null) {
@@ -85,12 +89,16 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
     if (t.isRetired()) {
       throw new RetiredTaskException("Cannot start a new repository for task " + taskId);
     }
+    int mutationId;
     try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
       if (!c.getInfo().getVariants().contains(variant)) {
         throw new TaskMissingVariantException("Variant " + variant + " is not defined");
       }
+      mutationId = Optional.ofNullable(c.getDetail().getParameterisation())
+          .map(p -> seed % p.getCount()).orElse(-1);
     }
-    Repo r = repoFactory.createInstance(taskId, usingTestingVersion, null, variant, remote);
+    Repo r = repoFactory.createInstance(taskId, usingTestingVersion, null, variant,
+        remote, mutationId);
     String repoId = r.getRepoId();
     worker.schedule(
         new Job() {
@@ -104,7 +112,8 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
               Task t = taskIndex.getTask(taskId);
               try (TaskCopy c =
                   usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
-                repoFactory.initialiseInstance(repoId, c, validityMinutes);
+                LOG.info("Initialising instance for repo " + repoId);
+                repoFactory.initialiseInstance(c, worker, database, repoId, validityMinutes);
               }
             } catch (TaskNotFoundException | RepoNotFoundException | RepoExpiredException
                 | RepoStorageException e) {
@@ -128,12 +137,12 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public RepoInfoWithStatus makeRepo(
-      String taskId, Boolean usingTestingVersion, Integer validityMinutes, String variant)
+  public RepoInfoWithStatus makeRepo(String taskId, Boolean usingTestingVersion,
+                                     Integer validityMinutes, String variant, Integer seed)
       throws TaskNotFoundException, RepoNotFoundException,
           RetiredTaskException, RepoStorageException, TaskMissingVariantException {
     return makeRemoteRepo(
-        taskId, usingTestingVersion, validityMinutes, variant, RepoInfo.REMOTE_UNSET);
+        taskId, usingTestingVersion, validityMinutes, variant, RepoInfo.REMOTE_UNSET, seed);
   }
 
   @Override

@@ -18,11 +18,13 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
@@ -31,6 +33,7 @@ abstract class Binding {
 
   private static final Pattern COMMAND_TOKENIZER =
       Pattern.compile("([^\"' ]|\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*')+");
+
   static final String POTTERY_BINARIES_PATH = "/pottery-binaries";
   static final String IMAGE_BINDING = "IMAGE";
   static final String SUBMISSION_BINDING = "SUBMISSION";
@@ -38,15 +41,14 @@ abstract class Binding {
   static final String TASK_BINDING = "TASK";
   static final String STEP_BINDING = "STEP";
   static final String SHARED_BINDING = "SHARED";
-  static final String DEFAULT_EXECUTION = "default";
+  static final String MUTATION_ID_BINDING = "MUTATION";
+
   private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
 
   static ExecutionConfig.Builder applyBindings(
       String command,
       ImmutableMap<String, Binding> bindings,
-      Map<String, ContainerExecResponse> stepResults,
-      File containerTempDir,
-      String internalMountPath)
+      Function<String, Binding> getBinding)
       throws ContainerExecutionException {
     ExecutionConfig.Builder builder = ExecutionConfig.builder();
     StringBuilder finalCommand = new StringBuilder();
@@ -60,19 +62,14 @@ abstract class Binding {
       Binding binding;
       if (mutableBindings.containsKey(name)) {
         binding = mutableBindings.get(name);
-      } else if (stepResults.containsKey(name)) {
-        File stepFile = new File(containerTempDir, name);
-        try (FileWriter w = new FileWriter(stepFile)) {
-          w.write(stepResults.get(name).response());
-        } catch (IOException e) {
-          throw new ContainerExecutionException(
-              "Couldn't create temporary file for binding " + name + " for command " + command, e);
-        }
-        binding = new FileBinding(stepFile, false, internalMountPath);
-        mutableBindings.put(name, binding);
       } else {
-        throw new ContainerExecutionException(
-            "Couldn't find a binding called " + name + " for command " + command);
+        binding = getBinding.apply(name);
+        if (binding != null) {
+          mutableBindings.put(name, binding);
+        } else {
+          throw new ContainerExecutionException(
+              "Couldn't find a binding called " + name + " for command " + command);
+        }
       }
       binding.applyBinding(builder, name);
       int currentMatchStart = regexMatcher.start();
@@ -91,7 +88,8 @@ abstract class Binding {
 
   abstract String getMountPoint(String name);
 
-  ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name) {
+  ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name)
+      throws ContainerExecutionException {
     return builder;
   }
 
@@ -115,6 +113,45 @@ abstract class Binding {
 
         return builder.addPathSpecification(
             PathSpecification.create(file, getMountPoint(name), readWrite));
+      } else {
+        return builder;
+      }
+    }
+
+    @Override
+    String getMountPoint(String name) {
+      return internalMountPath + "/" + name;
+    }
+  }
+
+  static class TemporaryFileBinding extends Binding {
+    private final File containerTempDir;
+    private final String content;
+    private final String internalMountPath;
+    private boolean needsApplying;
+
+    TemporaryFileBinding(File containerTempDir, String content, String internalMountPath) {
+      this.containerTempDir = containerTempDir;
+      this.content = content;
+      this.internalMountPath = internalMountPath;
+      this.needsApplying = true;
+    }
+
+    @Override
+    ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name)
+        throws ContainerExecutionException {
+      if (needsApplying) {
+        needsApplying = false;
+
+        File stepFile = new File(containerTempDir, name);
+        try {
+          Files.asCharSink(stepFile, Charset.defaultCharset()).write(content);
+        } catch (IOException e) {
+          throw new ContainerExecutionException(
+              "Couldn't create temporary file for binding " + name, e);
+        }
+        return builder.addPathSpecification(PathSpecification.create(stepFile, getMountPoint(name),
+            false));
       } else {
         return builder;
       }
