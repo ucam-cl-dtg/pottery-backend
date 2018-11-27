@@ -80,7 +80,7 @@ public class ApplicationModule implements Module {
     beanConfig.setScan(true);
   }
 
-  static private class WorkerModule extends PrivateModule {
+  private static class WorkerModule extends PrivateModule {
 
     private final String workerName;
     private final Key<Worker> workerKey;

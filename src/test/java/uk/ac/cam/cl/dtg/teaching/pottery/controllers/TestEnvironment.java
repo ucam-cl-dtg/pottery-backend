@@ -114,7 +114,7 @@ class TestEnvironment {
       Repo repo =
           repoFactory.createInstance(
               task.getTaskId(), true, calendar.getTime(), VARIANT, RepoInfo.REMOTE_UNSET, 0);
-      repo.copyFiles(c);
+      repo.copyAndCommitSkeletonFiles(c);
       return repo;
     }
   }
