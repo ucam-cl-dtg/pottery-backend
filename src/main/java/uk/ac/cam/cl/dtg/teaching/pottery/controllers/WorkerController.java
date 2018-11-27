@@ -19,11 +19,15 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.google.inject.Inject;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.inject.Named;
 import javax.ws.rs.core.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class WorkerController implements uk.ac.cam.cl.dtg.teaching.pottery.api.WorkerController {
@@ -31,25 +35,31 @@ public class WorkerController implements uk.ac.cam.cl.dtg.teaching.pottery.api.W
   protected static final Logger LOG = LoggerFactory.getLogger(WorkerController.class);
 
   private Worker worker;
+  private Worker parameterisationWorker;
 
   private ContainerManager containerManager;
 
   /** Create a new WorkerController. */
   @Inject
-  public WorkerController(Worker worker, ContainerManager containerManager) {
+  public WorkerController(Worker worker,
+                          @Named(Repo.PARAMETERISATION_WORKER_NAME) Worker parameterisationWorker,
+                          ContainerManager containerManager) {
     super();
     this.worker = worker;
+    this.parameterisationWorker = parameterisationWorker;
     this.containerManager = containerManager;
   }
 
   @Override
   public List<JobStatus> listQueue() {
-    return worker.getQueue();
+    return Stream.concat(worker.getQueue().stream(), parameterisationWorker.getQueue().stream())
+        .collect(Collectors.toList());
   }
 
   @Override
   public Response resize(int numThreads) {
     worker.rebuildThreadPool(numThreads);
+    parameterisationWorker.rebuildThreadPool(numThreads);
     return Response.ok().entity("{ \"message\":\"Thread pool resized\" }").build();
   }
 

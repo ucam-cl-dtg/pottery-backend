@@ -19,7 +19,10 @@ package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
 import com.google.inject.Binder;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
+import com.google.inject.PrivateModule;
+import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
@@ -29,7 +32,9 @@ import com.wordnik.swagger.jaxrs.listing.ApiDeclarationProvider;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResource;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResourceJSON;
 import com.wordnik.swagger.jaxrs.listing.ResourceListingProvider;
+
 import java.util.Enumeration;
+import java.util.Objects;
 import java.util.Properties;
 import javax.annotation.PreDestroy;
 import javax.inject.Singleton;
@@ -75,6 +80,29 @@ public class ApplicationModule implements Module {
     beanConfig.setScan(true);
   }
 
+  static private class WorkerModule extends PrivateModule {
+
+    private final String workerName;
+    private final Key<Worker> workerKey;
+
+    WorkerModule() {
+      this.workerName = "Default worker";
+      this.workerKey = Key.get(Worker.class);
+    }
+
+    WorkerModule(String workerName) {
+      this.workerName = workerName;
+      this.workerKey = Key.get(Worker.class, Names.named(workerName));
+    }
+
+    @Override
+    protected void configure() {
+      bindConstant().annotatedWith(Names.named(Worker.WORKER_NAME)).to(workerName);
+      bind(workerKey).to(ThreadPoolWorker.class).in(Singleton.class);
+      expose(workerKey);
+    }
+  }
+
   @Override
   public void configure(Binder binder) {
     binder.bind(SubmissionsController.class);
@@ -100,9 +128,10 @@ public class ApplicationModule implements Module {
     binder.bind(ContainerEnvConfig.class).in(Singleton.class);
 
     binder.bind(Database.class).to(PostgresDatabase.class).in(Singleton.class);
-    binder.bind(Worker.class).to(ThreadPoolWorker.class).in(Singleton.class);
-    binder.bind(Worker.class).annotatedWith(Names.named(Repo.PARAMETERISATION_WORKER_NAME))
-        .to(ThreadPoolWorker.class).in(Singleton.class);
+
+    binder.install(new WorkerModule());
+    binder.install(new WorkerModule(Repo.PARAMETERISATION_WORKER_NAME));
+
     binder.bind(ContainerBackend.class).to(DockerContainerImpl.class).in(Singleton.class);
 
     binder.bind(GuiceDependencyController.class);
@@ -137,7 +166,10 @@ public class ApplicationModule implements Module {
   @PreDestroy
   public void preDestroy() {
     Injector injector = GuiceResteasyBootstrapServletContextListenerV3.getInjector();
-    injector.getInstance(Worker.class).stop();
+    injector.findBindingsByType(TypeLiteral.get(Worker.class)).stream()
+        .map(binding -> binding.getProvider().get())
+        .filter(Objects::nonNull)
+        .forEach(Worker::stop);
     injector.getInstance(ContainerManager.class).stop();
     injector.getInstance(Database.class).stop();
 
