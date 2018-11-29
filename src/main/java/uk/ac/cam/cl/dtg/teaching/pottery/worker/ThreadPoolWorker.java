@@ -18,7 +18,6 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 
 import com.google.inject.Inject;
-import com.google.inject.Singleton;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedSet;
@@ -26,6 +25,7 @@ import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import javax.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
@@ -48,6 +48,7 @@ public class ThreadPoolWorker implements Worker {
   private ExecutorService threadPool;
   private int numThreads;
   private long smoothedWaitTime = 0;
+  private String workerName;
 
   /** Creates a new ThreadPoolWorker with one thread in the pool. */
   @Inject
@@ -55,7 +56,8 @@ public class ThreadPoolWorker implements Worker {
       TaskIndex taskIndex,
       RepoFactory repoFactory,
       ContainerManager containerManager,
-      Database database) {
+      Database database,
+      @Named(Worker.WORKER_NAME) String workerName) {
     super();
     this.threadPool = Executors.newFixedThreadPool(1);
     this.numThreads = 1;
@@ -63,6 +65,7 @@ public class ThreadPoolWorker implements Worker {
     this.repoFactory = repoFactory;
     this.containerManager = containerManager;
     this.database = database;
+    this.workerName = workerName;
   }
 
   @Override
@@ -111,7 +114,7 @@ public class ThreadPoolWorker implements Worker {
 
   @Override
   public void stop() {
-    LOG.info("Shutting down thread pool");
+    LOG.info("Shutting down thread pool for " + workerName);
     threadPool.shutdownNow();
   }
 
@@ -135,7 +138,7 @@ public class ThreadPoolWorker implements Worker {
       this.jobs = jobs;
       this.index = index;
       this.withPause = withPause;
-      this.status = new JobStatus(jobs[index].getDescription());
+      this.status = new JobStatus(jobs[index].getDescription(), workerName);
       this.enqueueTime = enqeueTime;
       synchronized (queue) {
         queue.add(status);

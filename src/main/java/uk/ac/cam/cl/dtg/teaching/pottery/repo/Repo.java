@@ -26,8 +26,6 @@ import java.sql.SQLException;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -72,9 +70,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.SubmissionStorageException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.TaskNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.RepoInfoWithStatus;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.Parameterisation;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.ParameterisationResult;
-import uk.ac.cam.cl.dtg.teaching.pottery.task.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskDetail;
@@ -100,7 +96,7 @@ public class Repo {
   protected static final Logger LOG = LoggerFactory.getLogger(Repo.class);
 
   protected static final ObjectMapper objectMapper = new ObjectMapper();
-  public static final String PARAMETERISATION_WORKER_NAME = "PARAMETERISATION_WORKER";
+  public static final String PARAMETERISATION_WORKER_NAME = "Parameterisation worker";
 
   private volatile RepoInfo repoInfo;
   private volatile boolean ready = false;
@@ -207,19 +203,23 @@ public class Repo {
     return new Repo(repoInfo, config);
   }
 
-  /** Recursively copy all files from the given sourceLocation and add them to the repository. */
-  public void copyFiles(TaskCopy task) throws RepoStorageException, RepoExpiredException {
+  interface FileGetter {
+    List<String> get() throws IOException;
+  }
+
+  public void commitFiles(String message, FileGetter getFiles)
+      throws RepoExpiredException, RepoStorageException {
     throwIfRepoExpired();
     throwIfRemote();
     try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
       try (Git git = Git.open(repoDirectory)) {
         try {
-          List<String> copiedFiles = task.copySkeleton(repoDirectory, repoInfo.getVariant());
+          List<String> copiedFiles = getFiles.get();
           if (!copiedFiles.isEmpty()) {
             for (String f : copiedFiles) {
               git.add().addFilepattern(f).call();
             }
-            git.commit().setMessage("Copied files").call();
+            git.commit().setMessage(message).call();
           }
         } catch (IOException | GitAPIException e) {
           try {
@@ -237,6 +237,13 @@ public class Repo {
     } catch (InterruptedException e) {
       throw new RepoStorageException("Interrupted whilst waiting for file writing lock", e);
     }
+  }
+
+  /** Recursively copy all files from the given sourceLocation and add them to the repository. */
+  public void copyAndCommitSkeletonFiles(TaskCopy task)
+      throws RepoStorageException, RepoExpiredException {
+    commitFiles("Copied files", () ->
+        task.copySkeleton(repoDirectory, repoInfo.getVariant()));
   }
 
   /** Parameterise this task. */
@@ -271,11 +278,28 @@ public class Repo {
                 try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
                   response = containerManager.runParameterisation(
                       c,
-                      repoTestingDirectory,
+                      repoDirectory,
                       repoInfo);
                   if (response.status() != ContainerExecResponse.Status.COMPLETED) {
                     failureCallback.accept("Failed to run parameterisation. Error was: "
                         + response.response());
+                    return STATUS_FAILED;
+                  }
+                  try {
+                    ParameterisationResult parameterisationResult =
+                        objectMapper.readValue(response.response(), ParameterisationResult.class);
+
+                    if (parameterisationResult.getFiles() == null) {
+                      throw new IOException("No files returned from parameterisation");
+                    }
+                    commitFiles("Parameterised files", parameterisationResult::getFiles);
+
+                    saveProblemStatement(database, parameterisationResult.getProblemStatement());
+                    successCallback.run();
+                    return Job.STATUS_OK;
+                  } catch (RepoStorageException | RepoExpiredException | IOException e) {
+                    LOG.error("Fault recording task is ready", e);
+                    failureCallback.accept(e.getMessage());
                     return STATUS_FAILED;
                   }
                 } catch (InterruptedException e) {
@@ -286,18 +310,6 @@ public class Repo {
                 failureCallback.accept(e.getMessage());
                 return STATUS_FAILED;
               }
-              try {
-                String parameterisationJson = response.response();
-                ParameterisationResult parameterisationResult =
-                    objectMapper.readValue(parameterisationJson, ParameterisationResult.class);
-                saveProblemStatement(database, parameterisationResult.getProblemStatement());
-              } catch (RepoStorageException | IOException e) {
-                LOG.error("Fault recording task is ready", e);
-                failureCallback.accept(e.getMessage());
-                return STATUS_FAILED;
-              }
-              successCallback.run();
-              return Job.STATUS_OK;
             }
 
             @Override
@@ -307,7 +319,7 @@ public class Repo {
           });
     } else {
       if (!repoInfo.isRemote()) {
-        copyFiles(c);
+        copyAndCommitSkeletonFiles(c);
       }
       saveProblemStatement(database, c.getDetail().getProblemStatement());
       successCallback.run();

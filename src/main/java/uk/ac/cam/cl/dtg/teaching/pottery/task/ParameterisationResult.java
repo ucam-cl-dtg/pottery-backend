@@ -21,18 +21,29 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wordnik.swagger.annotations.ApiModelProperty;
 
+import java.util.List;
+
 /** A ParameterisationResult represents the result from running a parameterisation script. */
 public class ParameterisationResult {
   @ApiModelProperty("The problem statement as an HTML fragment.")
   private final String problemStatement;
 
+  @ApiModelProperty("The names of any files created as the initial skeleton.")
+  private final List<String> files;
+
   @JsonCreator
-  public ParameterisationResult(@JsonProperty("problemStatement") String problemStatement) {
+  public ParameterisationResult(@JsonProperty("problemStatement") String problemStatement,
+                                @JsonProperty("files") List<String> files) {
     this.problemStatement = problemStatement;
+    this.files = files;
   }
 
   public String getProblemStatement() {
     return problemStatement;
+  }
+
+  public List<String> getFiles() {
+    return files;
   }
 }
 
