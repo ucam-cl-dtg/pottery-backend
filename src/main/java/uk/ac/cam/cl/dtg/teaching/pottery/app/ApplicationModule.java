@@ -19,10 +19,10 @@ package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
 import com.google.inject.Binder;
 import com.google.inject.Injector;
-import com.google.inject.Key;
 import com.google.inject.Module;
-import com.google.inject.PrivateModule;
+import com.google.inject.Provider;
 import com.google.inject.TypeLiteral;
+import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.name.Names;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
@@ -80,29 +80,6 @@ public class ApplicationModule implements Module {
     beanConfig.setScan(true);
   }
 
-  private static class WorkerModule extends PrivateModule {
-
-    private final String workerName;
-    private final Key<Worker> workerKey;
-
-    WorkerModule() {
-      this.workerName = "Default worker";
-      this.workerKey = Key.get(Worker.class);
-    }
-
-    WorkerModule(String workerName) {
-      this.workerName = workerName;
-      this.workerKey = Key.get(Worker.class, Names.named(workerName));
-    }
-
-    @Override
-    protected void configure() {
-      bindConstant().annotatedWith(Names.named(Worker.WORKER_NAME)).to(workerName);
-      bind(workerKey).to(ThreadPoolWorker.class).in(Singleton.class);
-      expose(workerKey);
-    }
-  }
-
   @Override
   public void configure(Binder binder) {
     binder.bind(SubmissionsController.class);
@@ -129,8 +106,20 @@ public class ApplicationModule implements Module {
 
     binder.bind(Database.class).to(PostgresDatabase.class).in(Singleton.class);
 
-    binder.install(new WorkerModule());
-    binder.install(new WorkerModule(Repo.PARAMETERISATION_WORKER_NAME));
+    binder.install(new FactoryModuleBuilder()
+      .implement(Worker.class, ThreadPoolWorker.class)
+      .build(ThreadPoolWorker.Factory.class));
+
+    Provider<ThreadPoolWorker.Factory> factoryProvider =
+        binder.getProvider(ThreadPoolWorker.Factory.class);
+
+    binder.bind(Worker.class)
+        .toProvider(() -> factoryProvider.get().create("Default worker"))
+        .in(Singleton.class);
+    binder.bind(Worker.class)
+        .annotatedWith(Names.named(Repo.PARAMETERISATION_WORKER_NAME))
+        .toProvider(() -> factoryProvider.get().create(Repo.PARAMETERISATION_WORKER_NAME))
+        .in(Singleton.class);
 
     binder.bind(ContainerBackend.class).to(DockerContainerImpl.class).in(Singleton.class);
 

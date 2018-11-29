@@ -18,6 +18,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.worker;
 
 import com.google.inject.Inject;
+import com.google.inject.assistedinject.Assisted;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedSet;
@@ -25,7 +26,6 @@ import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import javax.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
@@ -35,6 +35,10 @@ import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 
 public class ThreadPoolWorker implements Worker {
+
+  public interface Factory {
+    Worker create(String workerName);
+  }
 
   protected static final Logger LOG = LoggerFactory.getLogger(ThreadPoolWorker.class);
 
@@ -57,7 +61,7 @@ public class ThreadPoolWorker implements Worker {
       RepoFactory repoFactory,
       ContainerManager containerManager,
       Database database,
-      @Named(Worker.WORKER_NAME) String workerName) {
+      @Assisted String workerName) {
     super();
     this.threadPool = Executors.newFixedThreadPool(1);
     this.numThreads = 1;
