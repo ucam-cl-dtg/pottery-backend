@@ -238,10 +238,7 @@ public class ContainerManager implements Stoppable {
         if (response.status() != Status.COMPLETED) {
           callback.setStatus(Submission.STATUS_FAILED);
           callback.recordErrorReason(response, stepName);
-          if (response.status() != Status.FAILED_EXITCODE) {
-            return Job.STATUS_FAILED;
-          }
-          break;
+          return Job.STATUS_FAILED;
         }
       } catch (ApiUnavailableException e) {
         throw new ApiUnavailableException(
