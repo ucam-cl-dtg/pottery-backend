@@ -42,6 +42,7 @@ public class TransactionQueryRunner extends QueryRunner implements Closeable {
   }
 
   /** Closes the connection held in the query runner. */
+  @Override
   public void close() {
     try {
       db.close();
