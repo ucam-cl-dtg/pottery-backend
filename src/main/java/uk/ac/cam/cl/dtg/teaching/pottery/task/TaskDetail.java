@@ -250,7 +250,8 @@ public class TaskDetail {
 
   public TaskInfo toTaskInfo() {
     return new TaskInfo(taskId, type, name, criteria, difficulty, recommendedTimeMinutes,
-        problemStatement, questions, variants, actions.keySet());
+        problemStatement, parameterisation != null ? parameterisation.getCount() : 0, questions,
+        variants, actions.keySet());
   }
 
   /** Read the json file specifying this TaskDetail from disk and parse it into an object. */
