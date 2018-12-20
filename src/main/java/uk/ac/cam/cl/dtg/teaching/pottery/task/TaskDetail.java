@@ -261,7 +261,7 @@ public class TaskDetail {
         difficulty,
         recommendedTimeMinutes,
         problemStatement,
-        parameterisation.getCount(),
+        parameterisation != null ? parameterisation.getCount() : 0,
         questions,
         variants,
         actions.keySet());
