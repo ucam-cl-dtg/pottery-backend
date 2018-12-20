@@ -177,11 +177,15 @@ public class TaskDetail {
                             .withDefaultContainerRestriction(
                                 ContainerRestrictions.DEFAULT_CANDIDATE_RESTRICTIONS)));
     this.actions = actions;
-    Task.LOG.info("Building TaskDetail with name " + name + " with parameterisation count "
-        + (parameterisation != null ? parameterisation.getCount() : "none"));
+    Task.LOG.info(
+        "Building TaskDetail with name "
+            + name
+            + " with parameterisation count "
+            + (parameterisation != null ? parameterisation.getCount() : "none"));
     if (parameterisation != null) {
-      this.parameterisation = parameterisation.withDefaultContainerRestrictions(
-          ContainerRestrictions.DEFAULT_AUTHOR_RESTRICTIONS);
+      this.parameterisation =
+          parameterisation.withDefaultContainerRestrictions(
+              ContainerRestrictions.DEFAULT_AUTHOR_RESTRICTIONS);
     } else {
       this.parameterisation = null;
     }
@@ -249,8 +253,18 @@ public class TaskDetail {
   }
 
   public TaskInfo toTaskInfo() {
-    return new TaskInfo(taskId, type, name, criteria, difficulty, recommendedTimeMinutes,
-        problemStatement, questions, variants, actions.keySet());
+    return new TaskInfo(
+        taskId,
+        type,
+        name,
+        criteria,
+        difficulty,
+        recommendedTimeMinutes,
+        problemStatement,
+        parameterisation.getCount(),
+        questions,
+        variants,
+        actions.keySet());
   }
 
   /** Read the json file specifying this TaskDetail from disk and parse it into an object. */
