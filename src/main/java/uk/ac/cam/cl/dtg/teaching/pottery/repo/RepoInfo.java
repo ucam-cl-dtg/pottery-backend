@@ -31,6 +31,8 @@ public class RepoInfo {
   private String repoId;
   private String taskId;
   private boolean usingTestingVersion;
+
+  @Nullable
   private Date expiryDate;
 
   private String variant;
@@ -72,6 +74,7 @@ public class RepoInfo {
     this.problemStatement = problemStatement;
   }
 
+  @Nullable
   public Date getExpiryDate() {
     return expiryDate;
   }
