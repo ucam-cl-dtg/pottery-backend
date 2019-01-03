@@ -151,7 +151,17 @@ public class Repo {
         if (r.getRemote().equals(RepoInfo.REMOTE_UNSET) && !repoDirectory.exists()) {
           throw new RepoNotFoundException("Failed to find repository directory " + repoDirectory);
         }
-        return new Repo(r, config);
+        Repo repo = new Repo(r, config);
+        if (repo.repoInfo.getExpiryDate() != null) {
+          // Synchronize shouldn't be needed since we haven't given this to anyone yet, but being
+          // consistent
+          synchronized (repo.lockFields) {
+            // If the expiry date is set, then this repo was marked as ready previously, so set
+            // ready to true here
+            repo.ready = true;
+          }
+        }
+        return repo;
       } else {
         throw new RepoNotFoundException(
             "Repository with ID " + repoId + " does not exist in database");
