@@ -156,6 +156,8 @@ public class Repo {
           // Synchronize shouldn't be needed since we haven't given this to anyone yet, but being
           // consistent
           synchronized (repo.lockFields) {
+            // If the expiry date is set, then this repo was marked as ready previously, so set
+            // ready to true here
             repo.ready = true;
           }
         }
