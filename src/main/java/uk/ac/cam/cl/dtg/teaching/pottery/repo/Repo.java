@@ -544,17 +544,18 @@ public class Repo {
                             updateSubmission(builder.completeStep(stepName, status, msec, output));
                           }
                         });
-                if (result != STATUS_OK) {
-                  return result;
-                }
+                builder.setStatus(
+                    result == STATUS_OK ? Submission.STATUS_COMPLETE : Submission.STATUS_FAILED);
+                return result;
               } catch (InterruptedException e) {
                 updateSubmission(
                     Submission.builder(repoInfo.getRepoId(), tag, action)
                         .addErrorMessage("Job was interrupted, retrying"));
                 return STATUS_RETRY;
+              } catch (Exception e) {
+                builder.setStatus(Submission.STATUS_FAILED);
+                throw e;
               } finally {
-                builder.setStatus(Submission.STATUS_COMPLETE);
-
                 Submission s = builder.build();
                 if (!s.isNeedsRetry()) {
                   try (TransactionQueryRunner q = database.getQueryRunner()) {
@@ -576,7 +577,6 @@ public class Repo {
               updateSubmission(builder.addErrorMessage("Task no longer available"));
               return STATUS_FAILED;
             }
-            return Job.STATUS_OK;
           }
 
           @Override
