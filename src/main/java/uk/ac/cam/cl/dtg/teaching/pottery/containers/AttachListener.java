@@ -24,6 +24,11 @@ class AttachListener implements WebSocketListener {
 
   private final StringBuilder output = new StringBuilder();
   private boolean closed = false;
+  private final int outputLimit;
+
+  AttachListener(int outputLimit) {
+    this.outputLimit = outputLimit;
+  }
 
   public String getOutput() {
     return output.toString();
@@ -31,8 +36,7 @@ class AttachListener implements WebSocketListener {
 
   @Override
   public synchronized void onWebSocketClose(int statusCode, String reason) {
-    closed = true;
-    this.notifyAll();
+    notifyClose();
   }
 
   @Override
@@ -42,19 +46,20 @@ class AttachListener implements WebSocketListener {
 
   @Override
   public synchronized void onWebSocketError(Throwable cause) {
-    closed = true;
-    this.notifyAll();
+    notifyClose();
     throw new RuntimeException("WebSocket error attaching to container", cause);
   }
 
   @Override
   public void onWebSocketBinary(byte[] payload, int offset, int len) {
     output.append(new String(payload, offset, len));
+    checkLength();
   }
 
   @Override
   public void onWebSocketText(String message) {
     output.append(message);
+    checkLength();
   }
 
   synchronized boolean waitForClose(long timeoutMs) {
@@ -75,5 +80,15 @@ class AttachListener implements WebSocketListener {
   synchronized void notifyClose() {
     closed = true;
     this.notifyAll();
+  }
+
+  boolean hasOverflowed() {
+    return output.length() > outputLimit;
+  }
+
+  private void checkLength() {
+    if (hasOverflowed()) {
+      notifyClose();
+    }
   }
 }

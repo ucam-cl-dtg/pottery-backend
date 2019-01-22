@@ -34,7 +34,7 @@ public class Execution {
 
   // This is just a marker value and is not expected to actually be used.
   private static final ContainerRestrictions DEFAULT_RESTRICTIONS =
-      new ContainerRestrictions(0, 0, 0, true);
+      new ContainerRestrictions(0, 0, 0, 0, true);
 
   @ApiModelProperty("Image that this execution should be run in.")
   private String image;

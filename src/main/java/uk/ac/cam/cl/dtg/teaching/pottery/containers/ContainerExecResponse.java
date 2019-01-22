@@ -28,7 +28,8 @@ public abstract class ContainerExecResponse {
     FAILED_OOM,
     FAILED_DISK,
     FAILED_TIMEOUT,
-    FAILED_UNKNOWN
+    FAILED_UNKNOWN,
+    FAILED_OUTPUT
   }
 
   public abstract Status status();
