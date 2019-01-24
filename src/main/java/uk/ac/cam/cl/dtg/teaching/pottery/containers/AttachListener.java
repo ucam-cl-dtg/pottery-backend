@@ -24,10 +24,10 @@ class AttachListener implements WebSocketListener {
 
   private final StringBuilder output = new StringBuilder();
   private boolean closed = false;
-  private final int outputLimit;
+  private final int outputLimitChars;
 
-  AttachListener(int outputLimit) {
-    this.outputLimit = outputLimit;
+  AttachListener(int outputLimitChars) {
+    this.outputLimitChars = outputLimitChars;
   }
 
   public String getOutput() {
@@ -83,7 +83,7 @@ class AttachListener implements WebSocketListener {
   }
 
   boolean hasOverflowed() {
-    return output.length() > outputLimit;
+    return output.length() > outputLimitChars;
   }
 
   private void checkLength() {

@@ -143,7 +143,7 @@ public class DockerContainerImpl implements ContainerBackend {
       try {
         docker.startContainer(containerId);
         AttachListener attachListener = new AttachListener(
-            executionConfig.containerRestrictions().getOutputLimitBytes());
+            executionConfig.containerRestrictions().getOutputLimitKilochars() * 1000);
 
         ScheduledFuture<Boolean> timeoutKiller =
             scheduleTimeoutKiller(

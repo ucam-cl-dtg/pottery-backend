@@ -28,7 +28,7 @@ public class ContainerRestrictions {
 
   private int ramLimitMegabytes;
 
-  private int outputLimitBytes;
+  private int outputLimitKilochars;
 
   private boolean networkDisabled;
 
@@ -37,20 +37,20 @@ public class ContainerRestrictions {
       @JsonProperty("timeoutSec") int timeoutSec,
       @JsonProperty("diskWriteLimitMegabytes") int diskWriteLimitMegabytes,
       @JsonProperty("ramLimitMegabytes") int ramLimitMegabytes,
-      @JsonProperty("outputLimitBytes") int outputLimitBytes,
+      @JsonProperty("outputLimitKilochars") int outputLimitKilochars,
       @JsonProperty("networkDisabled") boolean networkDisabled) {
     super();
     this.timeoutSec = timeoutSec;
     this.diskWriteLimitMegabytes = diskWriteLimitMegabytes;
     this.ramLimitMegabytes = ramLimitMegabytes;
-    this.outputLimitBytes = outputLimitBytes;
+    this.outputLimitKilochars = outputLimitKilochars;
     this.networkDisabled = networkDisabled;
   }
 
   public static final ContainerRestrictions DEFAULT_CANDIDATE_RESTRICTIONS =
-      new ContainerRestrictions(60, 1, 200, 1000000, true);
+      new ContainerRestrictions(60, 1, 200, 100, true);
   public static final ContainerRestrictions DEFAULT_AUTHOR_RESTRICTIONS =
-      new ContainerRestrictions(500, 50, 500, 50000000,false);
+      new ContainerRestrictions(500, 50, 500, 50000, false);
 
   public boolean isNetworkDisabled() {
     return networkDisabled;
@@ -68,7 +68,7 @@ public class ContainerRestrictions {
     return ramLimitMegabytes;
   }
 
-  public int getOutputLimitBytes() {
-    return outputLimitBytes;
+  public int getOutputLimitKilochars() {
+    return outputLimitKilochars;
   }
 }
