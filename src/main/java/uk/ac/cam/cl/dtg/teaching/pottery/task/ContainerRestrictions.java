@@ -22,31 +22,41 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ContainerRestrictions {
 
-  private int timeoutSec;
+  private Integer timeoutSec;
 
-  private int diskWriteLimitMegabytes;
+  private Integer diskWriteLimitMegabytes;
 
-  private int ramLimitMegabytes;
+  private Integer ramLimitMegabytes;
 
-  private boolean networkDisabled;
+  private Integer outputLimitKilochars;
+
+  private Boolean networkDisabled;
+
+  private final boolean fullySpecified;
 
   @JsonCreator
   public ContainerRestrictions(
-      @JsonProperty("timeoutSec") int timeoutSec,
-      @JsonProperty("diskWriteLimitMegabytes") int diskWriteLimitMegabytes,
-      @JsonProperty("ramLimitMegabytes") int ramLimitMegabytes,
-      @JsonProperty("networkDisabled") boolean networkDisabled) {
+      @JsonProperty("timeoutSec") Integer timeoutSec,
+      @JsonProperty("diskWriteLimitMegabytes") Integer diskWriteLimitMegabytes,
+      @JsonProperty("ramLimitMegabytes") Integer ramLimitMegabytes,
+      @JsonProperty("outputLimitKilochars") Integer outputLimitKilochars,
+      @JsonProperty("networkDisabled") Boolean networkDisabled) {
     super();
     this.timeoutSec = timeoutSec;
     this.diskWriteLimitMegabytes = diskWriteLimitMegabytes;
     this.ramLimitMegabytes = ramLimitMegabytes;
+    this.outputLimitKilochars = outputLimitKilochars;
     this.networkDisabled = networkDisabled;
+    this.fullySpecified = this.timeoutSec != null && this.diskWriteLimitMegabytes !=  null
+        && this.ramLimitMegabytes != null && this.outputLimitKilochars != null
+        && this.networkDisabled != null;
+
   }
 
   public static final ContainerRestrictions DEFAULT_CANDIDATE_RESTRICTIONS =
-      new ContainerRestrictions(60, 1, 200, true);
+      new ContainerRestrictions(60, 1, 200, 100, true);
   public static final ContainerRestrictions DEFAULT_AUTHOR_RESTRICTIONS =
-      new ContainerRestrictions(500, 50, 500, false);
+      new ContainerRestrictions(500, 50, 500, 50000, false);
 
   public boolean isNetworkDisabled() {
     return networkDisabled;
@@ -62,5 +72,24 @@ public class ContainerRestrictions {
 
   public int getRamLimitMegabytes() {
     return ramLimitMegabytes;
+  }
+
+  public int getOutputLimitKilochars() {
+    return outputLimitKilochars;
+  }
+
+  ContainerRestrictions withDefaultContainerRestriction(ContainerRestrictions defaultRestrictions) {
+    if (fullySpecified) {
+      return this;
+    }
+    return new ContainerRestrictions(
+        timeoutSec != null ? timeoutSec : defaultRestrictions.timeoutSec,
+        diskWriteLimitMegabytes != null ? diskWriteLimitMegabytes
+            : defaultRestrictions.diskWriteLimitMegabytes,
+        ramLimitMegabytes != null ? ramLimitMegabytes : defaultRestrictions.ramLimitMegabytes,
+        outputLimitKilochars != null ? outputLimitKilochars
+            : defaultRestrictions.outputLimitKilochars,
+        networkDisabled != null ? networkDisabled : defaultRestrictions.networkDisabled
+    );
   }
 }

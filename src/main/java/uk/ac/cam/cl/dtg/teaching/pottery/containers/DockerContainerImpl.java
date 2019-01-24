@@ -142,7 +142,8 @@ public class DockerContainerImpl implements ContainerBackend {
       runningContainers.add(containerId);
       try {
         docker.startContainer(containerId);
-        AttachListener attachListener = new AttachListener();
+        AttachListener attachListener = new AttachListener(
+            executionConfig.containerRestrictions().getOutputLimitKilochars() * 1000);
 
         ScheduledFuture<Boolean> timeoutKiller =
             scheduleTimeoutKiller(
@@ -211,6 +212,10 @@ public class DockerContainerImpl implements ContainerBackend {
 
           if (diskUsageKiller.isKilled()) {
             status = Status.FAILED_DISK;
+          }
+
+          if (attachListener.hasOverflowed()) {
+            status = Status.FAILED_OUTPUT;
           }
 
           try {
