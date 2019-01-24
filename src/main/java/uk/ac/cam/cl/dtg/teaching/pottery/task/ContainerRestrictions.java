@@ -22,29 +22,35 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ContainerRestrictions {
 
-  private int timeoutSec;
+  private Integer timeoutSec;
 
-  private int diskWriteLimitMegabytes;
+  private Integer diskWriteLimitMegabytes;
 
-  private int ramLimitMegabytes;
+  private Integer ramLimitMegabytes;
 
-  private int outputLimitKilochars;
+  private Integer outputLimitKilochars;
 
-  private boolean networkDisabled;
+  private Boolean networkDisabled;
+
+  private final boolean fullySpecified;
 
   @JsonCreator
   public ContainerRestrictions(
-      @JsonProperty("timeoutSec") int timeoutSec,
-      @JsonProperty("diskWriteLimitMegabytes") int diskWriteLimitMegabytes,
-      @JsonProperty("ramLimitMegabytes") int ramLimitMegabytes,
-      @JsonProperty("outputLimitKilochars") int outputLimitKilochars,
-      @JsonProperty("networkDisabled") boolean networkDisabled) {
+      @JsonProperty("timeoutSec") Integer timeoutSec,
+      @JsonProperty("diskWriteLimitMegabytes") Integer diskWriteLimitMegabytes,
+      @JsonProperty("ramLimitMegabytes") Integer ramLimitMegabytes,
+      @JsonProperty("outputLimitKilochars") Integer outputLimitKilochars,
+      @JsonProperty("networkDisabled") Boolean networkDisabled) {
     super();
     this.timeoutSec = timeoutSec;
     this.diskWriteLimitMegabytes = diskWriteLimitMegabytes;
     this.ramLimitMegabytes = ramLimitMegabytes;
     this.outputLimitKilochars = outputLimitKilochars;
     this.networkDisabled = networkDisabled;
+    this.fullySpecified = this.timeoutSec != null && this.diskWriteLimitMegabytes !=  null
+        && this.ramLimitMegabytes != null && this.outputLimitKilochars != null
+        && this.networkDisabled != null;
+
   }
 
   public static final ContainerRestrictions DEFAULT_CANDIDATE_RESTRICTIONS =
@@ -70,5 +76,20 @@ public class ContainerRestrictions {
 
   public int getOutputLimitKilochars() {
     return outputLimitKilochars;
+  }
+
+  ContainerRestrictions withDefaultContainerRestriction(ContainerRestrictions defaultRestrictions) {
+    if (fullySpecified) {
+      return this;
+    }
+    return new ContainerRestrictions(
+        timeoutSec != null ? timeoutSec : defaultRestrictions.timeoutSec,
+        diskWriteLimitMegabytes != null ? diskWriteLimitMegabytes
+            : defaultRestrictions.diskWriteLimitMegabytes,
+        ramLimitMegabytes != null ? ramLimitMegabytes : defaultRestrictions.ramLimitMegabytes,
+        outputLimitKilochars != null ? outputLimitKilochars
+            : defaultRestrictions.outputLimitKilochars,
+        networkDisabled != null ? networkDisabled : defaultRestrictions.networkDisabled
+    );
   }
 }
