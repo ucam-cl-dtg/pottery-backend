@@ -22,6 +22,8 @@ import java.net.URI;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import com.google.common.collect.ImmutableList;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -279,7 +281,8 @@ public class TaskCopyBuilder {
     builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTIONS);
 
     for (String variant : taskDetail.getVariants()) {
-      List<Testcase> testcases = taskDetail.getTaskTests().get(variant);
+      List<Testcase> testcases =
+          taskDetail.getTaskTests().getOrDefault(variant, ImmutableList.of());
       File variantSolutions = taskCopy.getSolutionLocation(variant);
       for (Testcase testcase : testcases) {
         String testName = testcase.getDirectory();
@@ -295,8 +298,7 @@ public class TaskCopyBuilder {
                 testCodeFolder,
                 taskDetail,
                 testcase.getAction(),
-                new RepoInfo("", "", false, new Date(), variant,
-                    null, null, 0, null),
+                new RepoInfo("", "", false, new Date(), variant, null, null, 0, null),
                 new ContainerManager.StepRunnerCallback() {
                   @Override
                   public void setStatus(String status) {
@@ -348,7 +350,16 @@ public class TaskCopyBuilder {
                                       + "Compiler response was: "
                                       + response.response()));
                           break;
-                        default:
+                        case FAILED_EXITCODE:
+                          builderInfo.setException(
+                              new InvalidTaskSpecificationException(
+                                  "Bad exit code for "
+                                      + taskName
+                                      + " during registration. "
+                                      + "Compiler response was: "
+                                      + response.response()));
+                          break;
+                        case COMPLETED:
                           break;
                       }
                     }
