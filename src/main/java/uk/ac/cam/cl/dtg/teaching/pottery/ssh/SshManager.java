@@ -23,21 +23,26 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.sql.SQLException;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.Properties;
+import org.apache.commons.io.Charsets;
 import org.apache.sshd.common.config.keys.PublicKeyEntry;
 import org.apache.sshd.common.util.security.SecurityUtils;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemWriter;
 import org.eclipse.jgit.transport.JschConfigSessionFactory;
 import org.eclipse.jgit.transport.OpenSshConfig;
 import org.eclipse.jgit.transport.SshSessionFactory;
@@ -62,6 +67,7 @@ public class SshManager {
     KeyPair keyPair = makeKeyPair(database);
 
     this.publicKey = openSslEncode(keyPair.getPublic());
+    String privateKey = pemEncode(keyPair.getPrivate());
 
     SshSessionFactory.setInstance(
         new JschConfigSessionFactory() {
@@ -75,16 +81,28 @@ public class SshManager {
             JSch defaultJSch = super.createDefaultJSch(fs);
             defaultJSch.removeAllIdentity();
             defaultJSch.addIdentity(
-                "Pottery",
-                keyPair.getPrivate().getEncoded(),
-                keyPair.getPublic().getEncoded(),
-                new byte[0]);
+                "Pottery", privateKey.getBytes(Charsets.US_ASCII), null, new byte[0]);
             Properties config = new Properties();
             config.put("StrictHostKeyChecking", "no");
             JSch.setConfig(config);
             return defaultJSch;
           }
         });
+  }
+
+  private String pemEncode(PrivateKey privateKey) {
+    try {
+      PrivateKeyInfo privateKeyInfo = PrivateKeyInfo.getInstance(privateKey.getEncoded());
+      ASN1Primitive primitive = privateKeyInfo.parsePrivateKey().toASN1Primitive();
+      PemObject pemObject = new PemObject("RSA PRIVATE KEY", primitive.getEncoded());
+      StringWriter stringWriter = new StringWriter();
+      try (PemWriter pemWriter = new PemWriter(stringWriter)) {
+        pemWriter.writeObject(pemObject);
+      }
+      return stringWriter.toString();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private String openSslEncode(PublicKey key) {
