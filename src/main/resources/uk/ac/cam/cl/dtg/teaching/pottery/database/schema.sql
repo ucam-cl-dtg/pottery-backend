@@ -60,3 +60,9 @@ CREATE TABLE tasks (
     remote character varying(255) default '' not null,
     primary key (taskid)
 );
+
+CREATE TABLE config (
+    key character varying(255) NOT NULL,
+    value text NOT NULL,
+    primary key (key)
+);

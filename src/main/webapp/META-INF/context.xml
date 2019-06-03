@@ -20,5 +20,4 @@
 -->
 <Context path="/">
     <Parameter name="localStoragePrefix" value="/opt/pottery"/>
-    <Parameter name="sshPrivateKey" value="/opt/pottery/id_rsa"/>
 </Context>
