@@ -91,13 +91,14 @@ public class ContainerManager implements Stoppable {
 
   /** Execute a command inside a container. */
   private ContainerExecResponse execute(
-      @Nonnull Execution execution, ExecutionConfig.Builder bindingsBuilder)
+      @Nonnull Execution execution, String repoId, ExecutionConfig.Builder bindingsBuilder)
       throws ApiUnavailableException, ContainerExecutionException {
     return containerBackend.executeContainer(
         bindingsBuilder
             .setImageName(execution.getImage())
             .setContainerRestrictions(execution.getRestrictions())
             .setLocalUserId(config.getUid())
+            .setPotteryRepoId(repoId)
             .build());
   }
 
@@ -109,7 +110,7 @@ public class ContainerManager implements Stoppable {
             containerBackend.getInternalMountPath()))
         .build();
     try {
-      return execute(execution, Binding.applyBindings(
+      return execute(execution, "compile", Binding.applyBindings(
           execution.getProgram(),
           bindings,
           stepName -> null
@@ -143,7 +144,7 @@ public class ContainerManager implements Stoppable {
     File containerTempDir =
         new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
     try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
-      return execute(execution, Binding.applyBindings(
+      return execute(execution, repoInfo.getRepoId(), Binding.applyBindings(
           execution.getProgram(),
           bindings,
           stepName -> {
@@ -267,7 +268,7 @@ public class ContainerManager implements Stoppable {
             containerBackend.getInternalMountPath()))
         .build();
     try {
-      return execute(execution, Binding.applyBindings(
+      return execute(execution, repoInfo.getRepoId(), Binding.applyBindings(
           execution.getProgram(),
           bindings,
           stepName -> null

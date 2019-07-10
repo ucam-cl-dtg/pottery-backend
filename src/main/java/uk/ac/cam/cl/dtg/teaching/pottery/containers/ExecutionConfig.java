@@ -23,6 +23,7 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.commons.codec.digest.DigestUtils;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerHostConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.ContainerRestrictions;
@@ -40,8 +41,22 @@ abstract class ExecutionConfig {
 
   abstract ContainerRestrictions containerRestrictions();
 
+  abstract String potteryRepoId();
+
   static Builder builder() {
     return new AutoValue_ExecutionConfig.Builder();
+  }
+
+  abstract Builder toBuilder();
+
+  // This covers everything except the command, path, and image name.
+  String settingsHash() {
+    return DigestUtils.shaHex(localUserId()
+        + ":" + containerRestrictions().getDiskWriteLimitMegabytes()
+        + ":" + containerRestrictions().getOutputLimitKilochars()
+        + ":" + containerRestrictions().getRamLimitMegabytes()
+        + ":" + containerRestrictions().getTimeoutSec()
+        + ":" + containerRestrictions().isNetworkDisabled());
   }
 
   ContainerConfig toContainerConfig() {
@@ -83,6 +98,8 @@ abstract class ExecutionConfig {
       return this;
     }
 
+    abstract Builder setPathSpecification(ImmutableList<PathSpecification> pathSpecification);
+
     abstract ImmutableList<PathSpecification> pathSpecification();
 
     abstract ImmutableList.Builder<String> commandBuilder();
@@ -92,6 +109,8 @@ abstract class ExecutionConfig {
       return this;
     }
 
+    abstract Builder setCommand(ImmutableList<String> command);
+
     abstract ImmutableList<String> command();
 
     abstract Builder setImageName(String imageName);
@@ -100,6 +119,9 @@ abstract class ExecutionConfig {
 
     abstract Builder setLocalUserId(int localUserId);
 
+    abstract Builder setPotteryRepoId(String potteryRepoId);
+
     abstract ExecutionConfig build();
+
   }
 }

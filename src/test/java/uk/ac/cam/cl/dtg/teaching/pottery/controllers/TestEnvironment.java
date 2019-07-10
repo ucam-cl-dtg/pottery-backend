@@ -34,7 +34,9 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerBackend;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerWithReuseImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.UncontainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
@@ -71,7 +73,7 @@ class TestEnvironment {
   private final TaskIndex taskIndex;
   private final Worker worker;
   private final RepoConfig repoConfig;
-  private final UncontainerImpl containerBackend;
+  private final ContainerBackend containerBackend;
   private final Database database;
 
   TestEnvironment(String testRootDir)
@@ -84,7 +86,7 @@ class TestEnvironment {
     this.repoFactory = new RepoFactory(repoConfig, database);
     this.taskIndex = new TaskIndex(taskFactory, database);
     ContainerEnvConfig containerEnvConfig = new ContainerEnvConfig(testRootDir);
-    this.containerBackend = new UncontainerImpl();
+    this.containerBackend = new DockerContainerWithReuseImpl(containerEnvConfig);
     ContainerManager containerManager = new ContainerManager(containerEnvConfig, containerBackend);
     this.worker = new BlockingWorker(taskIndex, repoFactory, containerManager, database);
   }
@@ -99,10 +101,6 @@ class TestEnvironment {
 
   Database getDatabase() {
     return database;
-  }
-
-  UncontainerImpl getContainerBackend() {
-    return containerBackend;
   }
 
   Repo createRepo(Task task)
