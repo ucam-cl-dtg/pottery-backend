@@ -175,7 +175,7 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
           ContainerStatus containerStatus = entry.getValue();
           if (containerStatus.inUse) continue;
           if (containerStatus.taint == null) {
-            untaintedContainerId = containerId;
+            untaintedContainerId = entry.getKey();
           }
           if (containerStatus.taint == null ? executionConfig.taint().identity() == null
               : containerStatus.taint.equals(executionConfig.taint().identity())) {
