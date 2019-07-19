@@ -128,6 +128,17 @@ public class DockerContainerImpl implements ContainerBackend {
   public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ApiUnavailableException, ContainerExecutionException {
 
+    // Make sure all the mount points exist, otherwise docker creates them for us with the wrong
+    // file permissions
+    for (PathSpecification specification : executionConfig.pathSpecification()) {
+      try {
+        FileUtil.mkdirIfNotExists(specification.host());
+      } catch (IOException e) {
+        throw new ContainerExecutionException(
+            "Failed to create mount point " + specification.host(), e);
+      }
+    }
+
     String containerName =
         this.config.getContainerPrefix() + containerNameCounter.incrementAndGet();
     LOG.debug("Creating container {}", containerName);
