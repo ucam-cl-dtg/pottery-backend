@@ -30,6 +30,10 @@ public class Taint {
     return userControlled;
   }
 
+  public String name() {
+    return name;
+  }
+
   public String identity() {
     if (userControlled) {
       return name;

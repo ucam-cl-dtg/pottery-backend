@@ -18,6 +18,8 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -93,22 +95,43 @@ public class ContainerManager implements Stoppable {
     containerBackend.setTimeoutMultiplier(multiplier);
   }
 
+  private Cache<String, String> executionCache = CacheBuilder.newBuilder().softValues().build();
+
   /** Execute a command inside a container. */
-  private ContainerExecResponseWithTaint execute(
-      @Nonnull Execution execution, @Nullable Taint taint, ExecutionConfig.Builder bindingsBuilder)
+  private ContainerExecResponseWithTaint execute(@Nonnull Execution execution, ExecutionConfig.Builder bindingsBuilder,
+                                                 String cacheKey)
       throws ApiUnavailableException, ContainerExecutionException {
-    if (taint != null) {
-      bindingsBuilder = bindingsBuilder.setTaint(taint);
-    }
     ExecutionConfig executionConfig = bindingsBuilder
         .setImageName(execution.getImage())
         .setContainerRestrictions(execution.getRestrictions())
         .setLocalUserId(config.getUid())
         .build();
 
-    LOG.info("Executing (" + executionConfig.taint() + "):" + executionConfig.command());
+    if (cacheKey != null && !executionConfig.taint().isUserControlled()) {
+      cacheKey = executionConfig.imageName()
+          + ":" + executionConfig.configurationHash()
+          + ":" + executionConfig.taint().name() // Not identity; even if not user controlled, still user specific.
+          + ":" + cacheKey;
 
-    return containerBackend.executeContainer(executionConfig).withTaint(executionConfig.taint());
+      String result = executionCache.getIfPresent(cacheKey);
+
+      if (result != null) {
+        LOG.info("Returning from cache (" + executionConfig.taint() + "):" + executionConfig.command());
+        return ContainerExecResponse.create(Status.COMPLETED, result, 0)
+            .withTaint(executionConfig.taint());
+      }
+
+      LOG.info("Running and caching (" + executionConfig.taint() + "):" + executionConfig.command());
+      ContainerExecResponse response = containerBackend.executeContainer(executionConfig);
+      if (response.status() == Status.COMPLETED) {
+        // Only cache success
+        executionCache.put(cacheKey, response.response());
+      }
+      return response.withTaint(executionConfig.taint());
+    } else {
+      LOG.info("Executing (" + executionConfig.taint() + "):" + executionConfig.command());
+      return containerBackend.executeContainer(executionConfig).withTaint(executionConfig.taint());
+    }
   }
 
   /** Run a compile task and get the response. */
@@ -119,12 +142,12 @@ public class ContainerManager implements Stoppable {
             containerBackend.getInternalMountPath(), false))
         .build();
     try {
-      return execute(execution, Taint.Compile, Binding.applyBindings(
+      return execute(execution, Binding.applyBindings(
           execution.getProgram(),
           bindings,
           stepName -> null,
           Taint.Compile
-          ));
+          ), null);
     } catch (ContainerExecutionException e) {
       return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1)
           .withTaint(null);
@@ -132,7 +155,8 @@ public class ContainerManager implements Stoppable {
   }
 
   /** Run a step and get the response. */
-  public ContainerExecResponseWithTaint execStep(
+  private ContainerExecResponseWithTaint execStep(
+      String stepName,
       File taskStepsDirHost,
       File codeDirHost,
       @Nonnull Execution execution,
@@ -140,6 +164,7 @@ public class ContainerManager implements Stoppable {
       Map<String, ContainerExecResponseWithTaint> stepResults,
       Taint taint)
       throws ApiUnavailableException {
+
     ImmutableMap<String, Binding> bindings = addRepoInfoToBinding(baseImageBinding(), repoInfo)
         .put(Binding.SUBMISSION_BINDING, new Binding.FileBinding(codeDirHost, true,
             containerBackend.getInternalMountPath(), true))
@@ -153,15 +178,16 @@ public class ContainerManager implements Stoppable {
             containerBackend.getInternalMountPath(), false))
         .build();
 
+
     File containerTempDir =
         new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
     try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
       ExecutionConfig.Builder executionConfig = Binding.applyBindings(
           execution.getProgram(),
           bindings,
-          stepName -> {
-            if (stepResults.containsKey(stepName)) {
-              ContainerExecResponseWithTaint stepResult = stepResults.get(stepName);
+          step -> {
+            if (stepResults.containsKey(step)) {
+              ContainerExecResponseWithTaint stepResult = stepResults.get(step);
               Taint stepTaint = stepResult.taint();
               return new Binding.TemporaryFileBinding(containerTempDir,
                   stepResult.response(),
@@ -171,7 +197,7 @@ public class ContainerManager implements Stoppable {
             return null;
           },
           taint);
-      return execute(execution, null, executionConfig);
+      return execute(execution, executionConfig, stepName);
     } catch (ContainerExecutionException | IOException e) {
       return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1)
           .withTaint(taint);
@@ -243,7 +269,7 @@ public class ContainerManager implements Stoppable {
       }
       callback.startStep(stepName);
       try {
-        ContainerExecResponseWithTaint response = execStep(c.getStepLocation(stepName), codeDir, execution,
+        ContainerExecResponseWithTaint response = execStep(stepName, c.getStepLocation(stepName), codeDir, execution,
             repoInfo, stepResults, new Taint(repoInfo.getRepoId(), false));
         stepResults.put(stepName, response);
         callback.finishStep(
@@ -286,12 +312,12 @@ public class ContainerManager implements Stoppable {
         .build();
     try {
       Taint taint = Taint.Parameterisation(repoInfo.getRepoId());
-      return execute(execution, taint, Binding.applyBindings(
+      return execute(execution, Binding.applyBindings(
           execution.getProgram(),
           bindings,
           stepName -> null,
           taint
-      ));
+      ), null);
     } catch (ContainerExecutionException e) {
       return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1)
           .withTaint(null);
