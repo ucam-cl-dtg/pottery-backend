@@ -124,19 +124,6 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
   @Inject
   public DockerContainerWithReuseImpl(ContainerEnvConfig config) throws IOException {
     super(config);
-
-    scheduler.scheduleAtFixedRate(() -> {
-      String dump = containers.entrySet().stream().map(entry -> {
-        return entry.getKey().imageName + "(" + entry.getKey().configurationHash + ")" + "\n" +
-            entry.getValue().map.entrySet().stream().map(c -> {
-              return "\t" + c.getValue().containerName
-                  + ":\tinUse: " + (c.getValue().inUse ? "T" : "F")
-                  + "\t" + c.getValue().taint
-                  + "\t (" + c.getKey() + ")";
-            }).collect(Collectors.joining("\n"));
-      }).collect(Collectors.joining("\n"));
-      System.out.format("\n" + dump + "\n");
-    }, 10L, 10L, TimeUnit.SECONDS);
   }
 
   @Override
