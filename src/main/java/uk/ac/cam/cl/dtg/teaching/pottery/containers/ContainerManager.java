@@ -38,6 +38,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Action;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Execution;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
@@ -214,7 +215,17 @@ public class ContainerManager implements Stoppable {
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
 
-    List<String> steps = taskDetail.getActions().get(action).getSteps();
+    Action actionDetails = taskDetail.getActions().get(action);
+    if (actionDetails == null) {
+      callback.setStatus(Submission.STATUS_FAILED);
+      callback.recordErrorReason(
+          ContainerExecResponse.create(
+              Status.FAILED_EXITCODE, "Failed to find action named " + action, 0),
+          "SETUP");
+      return Job.STATUS_FAILED;
+    }
+
+    List<String> steps = actionDetails.getSteps();
 
     for (String stepName : steps) {
 
