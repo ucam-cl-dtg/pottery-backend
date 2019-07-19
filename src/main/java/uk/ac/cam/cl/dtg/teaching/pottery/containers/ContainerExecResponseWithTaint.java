@@ -21,36 +21,17 @@ import com.google.auto.value.AutoValue;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
 
 @AutoValue
-public abstract class ContainerExecResponse {
+public abstract class ContainerExecResponseWithTaint {
 
-  public enum Status {
-    COMPLETED,
-    FAILED_EXITCODE,
-    FAILED_OOM,
-    FAILED_DISK,
-    FAILED_TIMEOUT,
-    FAILED_UNKNOWN,
-    FAILED_OUTPUT
-  }
-
-  public abstract Status status();
+  public abstract ContainerExecResponse.Status status();
 
   public abstract String response();
 
   public abstract long executionTimeMs();
+  public abstract Taint taint();
 
-  public static ContainerExecResponse create(Status status, String response, long executionTimeMs) {
-    return new AutoValue_ContainerExecResponse(status, stripNull(response), executionTimeMs);
-  }
-
-  private static String stripNull(String v) {
-    if (v == null) {
-      return v;
-    }
-    return v.replace('\0', '?');
-  }
-
-  public ContainerExecResponseWithTaint withTaint(Taint taint) {
-    return ContainerExecResponseWithTaint.create(this, taint);
+  public static ContainerExecResponseWithTaint create(ContainerExecResponse response, Taint taint) {
+    return new AutoValue_ContainerExecResponseWithTaint(response.status(), response.response(),
+        response.executionTimeMs(), taint);
   }
 }

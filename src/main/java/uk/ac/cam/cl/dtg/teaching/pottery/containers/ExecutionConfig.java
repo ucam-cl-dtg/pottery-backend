@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.commons.codec.digest.DigestUtils;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerHostConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.ContainerRestrictions;
 
 @AutoValue
@@ -41,7 +42,7 @@ abstract class ExecutionConfig {
 
   abstract ContainerRestrictions containerRestrictions();
 
-  abstract String potteryRepoId();
+  abstract Taint taint();
 
   static Builder builder() {
     return new AutoValue_ExecutionConfig.Builder();
@@ -49,13 +50,10 @@ abstract class ExecutionConfig {
 
   abstract Builder toBuilder();
 
-  // This covers everything except the command, path, and image name.
-  String settingsHash() {
+  // This covers everything configured in the image except the command, path, and image name.
+  String configurationHash() {
     return DigestUtils.shaHex(localUserId()
-        + ":" + containerRestrictions().getDiskWriteLimitMegabytes()
-        + ":" + containerRestrictions().getOutputLimitKilochars()
         + ":" + containerRestrictions().getRamLimitMegabytes()
-        + ":" + containerRestrictions().getTimeoutSec()
         + ":" + containerRestrictions().isNetworkDisabled());
   }
 
@@ -119,7 +117,7 @@ abstract class ExecutionConfig {
 
     abstract Builder setLocalUserId(int localUserId);
 
-    abstract Builder setPotteryRepoId(String potteryRepoId);
+    abstract Builder setTaint(Taint taint);
 
     abstract ExecutionConfig build();
 

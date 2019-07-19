@@ -21,6 +21,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.inject.Inject;
+import org.apache.commons.io.FileUtils;
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,36 +33,116 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
+import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /** Docker implementation of container backend which reuses containers. */
 public class DockerContainerWithReuseImpl extends DockerContainer implements ContainerBackend {
   protected static final Logger LOG = LoggerFactory.getLogger(DockerContainerWithReuseImpl.class);
 
+  /** This object is used to generate new uuids for host directories. */
+  private UuidGenerator uuidGenerator = new UuidGenerator();
+
+  private final AtomicInteger containerNameCounter = new AtomicInteger(0);
+
   private static final String POTTERY_EXECUTE = "__pottery_execute";
 
-  private final ConcurrentSkipListMap<String, String> containers = new ConcurrentSkipListMap<>();
+  private static class ContainerSettings implements Comparable<ContainerSettings> {
+    String imageName;
+    String configurationHash;
+
+    public ContainerSettings(ExecutionConfig executionConfig) {
+      this.imageName = executionConfig.imageName();
+      this.configurationHash = executionConfig.configurationHash();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      ContainerSettings that = (ContainerSettings) o;
+      return Objects.equals(imageName, that.imageName) &&
+          Objects.equals(configurationHash, that.configurationHash);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(imageName, configurationHash);
+    }
+
+    @Override
+    public int compareTo(@Nonnull ContainerSettings o) {
+      int compare;
+      compare = this.imageName.compareTo(o.imageName);
+      if (compare != 0) return compare;
+      return this.configurationHash.compareTo(o.configurationHash);
+    }
+  }
+
+  private static class ContainerStatus {
+    /**
+     * The repo id if user-controlled code run on this container.
+     */
+    @Nullable String taint;
+
+    /**
+     * The container is currently being used for an execution.
+     */
+    boolean inUse;
+
+    /**
+     * The name of the container.
+     */
+    String containerName;
+  }
+
+  private static class LockableMap {
+    final Object lock = new Object();
+    Map<String, ContainerStatus> map = new HashMap<>();
+  }
+
+  private final ConcurrentSkipListMap<ContainerSettings, LockableMap> containers = new ConcurrentSkipListMap<>();
 
   private final AtomicInteger timeoutMultiplier = new AtomicInteger(1);
 
   @Inject
   public DockerContainerWithReuseImpl(ContainerEnvConfig config) throws IOException {
     super(config);
+
+    scheduler.scheduleAtFixedRate(() -> {
+      String dump = containers.entrySet().stream().map(entry -> {
+        return entry.getKey().imageName + "(" + entry.getKey().configurationHash + ")" + "\n" +
+            entry.getValue().map.entrySet().stream().map(c -> {
+              return "\t" + c.getValue().containerName
+                  + ":\tinUse: " + (c.getValue().inUse ? "T" : "F")
+                  + "\t" + c.getValue().taint
+                  + "\t (" + c.getKey() + ")";
+            }).collect(Collectors.joining("\n"));
+      }).collect(Collectors.joining("\n"));
+      System.out.format("\n" + dump + "\n");
+    }, 10L, 10L, TimeUnit.SECONDS);
   }
 
   @Override
   protected Collection<String> getRunningContainers() {
-    return containers.values();
+    return containers.values().stream().map(ci -> ci.map).flatMap(cm -> cm.keySet().stream())
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -86,44 +167,91 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
     DockerApi docker = getDockerApi();
 
     // First, find if there is an available container
-    String containerName = (this.config.getContainerPrefix()
-        + executionConfig.imageName()
-        + "-" + executionConfig.potteryRepoId()
-        + "-" + executionConfig.settingsHash()).replaceAll("[^a-zA-Z0-9_.-]", "-");
 
     String containerId = null;
+    String containerName = null;
     Status status = Status.FAILED_UNKNOWN;
 
+    File hostRw = null;
+    File hostRo = null;
+
+    ContainerSettings containerSettings = new ContainerSettings(executionConfig);
+
+    LockableMap possibleContainers = containers.computeIfAbsent(containerSettings,
+        cs -> new LockableMap());
+
     try {
-      File host = new File(config.getTempRoot() + "/" + containerName);
+      synchronized (possibleContainers.lock) {
+        String untaintedContainerId = null;
 
-      // Prepare the executionConfig for swizzle
-      File hostRw = new File(host, "rw");
-      FileUtil.mkdirIfNotExists(hostRw);
-      File hostRo = new File(host, "ro");
-      FileUtil.mkdirIfNotExists(hostRo);
+        for (Map.Entry<String, ContainerStatus> entry : possibleContainers.map.entrySet()) {
+          ContainerStatus containerStatus = entry.getValue();
+          if (containerStatus.inUse) continue;
+          if (containerStatus.taint == null) {
+            untaintedContainerId = containerId;
+          }
+          if (containerStatus.taint == null ? executionConfig.taint().identity() == null
+              : containerStatus.taint.equals(executionConfig.taint().identity())) {
+            containerId = entry.getKey();
+            LOG.info("Using existing container {}", containerStatus.containerName);
+            break;
+          }
+        }
+        if (containerId == null) {
+          // Is there a container we can taint?
+          if (untaintedContainerId != null) {
+            LOG.info("Tainting existing container {} with {}", untaintedContainerId, executionConfig.taint().identity());
+            containerId = untaintedContainerId;
+          } else {
+            // Make a new container
+            containerName = (this.config.getContainerPrefix()
+                  + executionConfig.imageName()
+                  + "-"
+                  + executionConfig.configurationHash()
+                  + "-"
+                  + containerNameCounter.incrementAndGet())
+              .replaceAll("[^a-zA-Z0-9_.-]", "-");
+          }
+        }
 
-      if (containers.containsKey(containerName)) {
-        LOG.debug("Using existing container {}", containerName);
-        containerId = containers.get(containerName);
-        // Check container is not running
-        docker.waitContainer(containerId);
-        LOG.debug("Existing container wait over");
-      } else {
-        LOG.debug("Creating container {}", containerName);
+        if (containerId != null) {
+          ContainerStatus containerStatus = possibleContainers.map.get(containerId);
+          containerStatus.inUse = true;
+          containerStatus.taint = executionConfig.taint().identity(); // Apply the taint
+          containerName = containerStatus.containerName;
 
-        ExecutionConfig swizzledConfig = executionConfig.toBuilder()
-            .setCommand(ImmutableList.of(getInternalMountPath() + "/ro/" + POTTERY_EXECUTE))
-            .setPathSpecification(ImmutableList.of(
-                PathSpecification.create(hostRw, getInternalMountPath() + "/rw", true),
-                PathSpecification.create(hostRo, getInternalMountPath() + "/ro", false)
-            ))
-            .build();
+          // Check container is not running
+          docker.waitContainer(containerId);
+        }
 
-        ContainerConfig config = swizzledConfig.toContainerConfig();
-        ContainerResponse response = docker.createContainer(containerName, config);
-        containerId = response.getId();
-        containers.put(containerName, containerId);
+        File host = new File(config.getTempRoot() + "/" + containerName);
+
+        hostRw = new File(host, "rw");
+        FileUtil.mkdirIfNotExists(hostRw);
+        hostRo = new File(host, "ro");
+        FileUtil.mkdirIfNotExists(hostRo);
+
+        if (containerId == null) {
+          LOG.info("Creating container {}", containerName);
+
+          // Prepare the executionConfig for swizzle
+          ExecutionConfig swizzledConfig = executionConfig.toBuilder()
+              .setCommand(ImmutableList.of(getInternalMountPath() + "/ro/" + POTTERY_EXECUTE))
+              .setPathSpecification(ImmutableList.of(
+                  PathSpecification.create(hostRw, getInternalMountPath() + "/rw", true),
+                  PathSpecification.create(hostRo, getInternalMountPath() + "/ro", false)
+              ))
+              .build();
+
+          ContainerConfig config = swizzledConfig.toContainerConfig();
+          ContainerResponse response = docker.createContainer(containerName, config);
+          containerId = response.getId();
+          ContainerStatus newContainerStatus = new ContainerStatus();
+          newContainerStatus.inUse = true;
+          newContainerStatus.taint = executionConfig.taint().identity();
+          newContainerStatus.containerName = containerName;
+          possibleContainers.map.put(containerId, newContainerStatus);
+        }
       }
 
       /// Swizzle directories
@@ -160,7 +288,6 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
 
       long startTime = System.currentTimeMillis();
 
-      docker.startContainer(containerId);
       AttachListener attachListener = new AttachListener(
           executionConfig.containerRestrictions().getOutputLimitKilochars() * 1000);
 
@@ -181,7 +308,9 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
 
       try {
         Future<Session> session =
-            docker.attach(containerId, true, true, true, true, true, attachListener);
+            docker.attach(containerId, false, true, true, true, true, attachListener);
+
+        docker.startContainer(containerId);
 
         // Wait for container to finish (or be killed)
         boolean knownStopped = false;
@@ -255,51 +384,73 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
         diskUsageKillerFuture.cancel(false);
       }
     } catch (IOException|RuntimeException e) {
-      destroyContainer(docker, containerName);
+      destroyContainer(docker, possibleContainers, containerId);
       LOG.error("Error executing container", e);
       throw new ContainerExecutionException(
           String.format(
               "An error (%s) occurred when executing container: %s",
               e.getClass().getName(), e.getMessage()));
     } finally {
-      if (status != Status.COMPLETED && status != Status.FAILED_EXITCODE) {
-        // Something bad happened to the container, so kill it
-        destroyContainer(docker, containerName);
-      } else {
-        // Copy files out
+      try {
+        // Copy files out and delete copies
         File host = new File(config.getTempRoot() + "/" + containerName);
 
-        File hostRw = new File(host, "rw");
+        if ((status != Status.COMPLETED && status != Status.FAILED_EXITCODE)
+            || hostRw == null
+            || hostRo == null) {
+          // Something bad happened to the container, so kill it
+          destroyContainer(docker, possibleContainers, containerId);
+        } else {
+          // Copy files out
+          for (PathSpecification pathSpecification : executionConfig.pathSpecification()) {
+            File hostBase = pathSpecification.readWrite() ? hostRw : hostRo;
+            String name =
+                pathSpecification.container().getPath().replace(getInternalMountPath() + "/", "");
 
-        for (PathSpecification pathSpecification : executionConfig.pathSpecification()) {
-          if (!pathSpecification.readWrite()) continue;
-          File hostBase = hostRw;
-          String name = pathSpecification.container().getPath().replace(getInternalMountPath() + "/", "");
-
-          File hostTarget = new File(hostBase, name);
-          try {
+            File hostTarget = new File(hostBase, name);
             if (pathSpecification.readWrite()) {
               Files.move(hostTarget, pathSpecification.host());
             }
-          } catch (IOException e) {
-            throw new ApiUnavailableException("Couldn't copy back files", e);
           }
-        }
 
+          // Delete temporary directory
+          FileUtils.deleteDirectory(host);
+        }
+      } catch (IOException e) {
+        throw new ApiUnavailableException("Couldn't copy back files", e);
+      }
+      finally{
+        // Unlock the container
+        synchronized (possibleContainers.lock) {
+          possibleContainers.map.compute(
+              containerId,
+              (k, containerStatus) -> {
+                if (containerStatus != null) {
+                  containerStatus.inUse = false;
+                }
+                return containerStatus;
+              });
+        }
       }
     }
   }
 
-  private void destroyContainer(DockerApi docker, String containerName) throws ApiUnavailableException {
-    String containerId = containers.remove(containerName);
-    File host = new File(config.getTempRoot() + "/" + containerName);
+  private void destroyContainer(DockerApi docker, LockableMap containers, String containerId) throws ApiUnavailableException {
     if (containerId != null) {
       DockerPatch.deleteContainer(docker, containerId, true, true);
     }
-    try {
-      FileUtil.deleteRecursive(host);
-    } catch (IOException e) {
-      throw new ApiUnavailableException("Couldn't delete container host directory", e);
+
+    ContainerStatus containerStatus;
+    synchronized (containers.lock) {
+      containerStatus = containers.map.remove(containerId);
+    }
+    if (containerStatus != null) {
+      File host = new File(config.getTempRoot() + "/" + containerStatus.containerName);
+      try {
+        FileUtil.deleteRecursive(host);
+      } catch (IOException e) {
+        throw new ApiUnavailableException("Couldn't delete container host directory", e);
+      }
     }
   }
 }

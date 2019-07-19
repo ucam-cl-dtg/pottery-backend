@@ -57,6 +57,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FourLevelLock.AutoCloseableLock;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponseWithTaint;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.NoHeadInRepoException;
@@ -280,7 +281,7 @@ public class Repo {
                 failureCallback.accept(e.getMessage());
                 return STATUS_FAILED;
               }
-              ContainerExecResponse response;
+              ContainerExecResponseWithTaint response;
               try (TaskCopy c =
                        repoInfo.isUsingTestingVersion()
                            ? t.acquireTestingCopy()
@@ -507,7 +508,7 @@ public class Repo {
 
                           @Override
                           public void recordErrorReason(
-                              ContainerExecResponse response, String stepName) {
+                              ContainerExecResponseWithTaint response, String stepName) {
                             switch (response.status()) {
                               case FAILED_UNKNOWN:
                                 updateSubmission(

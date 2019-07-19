@@ -32,17 +32,21 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.ContainerRestrictions;
 
 @RunWith(JUnit4.class)
 public class TestBinding {
 
   private static final String POTTERY_PREFIX_CONTAINER = "/mnt/pottery-prefix-container";
   private File tempDirHost;
+  private Taint taint;
 
   @Before
   public void setup() throws IOException {
     tempDirHost = Files.createTempDir().getCanonicalFile();
+    taint = new Taint("repoId", false);
   }
 
   @After
@@ -60,7 +64,7 @@ public class TestBinding {
 
     // ACT
     ImmutableList<String> expandedCommand =
-        Binding.applyBindings(command, bindings, name -> null)
+        Binding.applyBindings(command, bindings, name -> null, taint)
             .command();
 
     // ASSERT
@@ -77,7 +81,7 @@ public class TestBinding {
 
     // ACT
     ImmutableList<String> expandedCommand =
-        Binding.applyBindings(command, bindings, name -> null)
+        Binding.applyBindings(command, bindings, name -> null, taint)
             .command();
 
     // ASSERT
@@ -92,18 +96,21 @@ public class TestBinding {
     ImmutableMap<String, Binding> bindings =
         ImmutableMap.of(
             Binding.SUBMISSION_BINDING,
-            new Binding.FileBinding(codeDirHost, /* readWrite = */ true, POTTERY_PREFIX_CONTAINER));
+            new Binding.FileBinding(codeDirHost, /* readWrite = */ true, POTTERY_PREFIX_CONTAINER, true));
     String expectedMountPointContainer =
         POTTERY_PREFIX_CONTAINER + "/" + Binding.SUBMISSION_BINDING;
 
     // ACT
     ExecutionConfig.Builder builder =
-        Binding.applyBindings(command, bindings, name -> null);
+        Binding.applyBindings(command, bindings, name -> null, taint);
+    setDefaultBuilderProperties(builder);
+    ExecutionConfig executionConfig = builder.build();
 
     // ASSERT
     assertThat(builder.command()).containsExactly("before", expectedMountPointContainer, "after");
     assertThat(builder.pathSpecification())
         .containsExactly(PathSpecification.create(codeDirHost, expectedMountPointContainer, true));
+    assertThat(executionConfig.taint().isUserControlled()).isTrue();
   }
 
   @Test
@@ -128,8 +135,12 @@ public class TestBinding {
             command, bindings, name -> new Binding.TemporaryFileBinding(
                 tempDirHost,
                 stepResults.get(name).response(),
-                POTTERY_PREFIX_CONTAINER
-                ));
+                POTTERY_PREFIX_CONTAINER,
+                true
+                ), taint);
+
+    setDefaultBuilderProperties(builder);
+    ExecutionConfig executionConfig = builder.build();
 
     // ASSERT
     assertThat(builder.command()).containsExactly("before", expectedMountPointContainer, "after");
@@ -138,5 +149,12 @@ public class TestBinding {
             PathSpecification.create(expectedTempFileHost, expectedMountPointContainer, false));
     assertThat(MoreFiles.asCharSource(expectedTempFileHost.toPath(), StandardCharsets.UTF_8).read())
         .isEqualTo(previousStepResponse);
+    assertThat(executionConfig.taint().isUserControlled()).isTrue();
+  }
+
+  private void setDefaultBuilderProperties(ExecutionConfig.Builder builder) {
+    builder.setLocalUserId(1);
+    builder.setImageName("image");
+    builder.setContainerRestrictions(new ContainerRestrictions(0, 0, 0, 0, false));
   }
 }

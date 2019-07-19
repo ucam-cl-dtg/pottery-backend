@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
 abstract class Binding {
@@ -48,7 +50,8 @@ abstract class Binding {
   static ExecutionConfig.Builder applyBindings(
       String command,
       ImmutableMap<String, Binding> bindings,
-      Function<String, Binding> getBinding)
+      Function<String, Binding> getBinding,
+      Taint taint)
       throws ContainerExecutionException {
     ExecutionConfig.Builder builder = ExecutionConfig.builder();
     StringBuilder finalCommand = new StringBuilder();
@@ -76,7 +79,12 @@ abstract class Binding {
       finalCommand.append(command.substring(previousMatchEnd, currentMatchStart));
       finalCommand.append(binding.getMountPoint(name));
       previousMatchEnd = regexMatcher.end();
+
+      if (binding.isUserControlled()) {
+        taint = Taint.UserControlled(taint);
+      }
     }
+    builder.setTaint(taint);
     finalCommand.append(command.substring(previousMatchEnd));
 
     Matcher matcher = COMMAND_TOKENIZER.matcher(finalCommand);
@@ -86,6 +94,7 @@ abstract class Binding {
     return builder;
   }
 
+  abstract boolean isUserControlled();
   abstract String getMountPoint(String name);
 
   ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name)
@@ -97,13 +106,15 @@ abstract class Binding {
     private final File file;
     private final boolean readWrite;
     private final String internalMountPath;
+    private final boolean userControlled;
     private boolean needsApplying;
 
-    FileBinding(File file, boolean readWrite, String internalMountPath) {
+    FileBinding(File file, boolean readWrite, String internalMountPath, boolean userControlled) {
       this.file = file;
       this.readWrite = readWrite;
       this.internalMountPath = internalMountPath;
       this.needsApplying = true;
+      this.userControlled = userControlled;
     }
 
     @Override
@@ -119,6 +130,11 @@ abstract class Binding {
     }
 
     @Override
+    boolean isUserControlled() {
+      return userControlled;
+    }
+
+    @Override
     String getMountPoint(String name) {
       return internalMountPath + "/" + name;
     }
@@ -128,12 +144,15 @@ abstract class Binding {
     private final File containerTempDir;
     private final String content;
     private final String internalMountPath;
+    private final boolean userControlled;
     private boolean needsApplying;
 
-    TemporaryFileBinding(File containerTempDir, String content, String internalMountPath) {
+    TemporaryFileBinding(File containerTempDir, String content, String internalMountPath,
+                         boolean userControlled) {
       this.containerTempDir = containerTempDir;
       this.content = content;
       this.internalMountPath = internalMountPath;
+      this.userControlled = userControlled;
       this.needsApplying = true;
     }
 
@@ -158,6 +177,11 @@ abstract class Binding {
     }
 
     @Override
+    boolean isUserControlled() {
+      return userControlled;
+    }
+
+    @Override
     String getMountPoint(String name) {
       return internalMountPath + "/" + name;
     }
@@ -171,6 +195,11 @@ abstract class Binding {
     }
 
     @Override
+    boolean isUserControlled() {
+      return false;
+    }
+
+    @Override
     String getMountPoint(String name) {
       return path;
     }
@@ -181,6 +210,11 @@ abstract class Binding {
 
     TextBinding(String text) {
       this.text = text;
+    }
+
+    @Override
+    boolean isUserControlled() {
+      return false;
     }
 
     /** Technically, this isn't a mount point, it's just a parameter. */
