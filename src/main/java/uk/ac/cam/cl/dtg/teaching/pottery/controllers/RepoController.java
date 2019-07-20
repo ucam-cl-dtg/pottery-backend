@@ -58,8 +58,10 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
 
   /** Create a new RepoController. */
   @Inject
-  public RepoController(RepoFactory repoFactory, TaskIndex taskIndex,
-                        @Named(Repo.PARAMETERISATION_WORKER_NAME) Worker worker) {
+  public RepoController(
+      RepoFactory repoFactory,
+      TaskIndex taskIndex,
+      @Named(Repo.PARAMETERISATION_WORKER_NAME) Worker worker) {
     super();
     this.repoFactory = repoFactory;
     this.taskIndex = taskIndex;
@@ -75,12 +77,12 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       String remote,
       Integer seed)
       throws TaskNotFoundException, RepoStorageException, RetiredTaskException,
-      RepoNotFoundException, TaskMissingVariantException {
+          RepoNotFoundException, TaskMissingVariantException {
     if (taskId == null) {
       throw new TaskNotFoundException("No taskId specified");
     }
-    boolean usingTestingVersion = usingTestingVersionBoolean == null ? false
-        : usingTestingVersionBoolean;
+    boolean usingTestingVersion =
+        usingTestingVersionBoolean == null ? false : usingTestingVersionBoolean;
     if (remote == null) {
       throw new TaskNotFoundException("No remote specified");
     }
@@ -93,11 +95,13 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       if (!c.getInfo().getVariants().contains(variant)) {
         throw new TaskMissingVariantException("Variant " + variant + " is not defined");
       }
-      mutationId = Optional.ofNullable(c.getDetail().getParameterisation())
-          .map(p -> seed % p.getCount()).orElse(-1);
+      mutationId =
+          Optional.ofNullable(c.getDetail().getParameterisation())
+              .map(p -> seed % p.getCount())
+              .orElse(-1);
     }
-    Repo r = repoFactory.createInstance(taskId, usingTestingVersion, null, variant,
-        remote, mutationId);
+    Repo r =
+        repoFactory.createInstance(taskId, usingTestingVersion, null, variant, remote, mutationId);
     String repoId = r.getRepoId();
     worker.schedule(
         new Job() {
@@ -139,10 +143,14 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public RepoInfoWithStatus makeRepo(String taskId, Boolean usingTestingVersion,
-                                     Integer validityMinutes, String variant, Integer seed)
-      throws TaskNotFoundException, RepoNotFoundException,
-          RetiredTaskException, RepoStorageException, TaskMissingVariantException {
+  public RepoInfoWithStatus makeRepo(
+      String taskId,
+      Boolean usingTestingVersion,
+      Integer validityMinutes,
+      String variant,
+      Integer seed)
+      throws TaskNotFoundException, RepoNotFoundException, RetiredTaskException,
+          RepoStorageException, TaskMissingVariantException {
     return makeRemoteRepo(
         taskId, usingTestingVersion, validityMinutes, variant, RepoInfo.REMOTE_UNSET, seed);
   }

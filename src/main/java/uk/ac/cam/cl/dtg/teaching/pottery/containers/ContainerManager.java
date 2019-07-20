@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
@@ -106,16 +105,15 @@ public class ContainerManager implements Stoppable {
   /** Run a compile task and get the response. */
   public ContainerExecResponse execTaskCompilation(File taskDirHost, @Nonnull Execution execution)
       throws ApiUnavailableException {
-    ImmutableMap<String, Binding> bindings = baseImageBinding()
-        .put(Binding.TASK_BINDING, new Binding.FileBinding(taskDirHost, true,
-            containerBackend.getInternalMountPath()))
-        .build();
+    ImmutableMap<String, Binding> bindings =
+        baseImageBinding()
+            .put(
+                Binding.TASK_BINDING,
+                new Binding.FileBinding(taskDirHost, true, containerBackend.getInternalMountPath()))
+            .build();
     try {
-      return execute(execution, Binding.applyBindings(
-          execution.getProgram(),
-          bindings,
-          stepName -> null
-          ));
+      return execute(
+          execution, Binding.applyBindings(execution.getProgram(), bindings, stepName -> null));
     } catch (ContainerExecutionException e) {
       return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
     }
@@ -129,33 +127,42 @@ public class ContainerManager implements Stoppable {
       RepoInfo repoInfo,
       Map<String, ContainerExecResponse> stepResults)
       throws ApiUnavailableException {
-    ImmutableMap<String, Binding> bindings = addRepoInfoToBinding(baseImageBinding(), repoInfo)
-        .put(Binding.SUBMISSION_BINDING, new Binding.FileBinding(codeDirHost, true,
-            containerBackend.getInternalMountPath()))
-        .put(Binding.STEP_BINDING, new Binding.FileBinding(
-            new File(taskStepsDirHost, repoInfo.getVariant()),
-            false,
-            containerBackend.getInternalMountPath()))
-        .put(Binding.SHARED_BINDING, new Binding.FileBinding(
-            new File(taskStepsDirHost, "shared"),
-            false,
-            containerBackend.getInternalMountPath()))
-        .build();
+    ImmutableMap<String, Binding> bindings =
+        addRepoInfoToBinding(baseImageBinding(), repoInfo)
+            .put(
+                Binding.SUBMISSION_BINDING,
+                new Binding.FileBinding(codeDirHost, true, containerBackend.getInternalMountPath()))
+            .put(
+                Binding.STEP_BINDING,
+                new Binding.FileBinding(
+                    new File(taskStepsDirHost, repoInfo.getVariant()),
+                    false,
+                    containerBackend.getInternalMountPath()))
+            .put(
+                Binding.SHARED_BINDING,
+                new Binding.FileBinding(
+                    new File(taskStepsDirHost, "shared"),
+                    false,
+                    containerBackend.getInternalMountPath()))
+            .build();
 
     File containerTempDir =
         new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
     try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
-      return execute(execution, Binding.applyBindings(
-          execution.getProgram(),
-          bindings,
-          stepName -> {
-            if (stepResults.containsKey(stepName)) {
-              return new Binding.TemporaryFileBinding(containerTempDir,
-                  stepResults.get(stepName).response(),
-                  containerBackend.getInternalMountPath());
-            }
-            return null;
-          }));
+      return execute(
+          execution,
+          Binding.applyBindings(
+              execution.getProgram(),
+              bindings,
+              stepName -> {
+                if (stepResults.containsKey(stepName)) {
+                  return new Binding.TemporaryFileBinding(
+                      containerTempDir,
+                      stepResults.get(stepName).response(),
+                      containerBackend.getInternalMountPath());
+                }
+                return null;
+              }));
     } catch (ContainerExecutionException | IOException e) {
       return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
     }
@@ -241,8 +248,8 @@ public class ContainerManager implements Stoppable {
       }
       callback.startStep(stepName);
       try {
-        ContainerExecResponse response = execStep(c.getStepLocation(stepName), codeDir, execution,
-            repoInfo, stepResults);
+        ContainerExecResponse response =
+            execStep(c.getStepLocation(stepName), codeDir, execution, repoInfo, stepResults);
         stepResults.put(stepName, response);
         callback.finishStep(
             stepName,
@@ -265,10 +272,7 @@ public class ContainerManager implements Stoppable {
     return Job.STATUS_OK;
   }
 
-  public ContainerExecResponse runParameterisation(
-      TaskCopy c,
-      File codeDir,
-      RepoInfo repoInfo)
+  public ContainerExecResponse runParameterisation(TaskCopy c, File codeDir, RepoInfo repoInfo)
       throws ApiUnavailableException {
     Preconditions.checkNotNull(c.getDetail().getParameterisation());
 
@@ -276,18 +280,19 @@ public class ContainerManager implements Stoppable {
     Execution execution = getExecution(repoInfo, step);
     Preconditions.checkNotNull(execution);
 
-    ImmutableMap<String, Binding> bindings = addRepoInfoToBinding(baseImageBinding(), repoInfo)
-        .put(Binding.TASK_BINDING, new Binding.FileBinding(c.getLocation(), false,
-                containerBackend.getInternalMountPath()))
-        .put(Binding.SUBMISSION_BINDING, new Binding.FileBinding(codeDir, true,
-            containerBackend.getInternalMountPath()))
-        .build();
+    ImmutableMap<String, Binding> bindings =
+        addRepoInfoToBinding(baseImageBinding(), repoInfo)
+            .put(
+                Binding.TASK_BINDING,
+                new Binding.FileBinding(
+                    c.getLocation(), false, containerBackend.getInternalMountPath()))
+            .put(
+                Binding.SUBMISSION_BINDING,
+                new Binding.FileBinding(codeDir, true, containerBackend.getInternalMountPath()))
+            .build();
     try {
-      return execute(execution, Binding.applyBindings(
-          execution.getProgram(),
-          bindings,
-          stepName -> null
-      ));
+      return execute(
+          execution, Binding.applyBindings(execution.getProgram(), bindings, stepName -> null));
     } catch (ContainerExecutionException e) {
       return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
     }

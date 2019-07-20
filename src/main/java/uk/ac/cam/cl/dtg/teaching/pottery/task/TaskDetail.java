@@ -157,17 +157,14 @@ public class TaskDetail {
     this.variants = variants;
     this.taskTests = taskTests;
     this.taskCompilation =
-        taskCompilation
-            .stream()
+        taskCompilation.stream()
             .map(
                 e ->
                     e.withDefaultContainerRestriction(
                         ContainerRestrictions.DEFAULT_AUTHOR_RESTRICTIONS))
             .collect(Collectors.toList());
     this.steps =
-        steps
-            .entrySet()
-            .stream()
+        steps.entrySet().stream()
             .collect(
                 Collectors.toMap(
                     entry -> entry.getKey(),

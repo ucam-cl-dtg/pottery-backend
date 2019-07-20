@@ -117,9 +117,7 @@ public class TaskIndex {
 
   /** Return a list of non-retired tasks. */
   public Collection<String> getAllTasks() {
-    return definedTasks
-        .values()
-        .stream()
+    return definedTasks.values().stream()
         .filter(t -> !t.isRetired())
         .map(Task::getTaskId)
         .collect(toImmutableList());
@@ -127,9 +125,7 @@ public class TaskIndex {
 
   /** Return a list of retired tasks. */
   public Collection<String> getRetiredTasks() {
-    return definedTasks
-        .values()
-        .stream()
+    return definedTasks.values().stream()
         .filter(Task::isRetired)
         .map(Task::getTaskId)
         .collect(toImmutableList());

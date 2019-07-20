@@ -17,10 +17,8 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.database;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
-import org.apache.commons.dbutils.ResultSetHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 

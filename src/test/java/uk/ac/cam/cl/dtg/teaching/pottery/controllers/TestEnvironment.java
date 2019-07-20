@@ -184,7 +184,9 @@ class TestEnvironment {
                               new Execution("template:java", "@SHARED@/run-validator.sh", null)))),
               ImmutableMap.of(
                   ACTION,
-                  new Action("Validate this solution", ImmutableList.of("compile", "harness", "validate"))),
+                  new Action(
+                      "Validate this solution",
+                      ImmutableList.of("compile", "harness", "validate"))),
               null);
       TaskDetail.save(d, copyRoot);
       g.add().addFilepattern("task.json").call();
@@ -215,8 +217,7 @@ class TestEnvironment {
   }
 
   static String argListingScript() {
-    return ImmutableList.of("#!/bin/bash", "", "echo $@")
-        .stream()
+    return ImmutableList.of("#!/bin/bash", "", "echo $@").stream()
         .collect(Collectors.joining("\n"));
   }
 

@@ -19,7 +19,6 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -178,10 +177,10 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
   }
 
   @Override
-  public Response readSkeletonFile(String taskId, String variant, String fileName,
-                                   Boolean usingTestingVersion)
+  public Response readSkeletonFile(
+      String taskId, String variant, String fileName, Boolean usingTestingVersion)
       throws TaskNotFoundException, TaskMissingVariantException {
-    LOG.info("Requested file {} from task {}:{}",fileName,taskId,variant);
+    LOG.info("Requested file {} from task {}:{}", fileName, taskId, variant);
     Task t = taskIndex.getTask(taskId);
     try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
       if (!c.getInfo().getVariants().contains(variant)) {
@@ -191,8 +190,12 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
       final File skeletonLocation = c.getSkeletonLocation(variant).getCanonicalFile();
       File filePath = new File(skeletonLocation, fileName).getCanonicalFile();
       if (!filePath.getPath().startsWith(skeletonLocation.getPath())) {
-        LOG.info("Illegal path {} requested for skeleton of {}, {}, {}",
-            filePath.getPath(), t, variant, usingTestingVersion);
+        LOG.info(
+            "Illegal path {} requested for skeleton of {}, {}, {}",
+            filePath.getPath(),
+            t,
+            variant,
+            usingTestingVersion);
         throw new TaskNotFoundException("The requested path is illegal");
       }
       // Response is smart enough to return the contents of the file, not just the name.

@@ -20,7 +20,6 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wordnik.swagger.annotations.ApiModelProperty;
-
 import java.util.List;
 
 /** A ParameterisationResult represents the result from running a parameterisation script. */
@@ -32,8 +31,9 @@ public class ParameterisationResult {
   private final List<String> files;
 
   @JsonCreator
-  public ParameterisationResult(@JsonProperty("problemStatement") String problemStatement,
-                                @JsonProperty("files") List<String> files) {
+  public ParameterisationResult(
+      @JsonProperty("problemStatement") String problemStatement,
+      @JsonProperty("files") List<String> files) {
     this.problemStatement = problemStatement;
     this.files = files;
   }
@@ -46,4 +46,3 @@ public class ParameterisationResult {
     return files;
   }
 }
-

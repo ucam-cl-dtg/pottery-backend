@@ -105,8 +105,13 @@ public class RepoFactory {
   }
 
   /** Create a new repo for this task and return it. */
-  public Repo createInstance(String taskId, boolean usingTestingVersion, Date expiryDate,
-                             String variant, String remote, int mutationId)
+  public Repo createInstance(
+      String taskId,
+      boolean usingTestingVersion,
+      Date expiryDate,
+      String variant,
+      String remote,
+      int mutationId)
       throws RepoStorageException, RepoNotFoundException {
     final String newRepoId = uuidGenerator.generate();
     try {
@@ -114,8 +119,16 @@ public class RepoFactory {
           newRepoId,
           () ->
               Repo.createRepo(
-                  new RepoInfo(newRepoId, taskId, usingTestingVersion, expiryDate, variant, remote,
-                      null, mutationId, null),
+                  new RepoInfo(
+                      newRepoId,
+                      taskId,
+                      usingTestingVersion,
+                      expiryDate,
+                      variant,
+                      remote,
+                      null,
+                      mutationId,
+                      null),
                   config,
                   database));
     } catch (ExecutionException e) {
@@ -124,13 +137,16 @@ public class RepoFactory {
     }
   }
 
-  public void initialiseInstance(TaskCopy c, Worker w, Database db, String repoId,
-                                 int validityMinutes)
+  public void initialiseInstance(
+      TaskCopy c, Worker w, Database db, String repoId, int validityMinutes)
       throws RepoStorageException, RepoExpiredException, RepoNotFoundException {
     Repo repo = getInstance(repoId, true);
     // TODO: Handle remote repositories by cloning the remote repo, write the files in below
     // TODO: and then pushing it back in the callback below, and bork if we get a merge conflict.
-    repo.doParameterisation(w, db, c,
+    repo.doParameterisation(
+        w,
+        db,
+        c,
         () -> {
           try {
             Repo.LOG.info("Marking repo " + repoId + " ready");
@@ -138,7 +154,8 @@ public class RepoFactory {
           } catch (RepoStorageException e) {
             Repo.LOG.error("Fault logging success", e);
           }
-        }, error -> {
+        },
+        error -> {
           try {
             repo.markError(database, error);
           } catch (RepoStorageException e) {

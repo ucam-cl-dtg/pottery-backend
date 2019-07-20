@@ -46,9 +46,7 @@ abstract class Binding {
   private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
 
   static ExecutionConfig.Builder applyBindings(
-      String command,
-      ImmutableMap<String, Binding> bindings,
-      Function<String, Binding> getBinding)
+      String command, ImmutableMap<String, Binding> bindings, Function<String, Binding> getBinding)
       throws ContainerExecutionException {
     ExecutionConfig.Builder builder = ExecutionConfig.builder();
     StringBuilder finalCommand = new StringBuilder();
@@ -150,8 +148,8 @@ abstract class Binding {
           throw new ContainerExecutionException(
               "Couldn't create temporary file for binding " + name, e);
         }
-        return builder.addPathSpecification(PathSpecification.create(stepFile, getMountPoint(name),
-            false));
+        return builder.addPathSpecification(
+            PathSpecification.create(stepFile, getMountPoint(name), false));
       } else {
         return builder;
       }

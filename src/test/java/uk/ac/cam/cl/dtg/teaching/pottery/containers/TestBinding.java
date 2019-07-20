@@ -60,8 +60,7 @@ public class TestBinding {
 
     // ACT
     ImmutableList<String> expandedCommand =
-        Binding.applyBindings(command, bindings, name -> null)
-            .command();
+        Binding.applyBindings(command, bindings, name -> null).command();
 
     // ASSERT
     assertThat(expandedCommand).containsExactly("before", variant, "after");
@@ -77,8 +76,7 @@ public class TestBinding {
 
     // ACT
     ImmutableList<String> expandedCommand =
-        Binding.applyBindings(command, bindings, name -> null)
-            .command();
+        Binding.applyBindings(command, bindings, name -> null).command();
 
     // ASSERT
     assertThat(expandedCommand).containsExactly("before", image, "after");
@@ -97,8 +95,7 @@ public class TestBinding {
         POTTERY_PREFIX_CONTAINER + "/" + Binding.SUBMISSION_BINDING;
 
     // ACT
-    ExecutionConfig.Builder builder =
-        Binding.applyBindings(command, bindings, name -> null);
+    ExecutionConfig.Builder builder = Binding.applyBindings(command, bindings, name -> null);
 
     // ASSERT
     assertThat(builder.command()).containsExactly("before", expectedMountPointContainer, "after");
@@ -125,11 +122,11 @@ public class TestBinding {
     // ACT
     ExecutionConfig.Builder builder =
         Binding.applyBindings(
-            command, bindings, name -> new Binding.TemporaryFileBinding(
-                tempDirHost,
-                stepResults.get(name).response(),
-                POTTERY_PREFIX_CONTAINER
-                ));
+            command,
+            bindings,
+            name ->
+                new Binding.TemporaryFileBinding(
+                    tempDirHost, stepResults.get(name).response(), POTTERY_PREFIX_CONTAINER));
 
     // ASSERT
     assertThat(builder.command()).containsExactly("before", expectedMountPointContainer, "after");
