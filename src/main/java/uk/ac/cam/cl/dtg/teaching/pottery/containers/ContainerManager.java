@@ -19,6 +19,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.File;
@@ -214,6 +215,10 @@ public class ContainerManager implements Stoppable {
     callback.setStatus(Submission.STATUS_RUNNING);
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
+
+    if (action == null && taskDetail.getActions().size() == 1) {
+      action = Iterables.getOnlyElement(taskDetail.getActions().keySet());
+    }
 
     Action actionDetails = taskDetail.getActions().get(action);
     if (actionDetails == null) {
