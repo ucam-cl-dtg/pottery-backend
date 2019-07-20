@@ -81,7 +81,6 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
     }
     boolean usingTestingVersion = usingTestingVersionBoolean == null ? false
         : usingTestingVersionBoolean;
-    int validityMinutes = validityMinutesInteger == null ? 60 : validityMinutesInteger;
     if (remote == null) {
       throw new TaskNotFoundException("No remote specified");
     }
@@ -113,9 +112,12 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
               try (TaskCopy c =
                   usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
                 LOG.info("Initialising instance for repo " + repoId);
+                int validityMinutes = validityMinutesInteger == null ? 60 : validityMinutesInteger;
                 repoFactory.initialiseInstance(c, worker, database, repoId, validityMinutes);
               }
-            } catch (TaskNotFoundException | RepoNotFoundException | RepoExpiredException
+            } catch (TaskNotFoundException
+                | RepoNotFoundException
+                | RepoExpiredException
                 | RepoStorageException e) {
               LOG.error("Failed to initialise repository", e);
               try {

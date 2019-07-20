@@ -74,15 +74,15 @@ public class RepoFactory {
     }
   }
 
-  /** Lookup a repo by its repoId. */
-  public Repo getInstance(String repoId) throws RepoStorageException, RepoNotFoundException {
-    return getInstance(repoId, false);
-  }
-
   /** Lookup a repo by its repoId, including those in the process of being created. */
   public Repo getInstanceIncludingCreating(String repoId)
       throws RepoStorageException, RepoNotFoundException {
     return getInstance(repoId, true);
+  }
+
+  /** Lookup a repo by its repoId. */
+  public Repo getInstance(String repoId) throws RepoStorageException, RepoNotFoundException {
+    return getInstance(repoId, false);
   }
 
   private Repo getInstance(String repoId, boolean includeCreating)

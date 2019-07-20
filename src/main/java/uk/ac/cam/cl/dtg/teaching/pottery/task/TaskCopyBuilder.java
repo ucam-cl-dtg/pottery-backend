@@ -17,13 +17,12 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.net.URI;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import com.google.common.collect.ImmutableList;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -360,6 +359,7 @@ public class TaskCopyBuilder {
                                       + response.response()));
                           break;
                         case COMPLETED:
+                        default:
                           break;
                       }
                     }

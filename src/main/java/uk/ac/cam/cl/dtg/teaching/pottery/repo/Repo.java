@@ -531,6 +531,7 @@ public class Repo {
                               case FAILED_EXITCODE:
                                 updateSubmission(
                                     builder.addErrorMessage("Output failed, bad exit code"));
+                                break;
                               default:
                                 break;
                             }
