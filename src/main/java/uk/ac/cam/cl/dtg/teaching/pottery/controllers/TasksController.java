@@ -178,8 +178,15 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
 
   @Override
   public Response readSkeletonFile(
-      String taskId, String variant, String fileName, Boolean usingTestingVersion)
+      String taskId,
+      String variant,
+      String fileName,
+      String altFileName,
+      Boolean usingTestingVersion)
       throws TaskNotFoundException, TaskMissingVariantException {
+    if (altFileName != null) {
+      fileName = altFileName;
+    }
     LOG.info("Requested file {} from task {}:{}", fileName, taskId, variant);
     Task t = taskIndex.getTask(taskId);
     try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {

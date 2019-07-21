@@ -173,18 +173,25 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public Response readFile(String repoId, String tag, String fileName)
+  public Response readFile(String repoId, String tag, String fileName, String altFileName)
       throws RepoStorageException, RepoFileNotFoundException, RepoNotFoundException,
           RepoTagNotFoundException {
+    if (altFileName != null) {
+      fileName = altFileName;
+    }
     byte[] result = repoFactory.getInstance(repoId).readFile(tag, fileName);
     StreamingOutput s = output -> output.write(result);
     return Response.ok(s, MediaType.APPLICATION_OCTET_STREAM).build();
   }
 
   @Override
-  public Response updateFile(String repoId, String tag, String fileName, FileData file)
+  public Response updateFile(
+      String repoId, String tag, String fileName, String altFileName, FileData file)
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException,
           RepoNotFoundException {
+    if (altFileName != null) {
+      fileName = altFileName;
+    }
     if (!Constants.HEAD.equals(tag)) {
       throw new RepoStorageException("Can only update files at HEAD revision");
     }
@@ -193,9 +200,12 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public Response deleteFile(String repoId, String tag, String fileName)
+  public Response deleteFile(String repoId, String tag, String fileName, String altFileName)
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException,
           RepoNotFoundException {
+    if (altFileName != null) {
+      fileName = altFileName;
+    }
     if (!Constants.HEAD.equals(tag)) {
       throw new RepoFileNotFoundException("Can only delete files at HEAD revision");
     }
