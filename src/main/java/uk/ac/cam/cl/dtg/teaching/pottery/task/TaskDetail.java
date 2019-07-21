@@ -20,6 +20,7 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import com.wordnik.swagger.annotations.ApiModelProperty;
 import java.io.File;
 import java.io.IOException;
@@ -125,6 +126,9 @@ public class TaskDetail {
   @Nullable
   private Parameterisation parameterisation;
 
+  @ApiModelProperty("Properties to pass to frontend for this task")
+  private Map<String, String> properties;
+
   public TaskDetail(String taskId) {
     super();
     this.taskId = taskId;
@@ -144,7 +148,8 @@ public class TaskDetail {
       @JsonProperty("taskCompilation") List<Execution> taskCompilation,
       @JsonProperty("steps") Map<String, Step> steps,
       @JsonProperty("actions") Map<String, Action> actions,
-      @JsonProperty("parameterisation") Parameterisation parameterisation) {
+      @JsonProperty("parameterisation") Parameterisation parameterisation,
+      @JsonProperty("properties") Map<String, String> properties) {
     super();
     this.taskId = taskId;
     this.type = type;
@@ -186,6 +191,7 @@ public class TaskDetail {
     } else {
       this.parameterisation = null;
     }
+    this.properties = properties == null ? ImmutableMap.of() : properties;
   }
 
   public String getTaskId() {
@@ -245,6 +251,10 @@ public class TaskDetail {
     return parameterisation;
   }
 
+  public Map<String, String> getProperties() {
+    return properties;
+  }
+
   public void setTaskId(String taskId) {
     this.taskId = taskId;
   }
@@ -261,7 +271,8 @@ public class TaskDetail {
         parameterisation != null ? parameterisation.getCount() : 0,
         questions,
         variants,
-        actions.keySet());
+        actions.keySet(),
+        properties);
   }
 
   /** Read the json file specifying this TaskDetail from disk and parse it into an object. */

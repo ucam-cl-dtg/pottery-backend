@@ -187,6 +187,7 @@ class TestEnvironment {
                   new Action(
                       "Validate this solution",
                       ImmutableList.of("compile", "harness", "validate"))),
+              null,
               null);
       TaskDetail.save(d, copyRoot);
       g.add().addFilepattern("task.json").call();
