@@ -30,6 +30,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
@@ -47,6 +49,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 
 @Singleton
 public class ContainerManager implements Stoppable {
+
+  private static final Logger logger = LoggerFactory.getLogger(ContainerManager.class);
 
   static final String DEFAULT_EXECUTION = "default";
 
@@ -94,12 +98,14 @@ public class ContainerManager implements Stoppable {
   private ContainerExecResponse execute(
       @Nonnull Execution execution, ExecutionConfig.Builder bindingsBuilder)
       throws ApiUnavailableException, ContainerExecutionException {
-    return containerBackend.executeContainer(
+    ExecutionConfig executionConfig =
         bindingsBuilder
             .setImageName(execution.getImage())
             .setContainerRestrictions(execution.getRestrictions())
             .setLocalUserId(config.getUid())
-            .build());
+            .build();
+    logger.info("Starting container with config: " + executionConfig.toString());
+    return containerBackend.executeContainer(executionConfig);
   }
 
   /** Run a compile task and get the response. */
@@ -123,6 +129,7 @@ public class ContainerManager implements Stoppable {
   public ContainerExecResponse execStep(
       File taskStepsDirHost,
       File codeDirHost,
+      File taskCommonDirHost,
       @Nonnull Execution execution,
       RepoInfo repoInfo,
       Map<String, ContainerExecResponse> stepResults)
@@ -144,6 +151,10 @@ public class ContainerManager implements Stoppable {
                     new File(taskStepsDirHost, "shared"),
                     false,
                     containerBackend.getInternalMountPath()))
+            .put(
+                Binding.COMMON_BINDING,
+                new Binding.FileBinding(
+                    taskCommonDirHost, false, containerBackend.getInternalMountPath()))
             .build();
 
     File containerTempDir =
@@ -222,6 +233,7 @@ public class ContainerManager implements Stoppable {
     callback.setStatus(Submission.STATUS_RUNNING);
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
+    File commonDirHost = new File(c.getLocation(), "common");
 
     if (action == null && taskDetail.getActions().size() == 1) {
       action = Iterables.getOnlyElement(taskDetail.getActions().keySet());
@@ -249,7 +261,13 @@ public class ContainerManager implements Stoppable {
       callback.startStep(stepName);
       try {
         ContainerExecResponse response =
-            execStep(c.getStepLocation(stepName), codeDir, execution, repoInfo, stepResults);
+            execStep(
+                c.getStepLocation(stepName),
+                codeDir,
+                commonDirHost,
+                execution,
+                repoInfo,
+                stepResults);
         stepResults.put(stepName, response);
         callback.finishStep(
             stepName,
