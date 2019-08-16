@@ -92,7 +92,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
     }
     int mutationId;
     try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
-      if (!c.getInfo().getVariants().contains(variant)) {
+      if (!c.getVariants().contains(variant)) {
         throw new TaskMissingVariantException("Variant " + variant + " is not defined");
       }
       mutationId =

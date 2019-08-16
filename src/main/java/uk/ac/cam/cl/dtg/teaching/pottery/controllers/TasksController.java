@@ -168,7 +168,7 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
     Task t = taskIndex.getTask(taskId);
     LOG.info("Listing skeleton files {}, {}, {}", t, variant, usingTestingVersion);
     try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
-      if (!c.getInfo().getVariants().contains(variant)) {
+      if (!c.getVariants().contains(variant)) {
         throw new TaskMissingVariantException("Variant " + variant + " is not defined");
       }
 
@@ -190,7 +190,7 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
     LOG.info("Requested file {} from task {}:{}", fileName, taskId, variant);
     Task t = taskIndex.getTask(taskId);
     try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
-      if (!c.getInfo().getVariants().contains(variant)) {
+      if (!c.getVariants().contains(variant)) {
         throw new TaskMissingVariantException("Variant " + variant + " is not defined");
       }
 
