@@ -35,6 +35,7 @@ import org.junit.Before;
 import org.junit.Test;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoFileNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
@@ -58,7 +59,8 @@ public class TestRepo {
   public void setup()
       throws IOException, GitAPIException, TaskStorageException, SQLException,
           TaskNotFoundException, CriterionNotFoundException, RetiredTaskException,
-          RepoExpiredException, RepoNotFoundException, RepoStorageException {
+          RepoExpiredException, RepoNotFoundException, RepoStorageException,
+          InvalidTaskSpecificationException {
 
     this.testRootDir = Files.createTempDir().getCanonicalFile();
     this.testEnvironment = new TestEnvironment(testRootDir.getPath());

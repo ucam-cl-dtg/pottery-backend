@@ -75,7 +75,7 @@ public class TaskCopy implements AutoCloseable {
   }
 
   public TaskInfo getInfo() {
-    return detail.toTaskInfo();
+    return detail.toTaskInfo(config.getTaskCopyDir(copyId));
   }
 
   public Set<String> getVariants() {

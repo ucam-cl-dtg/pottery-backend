@@ -38,6 +38,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.UncontainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
@@ -121,7 +122,7 @@ class TestEnvironment {
 
   Task createNoOpTask()
       throws TaskStorageException, IOException, GitAPIException, CriterionNotFoundException,
-          RetiredTaskException {
+          RetiredTaskException, InvalidTaskSpecificationException {
     Task task = taskFactory.createInstance();
     String taskId = task.getTaskId();
 
