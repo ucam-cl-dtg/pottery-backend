@@ -27,7 +27,6 @@ import com.google.common.collect.Maps;
 import com.wordnik.swagger.annotations.ApiModelProperty;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOError;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -36,10 +35,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 
 public class TaskDetail {
+
+  private static final Logger LOG = LoggerFactory.getLogger(TaskDetail.class);
 
   @ApiModelProperty("The unique identifier for this task")
   private String taskId;
@@ -242,7 +245,9 @@ public class TaskDetail {
         questions,
         variants,
         actions.keySet(),
-        Maps.transformValues(properties, p -> expandString(p, taskDirectory)));
+        // transformValues is lazy - make a copy here so that any problems which occur do so in
+        // the right place
+        ImmutableMap.copyOf(Maps.transformValues(properties, p -> expandString(p, taskDirectory))));
   }
 
   /**
@@ -253,10 +258,12 @@ public class TaskDetail {
    */
   private static String expandString(String value, File taskDirectory) {
     if (value.startsWith("file:")) {
-      try (FileInputStream r = new FileInputStream(new File(taskDirectory, value.substring(5)))) {
+      String fileName = value.substring(5);
+      try (FileInputStream r = new FileInputStream(new File(taskDirectory, fileName))) {
         return IOUtils.toString(r, StandardCharsets.UTF_8);
       } catch (IOException e) {
-        throw new IOError(e);
+        LOG.error("Failed to load file " + fileName, e);
+        return value;
       }
     }
     return value;
