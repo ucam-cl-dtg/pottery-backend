@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
@@ -98,6 +97,7 @@ abstract class Binding {
   }
 
   abstract boolean isUserControlled();
+
   abstract String getMountPoint(String name);
 
   ExecutionConfig.Builder applyBinding(ExecutionConfig.Builder builder, String name)
@@ -159,8 +159,8 @@ abstract class Binding {
     private final boolean userControlled;
     private boolean needsApplying;
 
-    TemporaryFileBinding(File containerTempDir, String content, String internalMountPath,
-                         boolean userControlled) {
+    TemporaryFileBinding(
+        File containerTempDir, String content, String internalMountPath, boolean userControlled) {
       this.containerTempDir = containerTempDir;
       this.content = content;
       this.internalMountPath = internalMountPath;

@@ -47,10 +47,12 @@ public class ContainerRestrictions {
     this.ramLimitMegabytes = ramLimitMegabytes;
     this.outputLimitKilochars = outputLimitKilochars;
     this.networkDisabled = networkDisabled;
-    this.fullySpecified = this.timeoutSec != null && this.diskWriteLimitMegabytes !=  null
-        && this.ramLimitMegabytes != null && this.outputLimitKilochars != null
-        && this.networkDisabled != null;
-
+    this.fullySpecified =
+        this.timeoutSec != null
+            && this.diskWriteLimitMegabytes != null
+            && this.ramLimitMegabytes != null
+            && this.outputLimitKilochars != null
+            && this.networkDisabled != null;
   }
 
   public static final ContainerRestrictions DEFAULT_CANDIDATE_RESTRICTIONS =
@@ -84,12 +86,13 @@ public class ContainerRestrictions {
     }
     return new ContainerRestrictions(
         timeoutSec != null ? timeoutSec : defaultRestrictions.timeoutSec,
-        diskWriteLimitMegabytes != null ? diskWriteLimitMegabytes
+        diskWriteLimitMegabytes != null
+            ? diskWriteLimitMegabytes
             : defaultRestrictions.diskWriteLimitMegabytes,
         ramLimitMegabytes != null ? ramLimitMegabytes : defaultRestrictions.ramLimitMegabytes,
-        outputLimitKilochars != null ? outputLimitKilochars
+        outputLimitKilochars != null
+            ? outputLimitKilochars
             : defaultRestrictions.outputLimitKilochars,
-        networkDisabled != null ? networkDisabled : defaultRestrictions.networkDisabled
-    );
+        networkDisabled != null ? networkDisabled : defaultRestrictions.networkDisabled);
   }
 }

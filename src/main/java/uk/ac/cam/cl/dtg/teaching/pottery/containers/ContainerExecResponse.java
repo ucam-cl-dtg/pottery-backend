@@ -18,9 +18,8 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.google.auto.value.AutoValue;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
-
 import javax.annotation.Nullable;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
 
 @AutoValue
 public abstract class ContainerExecResponse {
@@ -44,7 +43,8 @@ public abstract class ContainerExecResponse {
   @Nullable
   public abstract Taint taint();
 
-  public static ContainerExecResponse create(Status status, String response, long executionTimeMs, Taint taint) {
+  public static ContainerExecResponse create(
+      Status status, String response, long executionTimeMs, Taint taint) {
     return new AutoValue_ContainerExecResponse(status, stripNull(response), executionTimeMs, taint);
   }
 

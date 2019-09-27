@@ -21,6 +21,18 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.inject.Inject;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
@@ -37,19 +49,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
-import javax.annotation.Nullable;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-
 /** Docker implementation of container backend which reuses containers. */
 public class DockerContainerWithReuseImpl extends DockerContainer implements ContainerBackend {
   protected static final Logger LOG = LoggerFactory.getLogger(DockerContainerWithReuseImpl.class);
@@ -59,19 +58,13 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
   private static final String POTTERY_EXECUTE = "__pottery_execute";
 
   private static class ContainerStatus {
-    /**
-     * The repo id if user-controlled code run on this container.
-     */
+    /** The repo id if user-controlled code run on this container. */
     @Nullable String repoIdIfSet;
 
-    /**
-     * The container is currently being used for an execution.
-     */
+    /** The container is currently being used for an execution. */
     boolean inUse;
 
-    /**
-     * The name of the container.
-     */
+    /** The name of the container. */
     String containerName;
   }
 
@@ -80,7 +73,8 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
     final Map<String, ContainerStatus> map = new HashMap<>();
   }
 
-  private final ConcurrentSkipListMap<ContainerSettings, LockableMap> containers = new ConcurrentSkipListMap<>();
+  private final ConcurrentSkipListMap<ContainerSettings, LockableMap> containers =
+      new ConcurrentSkipListMap<>();
 
   private final AtomicInteger timeoutMultiplier = new AtomicInteger(1);
 
@@ -91,7 +85,9 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
 
   @Override
   protected Collection<String> getRunningContainers() {
-    return containers.values().stream().map(ci -> ci.map).flatMap(cm -> cm.keySet().stream())
+    return containers.values().stream()
+        .map(ci -> ci.map)
+        .flatMap(cm -> cm.keySet().stream())
         .collect(Collectors.toList());
   }
 
@@ -129,8 +125,8 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
 
     ContainerSettings containerSettings = ContainerSettings.create(executionConfig);
 
-    LockableMap possibleContainers = containers.computeIfAbsent(containerSettings,
-        cs -> new LockableMap());
+    LockableMap possibleContainers =
+        containers.computeIfAbsent(containerSettings, cs -> new LockableMap());
 
     try {
       synchronized (possibleContainers.lock) {
@@ -156,17 +152,21 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
         if (containerId == null) {
           // Is there an untainted container we can taint?
           if (untaintedContainerId != null) {
-            LOG.info("Tainting existing container {} with {}", untaintedContainerId, executionConfig.taint().identity());
+            LOG.info(
+                "Tainting existing container {} with {}",
+                untaintedContainerId,
+                executionConfig.taint().identity());
             containerId = untaintedContainerId;
           } else {
             // Make a new container
-            containerName = (this.config.getContainerPrefix()
-                  + executionConfig.imageName()
-                  + "-"
-                  + executionConfig.configurationHash()
-                  + "-"
-                  + containerNameCounter.incrementAndGet())
-              .replaceAll("[^a-zA-Z0-9_.-]", "-");
+            containerName =
+                (this.config.getContainerPrefix()
+                        + executionConfig.imageName()
+                        + "-"
+                        + executionConfig.configurationHash()
+                        + "-"
+                        + containerNameCounter.incrementAndGet())
+                    .replaceAll("[^a-zA-Z0-9_.-]", "-");
           }
         }
 
@@ -194,13 +194,15 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
         LOG.info("Creating container {}", containerName);
 
         // Prepare the executionConfig for swizzle
-        ExecutionConfig swizzledConfig = executionConfig.toBuilder()
-            .setCommand(ImmutableList.of(getInternalMountPath() + "/ro/" + POTTERY_EXECUTE))
-            .setPathSpecification(ImmutableList.of(
-                PathSpecification.create(hostRw, getInternalMountPath() + "/rw", true),
-                PathSpecification.create(hostRo, getInternalMountPath() + "/ro", false)
-            ))
-            .build();
+        ExecutionConfig swizzledConfig =
+            executionConfig
+                .toBuilder()
+                .setCommand(ImmutableList.of(getInternalMountPath() + "/ro/" + POTTERY_EXECUTE))
+                .setPathSpecification(
+                    ImmutableList.of(
+                        PathSpecification.create(hostRw, getInternalMountPath() + "/rw", true),
+                        PathSpecification.create(hostRo, getInternalMountPath() + "/ro", false)))
+                .build();
 
         ContainerConfig config = swizzledConfig.toContainerConfig();
         ContainerResponse response = docker.createContainer(containerName, config);
@@ -215,22 +217,29 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
         }
       }
 
-
       /// Swizzle directories
 
       String command = Joiner.on(" ").join(executionConfig.command());
       // Map paths
       for (PathSpecification pathSpecification : executionConfig.pathSpecification()) {
         File hostBase = pathSpecification.readWrite() ? hostRw : hostRo;
-        String name = pathSpecification.container().getPath().replace(getInternalMountPath() + "/", "");
-        String internalPath = getInternalMountPath() + "/" + (pathSpecification.readWrite() ? "rw" : "ro") + "/" + name;
+        String name =
+            pathSpecification.container().getPath().replace(getInternalMountPath() + "/", "");
+        String internalPath =
+            getInternalMountPath()
+                + "/"
+                + (pathSpecification.readWrite() ? "rw" : "ro")
+                + "/"
+                + name;
 
         File hostTarget = new File(hostBase, name);
         // Map from host to swizzle area
         // We can't use symbolic links because Docker won't traverse them (probably for security).
         // We can't hard link directories because that isn't legal in the filesystem.
-        // Even if we use something link cp -al to make linked files, we want changed files to be available.
-        // So, we'll copy read-only files and move the read-write files and then move them back again at the end;
+        // Even if we use something link cp -al to make linked files, we want changed files to be
+        // available.
+        // So, we'll copy read-only files and move the read-write files and then move them back
+        // again at the end;
         // if we are modifying these files we assume a lock is held on them already.
         // Also, we need to preserve permissions; copyFilesRecursively and move both do this.
         if (pathSpecification.readWrite()) {
@@ -246,12 +255,14 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
       // Write command
       File hostExecutable = new File(hostRo, POTTERY_EXECUTE);
       Files.asCharSink(hostExecutable, Charset.defaultCharset()).write("#!/bin/bash\n" + command);
-      java.nio.file.Files.setPosixFilePermissions(hostExecutable.toPath(), PosixFilePermissions.fromString("rwxr-xr-x"));
+      java.nio.file.Files.setPosixFilePermissions(
+          hostExecutable.toPath(), PosixFilePermissions.fromString("rwxr-xr-x"));
 
       long startTime = System.currentTimeMillis();
 
-      AttachListener attachListener = new AttachListener(
-          executionConfig.containerRestrictions().getOutputLimitKilochars() * 1000);
+      AttachListener attachListener =
+          new AttachListener(
+              executionConfig.containerRestrictions().getOutputLimitKilochars() * 1000);
 
       ScheduledFuture<Boolean> timeoutKiller =
           scheduleTimeoutKiller(
@@ -340,12 +351,15 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
         }
 
         LOG.debug("Container response: {}", attachListener.getOutput());
-        return ContainerExecResponse.create(status, attachListener.getOutput(),
-            System.currentTimeMillis() - startTime, executionConfig.taint());
+        return ContainerExecResponse.create(
+            status,
+            attachListener.getOutput(),
+            System.currentTimeMillis() - startTime,
+            executionConfig.taint());
       } finally {
         diskUsageKillerFuture.cancel(false);
       }
-    } catch (IOException|RuntimeException e) {
+    } catch (IOException | RuntimeException e) {
       destroyContainer(docker, possibleContainers, containerId);
       LOG.error("Error executing container", e);
       throw new ContainerExecutionException(
@@ -380,8 +394,7 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
         }
       } catch (IOException e) {
         throw new ApiUnavailableException("Couldn't copy back files", e);
-      }
-      finally{
+      } finally {
         // Unlock the container
         synchronized (possibleContainers.lock) {
           possibleContainers.map.compute(
@@ -397,7 +410,8 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
     }
   }
 
-  private void destroyContainer(DockerApi docker, LockableMap containers, String containerId) throws ApiUnavailableException {
+  private void destroyContainer(DockerApi docker, LockableMap containers, String containerId)
+      throws ApiUnavailableException {
     if (containerId != null) {
       DockerPatch.deleteContainer(docker, containerId, true, true);
     }

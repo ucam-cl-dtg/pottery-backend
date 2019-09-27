@@ -17,6 +17,16 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiListener;
@@ -30,18 +40,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.Version;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
-
-abstract public class DockerContainer implements ContainerBackend {
+public abstract class DockerContainer implements ContainerBackend {
 
   protected static final Logger LOG = LoggerFactory.getLogger(DockerContainer.class);
   protected final ContainerEnvConfig config;
@@ -52,7 +51,7 @@ abstract public class DockerContainer implements ContainerBackend {
   // Lazy initialized - use getDockerApi to access this
   private DockerApi dockerApi;
 
-  abstract protected Collection<String> getRunningContainers();
+  protected abstract Collection<String> getRunningContainers();
 
   public DockerContainer(ContainerEnvConfig config) throws IOException {
     this.config = config;

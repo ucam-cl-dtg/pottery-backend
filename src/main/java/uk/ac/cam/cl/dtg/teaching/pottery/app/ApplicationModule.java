@@ -43,7 +43,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerBackend;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerWithReuseImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.GuiceDependencyController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;

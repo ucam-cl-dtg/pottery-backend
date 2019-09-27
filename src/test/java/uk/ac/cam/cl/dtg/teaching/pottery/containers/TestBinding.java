@@ -91,17 +91,16 @@ public class TestBinding {
     // ARRANGE
     File codeDirHost = new File("/code-dir-host");
     String command = String.format("before @%s@ after", Binding.SUBMISSION_BINDING);
-    ImmutableMap<String, Binding> bindings = ImmutableMap.of(Binding.SUBMISSION_BINDING,
-        new Binding.FileBinding(codeDirHost,
-            true,
-            POTTERY_PREFIX_CONTAINER,
-            Binding.Control.USER_CONTROLLED));
+    ImmutableMap<String, Binding> bindings =
+        ImmutableMap.of(
+            Binding.SUBMISSION_BINDING,
+            new Binding.FileBinding(
+                codeDirHost, true, POTTERY_PREFIX_CONTAINER, Binding.Control.USER_CONTROLLED));
     String expectedMountPointContainer =
         POTTERY_PREFIX_CONTAINER + "/" + Binding.SUBMISSION_BINDING;
 
     // ACT
-    ExecutionConfig.Builder builder =
-        Binding.applyBindings(command, bindings, name -> null, taint);
+    ExecutionConfig.Builder builder = Binding.applyBindings(command, bindings, name -> null, taint);
     setDefaultBuilderProperties(builder);
     ExecutionConfig executionConfig = builder.build();
 
@@ -131,12 +130,12 @@ public class TestBinding {
     // ACT
     ExecutionConfig.Builder builder =
         Binding.applyBindings(
-            command, bindings, name -> new Binding.TemporaryFileBinding(
-                tempDirHost,
-                stepResults.get(name).response(),
-                POTTERY_PREFIX_CONTAINER,
-                true
-                ), taint);
+            command,
+            bindings,
+            name ->
+                new Binding.TemporaryFileBinding(
+                    tempDirHost, stepResults.get(name).response(), POTTERY_PREFIX_CONTAINER, true),
+            taint);
 
     setDefaultBuilderProperties(builder);
     ExecutionConfig executionConfig = builder.build();

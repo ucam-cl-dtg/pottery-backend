@@ -43,7 +43,7 @@ public class Taint {
 
   @Override
   public String toString() {
-    return userControlled ?  "Tainted(" + name + ")" : "Untainted";
+    return userControlled ? "Tainted(" + name + ")" : "Untainted";
   }
 
   public static final Taint Compile = new Taint("compile", false);

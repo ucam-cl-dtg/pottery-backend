@@ -36,7 +36,6 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerBackend;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerWithReuseImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.UncontainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;

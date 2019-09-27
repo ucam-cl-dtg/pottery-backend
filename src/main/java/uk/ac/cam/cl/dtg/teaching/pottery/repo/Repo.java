@@ -501,7 +501,8 @@ public class Repo {
                           }
 
                           @Override
-                          public void recordErrorReason(ContainerExecResponse response, String stepName) {
+                          public void recordErrorReason(
+                              ContainerExecResponse response, String stepName) {
                             switch (response.status()) {
                               case FAILED_UNKNOWN:
                                 updateSubmission(
@@ -524,7 +525,8 @@ public class Repo {
                                 break;
                               case FAILED_OUTPUT:
                                 updateSubmission(
-                                    builder.addErrorMessage("Output failed, output length limit exceeded"));
+                                    builder.addErrorMessage(
+                                        "Output failed, output length limit exceeded"));
                                 break;
                               case FAILED_EXITCODE:
                                 updateSubmission(

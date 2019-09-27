@@ -52,9 +52,12 @@ abstract class ExecutionConfig {
 
   // This covers everything configured in the image except the command, path, and image name.
   String configurationHash() {
-    return DigestUtils.shaHex(localUserId()
-        + ":" + containerRestrictions().getRamLimitMegabytes()
-        + ":" + containerRestrictions().isNetworkDisabled());
+    return DigestUtils.shaHex(
+        localUserId()
+            + ":"
+            + containerRestrictions().getRamLimitMegabytes()
+            + ":"
+            + containerRestrictions().isNetworkDisabled());
   }
 
   ContainerConfig toContainerConfig() {
@@ -118,6 +121,5 @@ abstract class ExecutionConfig {
     abstract Builder setTaint(Taint taint);
 
     abstract ExecutionConfig build();
-
   }
 }

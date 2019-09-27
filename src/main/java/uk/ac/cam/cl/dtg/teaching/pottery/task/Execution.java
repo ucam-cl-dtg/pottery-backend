@@ -68,8 +68,12 @@ public class Execution {
   }
 
   public Execution withDefaultContainerRestriction(ContainerRestrictions defaultRestrictions) {
-    return new Execution(image, program, restrictions == DEFAULT_RESTRICTIONS ? defaultRestrictions
-        : restrictions.withDefaultContainerRestriction(defaultRestrictions));
+    return new Execution(
+        image,
+        program,
+        restrictions == DEFAULT_RESTRICTIONS
+            ? defaultRestrictions
+            : restrictions.withDefaultContainerRestriction(defaultRestrictions));
   }
 
   public Execution withProgram(String program) {

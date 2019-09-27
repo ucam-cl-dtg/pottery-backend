@@ -28,7 +28,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,8 +106,9 @@ public class DockerContainerImpl extends DockerContainer implements ContainerBac
       getRunningContainers().add(containerId);
       try {
         docker.startContainer(containerId);
-        AttachListener attachListener = new AttachListener(
-            executionConfig.containerRestrictions().getOutputLimitKilochars() * 1000);
+        AttachListener attachListener =
+            new AttachListener(
+                executionConfig.containerRestrictions().getOutputLimitKilochars() * 1000);
 
         ScheduledFuture<Boolean> timeoutKiller =
             scheduleTimeoutKiller(
@@ -196,7 +196,9 @@ public class DockerContainerImpl extends DockerContainer implements ContainerBac
           }
 
           LOG.debug("Container response: {}", attachListener.getOutput());
-          return ContainerExecResponse.create(status, attachListener.getOutput(),
+          return ContainerExecResponse.create(
+              status,
+              attachListener.getOutput(),
               System.currentTimeMillis() - startTime,
               executionConfig.taint());
         } finally {
@@ -214,5 +216,4 @@ public class DockerContainerImpl extends DockerContainer implements ContainerBac
               e.getClass().getName(), e.getMessage()));
     }
   }
-
 }
