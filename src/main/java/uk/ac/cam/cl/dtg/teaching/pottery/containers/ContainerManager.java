@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.File;
@@ -43,6 +44,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoInfo;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.Action;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Execution;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Step;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
@@ -157,12 +159,12 @@ public class ContainerManager implements Stoppable {
       String stepName,
       File taskStepsDirHost,
       File codeDirHost,
+      File taskCommonDirHost,
       @Nonnull Execution execution,
       RepoInfo repoInfo,
       Map<String, ContainerExecResponse> stepResults,
       Taint taint)
       throws ApiUnavailableException {
-
     ImmutableMap<String, Binding> bindings =
         addRepoInfoToBinding(baseImageBinding(), repoInfo)
             .put(
@@ -186,6 +188,10 @@ public class ContainerManager implements Stoppable {
                     false,
                     containerBackend.getInternalMountPath(),
                     Binding.Control.FROM_TASK))
+            .put(
+                Binding.COMMON_BINDING,
+                new Binding.FileBinding(
+                    taskCommonDirHost, false, containerBackend.getInternalMountPath(), Binding.Control.FROM_TASK))
             .build();
 
     File containerTempDir =
@@ -266,8 +272,23 @@ public class ContainerManager implements Stoppable {
     callback.setStatus(Submission.STATUS_RUNNING);
 
     Map<String, ContainerExecResponse> stepResults = new HashMap<>();
+    File commonDirHost = new File(c.getLocation(), "common");
 
-    List<String> steps = taskDetail.getActions().get(action).getSteps();
+    if (action == null && taskDetail.getActions().size() == 1) {
+      action = Iterables.getOnlyElement(taskDetail.getActions().keySet());
+    }
+
+    Action actionDetails = taskDetail.getActions().get(action);
+    if (actionDetails == null) {
+      callback.setStatus(Submission.STATUS_FAILED);
+      callback.recordErrorReason(
+          ContainerExecResponse.create(
+              Status.FAILED_EXITCODE, "Failed to find action named " + action, 0, null),
+          "SETUP");
+      return Job.STATUS_FAILED;
+    }
+
+    List<String> steps = actionDetails.getSteps();
 
     for (String stepName : steps) {
       Step step = taskDetail.getSteps().get(stepName);
@@ -277,8 +298,16 @@ public class ContainerManager implements Stoppable {
       }
       callback.startStep(stepName);
       try {
-        ContainerExecResponse response = execStep(stepName, c.getStepLocation(stepName), codeDir, execution,
-            repoInfo, stepResults, new Taint(repoInfo.getRepoId(), false));
+        ContainerExecResponse response =
+            execStep(
+                stepName,
+                c.getStepLocation(stepName),
+                codeDir,
+                commonDirHost,
+                execution,
+                repoInfo,
+                stepResults,
+                new Taint(repoInfo.getRepoId(), false));
         stepResults.put(stepName, response);
         callback.finishStep(
             stepName,
@@ -301,10 +330,7 @@ public class ContainerManager implements Stoppable {
     return Job.STATUS_OK;
   }
 
-  public ContainerExecResponse runParameterisation(
-      TaskCopy c,
-      File codeDir,
-      RepoInfo repoInfo)
+  public ContainerExecResponse runParameterisation(TaskCopy c, File codeDir, RepoInfo repoInfo)
       throws ApiUnavailableException {
     Preconditions.checkNotNull(c.getDetail().getParameterisation());
 

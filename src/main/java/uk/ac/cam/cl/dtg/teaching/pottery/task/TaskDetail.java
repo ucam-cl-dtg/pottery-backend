@@ -20,66 +20,29 @@ package uk.ac.cam.cl.dtg.teaching.pottery.task;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import com.wordnik.swagger.annotations.ApiModelProperty;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 
 public class TaskDetail {
 
-  /**
-   * Algorithms &amp; Data Structures: Tests the ability of the developer to compose algorithms and
-   * design appropriate data structures to solve the problem set out in the test.
-   */
-  public static final String TYPE_ALGORITHM = "ALGORITHMS";
-
-  /**
-   * Design Approaches: Evaluates the logical flow of solution code and appropriate design features
-   * of the solution (e.g. ???)
-   */
-  public static final String TYPE_DESIGN = "DESIGN";
-
-  /**
-   * Black Box Testing: Tests the developer's ability to test a solution without knowing or being
-   * able to review the underlying source code.
-   */
-  public static final String TYPE_BLACKBOX = "BLACKBOX";
-
-  /**
-   * Unit Testing: Assesses the ability of the developer to write unit tests on pre-existing source
-   * code and or source code that they have themselves written.
-   */
-  public static final String TYPE_UNITTEST = "UNITTEST";
-
-  /**
-   * I/O Management: Evaluates the developers ability to implement strategies that result in
-   * appropriate I/O activity in a test solution.
-   */
-  public static final String TYPE_IO = "IO";
-
-  /**
-   * Cache &amp; Memory Management: Evaluates the developers ability to implement strategies that
-   * result in appropriate cache and memory usage approaches in a test solution.
-   */
-  public static final String TYPE_MEMORY = "MEMORY";
-
-  /**
-   * Using Existing APIs &amp; Libraries: Test the ability of a developer to appropriately exploit
-   * existing libraries and APIs to achieve the required test solution.
-   */
-  public static final String TYPE_LIBRARY = "LIBRARY";
-
-  /**
-   * Debugging: Assesses a developers ability in debugging existing code that has a series of known
-   * issues that must be fixed for it to function correctly.
-   */
-  public static final String TYPE_DEBUGGING = "DEBUGGING";
+  private static final Logger LOG = LoggerFactory.getLogger(TaskDetail.class);
 
   @ApiModelProperty("The unique identifier for this task")
   private String taskId;
@@ -125,6 +88,9 @@ public class TaskDetail {
   @Nullable
   private Parameterisation parameterisation;
 
+  @ApiModelProperty("Properties to pass to frontend for this task")
+  private Map<String, String> properties;
+
   public TaskDetail(String taskId) {
     super();
     this.taskId = taskId;
@@ -144,39 +110,34 @@ public class TaskDetail {
       @JsonProperty("taskCompilation") List<Execution> taskCompilation,
       @JsonProperty("steps") Map<String, Step> steps,
       @JsonProperty("actions") Map<String, Action> actions,
-      @JsonProperty("parameterisation") Parameterisation parameterisation) {
+      @JsonProperty("parameterisation") Parameterisation parameterisation,
+      @JsonProperty("properties") Map<String, String> properties)
+      throws InvalidTaskSpecificationException {
     super();
-    this.taskId = taskId;
-    this.type = type;
-    this.name = name;
-    this.criteria = criteria;
-    this.difficulty = difficulty;
+    this.taskId = "UNSET";
+    this.type = orElse(type, "GENERIC");
+    this.name = orThrow(name, "Task name");
+    this.criteria = orElse(criteria, ImmutableSet.of());
+    this.difficulty = orElse(difficulty, "GENERIC");
     this.recommendedTimeMinutes = recommendedTimeMinutes;
-    this.problemStatement = problemStatement;
-    this.questions = questions;
-    this.variants = variants;
-    this.taskTests = taskTests;
+    this.problemStatement = orThrow(problemStatement, "Problem statement");
+    this.questions = orElse(questions, ImmutableList.of());
+    this.variants = orThrow(variants, "Variants");
+    this.taskTests = orElse(taskTests, ImmutableMap.of());
     this.taskCompilation =
-        taskCompilation
-            .stream()
+        orElse(taskCompilation, ImmutableList.<Execution>of()).stream()
             .map(
                 e ->
                     e.withDefaultContainerRestriction(
                         ContainerRestrictions.DEFAULT_AUTHOR_RESTRICTIONS))
             .collect(Collectors.toList());
     this.steps =
-        steps
-            .entrySet()
-            .stream()
-            .collect(
-                Collectors.toMap(
-                    entry -> entry.getKey(),
-                    entry ->
-                        entry
-                            .getValue()
-                            .withDefaultContainerRestriction(
-                                ContainerRestrictions.DEFAULT_CANDIDATE_RESTRICTIONS)));
-    this.actions = actions;
+        Maps.transformValues(
+            orElse(steps, ImmutableMap.<String, Step>of()),
+            v ->
+                v.withDefaultContainerRestriction(
+                    ContainerRestrictions.DEFAULT_CANDIDATE_RESTRICTIONS));
+    this.actions = orElse(actions, ImmutableMap.of());
     Task.LOG.info(
         "Building TaskDetail with name "
             + name
@@ -189,6 +150,21 @@ public class TaskDetail {
     } else {
       this.parameterisation = null;
     }
+    this.properties = orElse(properties, ImmutableMap.of());
+  }
+
+  private static <T> T orElse(T value, T deflt) {
+    if (value == null) {
+      return deflt;
+    }
+    return value;
+  }
+
+  private static <T> T orThrow(T value, String name) throws InvalidTaskSpecificationException {
+    if (value == null) {
+      throw new InvalidTaskSpecificationException("Take specification must include " + name);
+    }
+    return value;
   }
 
   public String getTaskId() {
@@ -248,11 +224,15 @@ public class TaskDetail {
     return parameterisation;
   }
 
+  public Map<String, String> getProperties() {
+    return properties;
+  }
+
   public void setTaskId(String taskId) {
     this.taskId = taskId;
   }
 
-  public TaskInfo toTaskInfo() {
+  public TaskInfo toTaskInfo(File taskDirectory) {
     return new TaskInfo(
         taskId,
         type,
@@ -260,11 +240,33 @@ public class TaskDetail {
         criteria,
         difficulty,
         recommendedTimeMinutes,
-        problemStatement,
+        expandString(problemStatement, taskDirectory),
         parameterisation != null ? parameterisation.getCount() : 0,
         questions,
         variants,
-        actions.keySet());
+        actions.keySet(),
+        // transformValues is lazy - make a copy here so that any problems which occur do so in
+        // the right place
+        ImmutableMap.copyOf(Maps.transformValues(properties, p -> expandString(p, taskDirectory))));
+  }
+
+  /**
+   * Expand templates in the string.
+   *
+   * <p>Currently the only template supported is file:filename which attempts to load filename
+   * relative to the task root directly and replace the contents.
+   */
+  private static String expandString(String value, File taskDirectory) {
+    if (value.startsWith("file:")) {
+      String fileName = value.substring(5);
+      try (FileInputStream r = new FileInputStream(new File(taskDirectory, fileName))) {
+        return IOUtils.toString(r, StandardCharsets.UTF_8);
+      } catch (IOException e) {
+        LOG.error("Failed to load file " + fileName, e);
+        return value;
+      }
+    }
+    return value;
   }
 
   /** Read the json file specifying this TaskDetail from disk and parse it into an object. */

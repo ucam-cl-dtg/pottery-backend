@@ -64,9 +64,7 @@ public class UncontainerImpl implements ContainerBackend {
       throws ApiUnavailableException {
     try {
       ImmutableList<String> commands =
-          executionConfig
-              .command()
-              .stream()
+          executionConfig.command().stream()
               .map(
                   command -> {
                     for (PathSpecification pathSpecification :

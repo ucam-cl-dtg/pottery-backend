@@ -17,6 +17,7 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.task;
 
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.net.URI;
 import java.util.Date;
@@ -279,7 +280,8 @@ public class TaskCopyBuilder {
     builderInfo.setStatus(BuilderInfo.STATUS_TESTING_SOLUTIONS);
 
     for (String variant : taskDetail.getVariants()) {
-      List<Testcase> testcases = taskDetail.getTaskTests().get(variant);
+      List<Testcase> testcases =
+          taskDetail.getTaskTests().getOrDefault(variant, ImmutableList.of());
       File variantSolutions = taskCopy.getSolutionLocation(variant);
       for (Testcase testcase : testcases) {
         String testName = testcase.getDirectory();
@@ -295,8 +297,7 @@ public class TaskCopyBuilder {
                 testCodeFolder,
                 taskDetail,
                 testcase.getAction(),
-                new RepoInfo("", "", false, new Date(), variant,
-                    null, null, 0, null),
+                new RepoInfo("", "", false, new Date(), variant, null, null, 0, null),
                 new ContainerManager.StepRunnerCallback() {
                   @Override
                   public void setStatus(String status) {
@@ -348,6 +349,16 @@ public class TaskCopyBuilder {
                                       + "Compiler response was: "
                                       + response.response()));
                           break;
+                        case FAILED_EXITCODE:
+                          builderInfo.setException(
+                              new InvalidTaskSpecificationException(
+                                  "Bad exit code for "
+                                      + taskName
+                                      + " during registration. "
+                                      + "Compiler response was: "
+                                      + response.response()));
+                          break;
+                        case COMPLETED:
                         default:
                           break;
                       }

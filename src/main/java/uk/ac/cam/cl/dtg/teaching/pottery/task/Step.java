@@ -50,9 +50,7 @@ public class Step {
 
   public Step withDefaultContainerRestriction(ContainerRestrictions restrictions) {
     return new Step(
-        execution
-            .entrySet()
-            .stream()
+        execution.entrySet().stream()
             .collect(
                 Collectors.toMap(
                     e -> e.getKey(),

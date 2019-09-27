@@ -64,8 +64,7 @@ public class TestBinding {
 
     // ACT
     ImmutableList<String> expandedCommand =
-        Binding.applyBindings(command, bindings, name -> null, taint)
-            .command();
+        Binding.applyBindings(command, bindings, name -> null, taint).command();
 
     // ASSERT
     assertThat(expandedCommand).containsExactly("before", variant, "after");
@@ -81,8 +80,7 @@ public class TestBinding {
 
     // ACT
     ImmutableList<String> expandedCommand =
-        Binding.applyBindings(command, bindings, name -> null, taint)
-            .command();
+        Binding.applyBindings(command, bindings, name -> null, taint).command();
 
     // ASSERT
     assertThat(expandedCommand).containsExactly("before", image, "after");

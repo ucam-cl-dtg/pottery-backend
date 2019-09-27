@@ -24,25 +24,17 @@ import com.google.inject.Module;
 import com.google.inject.PrivateModule;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
 import com.wordnik.swagger.jaxrs.config.BeanConfig;
 import com.wordnik.swagger.jaxrs.listing.ApiDeclarationProvider;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResource;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResourceJSON;
 import com.wordnik.swagger.jaxrs.listing.ResourceListingProvider;
-
 import java.util.Enumeration;
 import java.util.Objects;
-import java.util.Properties;
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Singleton;
 import javax.servlet.ServletContext;
-import org.eclipse.jgit.transport.JschConfigSessionFactory;
-import org.eclipse.jgit.transport.OpenSshConfig;
-import org.eclipse.jgit.transport.SshSessionFactory;
-import org.eclipse.jgit.util.FS;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
@@ -63,6 +55,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.PostgresDatabase;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoFactory;
+import uk.ac.cam.cl.dtg.teaching.pottery.ssh.SshManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.ThreadPoolWorker;
@@ -70,6 +63,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class ApplicationModule implements Module {
 
+  public static final String SSH_PRIVATE_KEY = "sshPrivateKey";
   private ServletContext context;
 
   ApplicationModule(ServletContext context) {
@@ -130,6 +124,8 @@ public class ApplicationModule implements Module {
 
     binder.bind(Database.class).to(PostgresDatabase.class).in(Singleton.class);
 
+    binder.bind(SshManager.class).in(Singleton.class);
+
     binder.install(new WorkerModule());
     binder.install(new WorkerModule(Repo.PARAMETERISATION_WORKER_NAME));
 
@@ -142,25 +138,12 @@ public class ApplicationModule implements Module {
       String name = names.nextElement();
       binder.bindConstant().annotatedWith(Names.named(name)).to(context.getInitParameter(name));
     }
+  }
 
-    SshSessionFactory.setInstance(
-        new JschConfigSessionFactory() {
-          @Override
-          protected void configure(OpenSshConfig.Host hc, Session session) {
-            // do nothing
-          }
-
-          @Override
-          protected JSch createDefaultJSch(FS fs) throws JSchException {
-            JSch defaultJSch = super.createDefaultJSch(fs);
-            defaultJSch.removeAllIdentity();
-            defaultJSch.addIdentity(context.getInitParameter("sshPrivateKey"));
-            Properties config = new Properties();
-            config.put("StrictHostKeyChecking", "no");
-            JSch.setConfig(config);
-            return defaultJSch;
-          }
-        });
+  @PostConstruct
+  public void startSshManager() {
+    Injector injector = GuiceResteasyBootstrapServletContextListenerV3.getInjector();
+    injector.getInstance(SshManager.class).init();
   }
 
   /** Stop the various worker and manager threads. */

@@ -71,14 +71,12 @@ abstract class ExecutionConfig {
     hc.setMemory(containerRestrictions().getRamLimitMegabytes() * 1024 * 1024);
     hc.setMemorySwap(hc.getMemory()); // disable swap
     hc.setBinds(
-        pathSpecification()
-            .stream()
+        pathSpecification().stream()
             .map(PathSpecification::toBindString)
             .collect(toImmutableList()));
     config.setHostConfig(hc);
     config.setVolumes(
-        pathSpecification()
-            .stream()
+        pathSpecification().stream()
             .collect(
                 toImmutableMap(
                     pathSpecification -> pathSpecification.container().getPath(),

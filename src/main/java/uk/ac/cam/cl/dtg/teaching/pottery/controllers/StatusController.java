@@ -23,23 +23,32 @@ import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.ssh.SshManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 public class StatusController implements uk.ac.cam.cl.dtg.teaching.pottery.api.StatusController {
 
   protected static final Logger LOG = LoggerFactory.getLogger(WorkerController.class);
 
-  private Worker worker;
-
-  private ContainerManager containerManager;
+  private final Worker worker;
+  private final ContainerEnvConfig containerEnvConfig;
+  private final ContainerManager containerManager;
+  private final SshManager sshManager;
 
   /** Create a new StatusController. */
   @Inject
-  public StatusController(Worker worker, ContainerManager containerManager) {
+  public StatusController(
+      Worker worker,
+      ContainerEnvConfig containerEnvConfig,
+      ContainerManager containerManager,
+      SshManager sshManager) {
     super();
     this.worker = worker;
+    this.containerEnvConfig = containerEnvConfig;
     this.containerManager = containerManager;
+    this.sshManager = sshManager;
   }
 
   @Override
@@ -52,6 +61,9 @@ public class StatusController implements uk.ac.cam.cl.dtg.teaching.pottery.api.S
         "ContainerManager.smoothedCallTime",
         String.valueOf(containerManager.getSmoothedCallTime()));
     response.put("ContainerManager.apiStatus", String.valueOf(containerManager.getApiStatus()));
+    response.put(
+        "Pottery.user",
+        String.format("%s(%d)", containerEnvConfig.getUserName(), containerEnvConfig.getUid()));
     return response;
   }
 
@@ -62,5 +74,10 @@ public class StatusController implements uk.ac.cam.cl.dtg.teaching.pottery.api.S
     } catch (ApiUnavailableException e) {
       return "UNAVAILABLE: " + e.getMessage();
     }
+  }
+
+  @Override
+  public String publicKey() {
+    return sshManager.getPublicKey();
   }
 }

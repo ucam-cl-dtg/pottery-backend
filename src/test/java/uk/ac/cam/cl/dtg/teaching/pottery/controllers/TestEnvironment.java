@@ -40,6 +40,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerWithReuseImpl
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.UncontainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.CriterionNotFoundException;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoExpiredException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoNotFoundException;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.RepoStorageException;
@@ -119,7 +120,7 @@ class TestEnvironment {
 
   Task createNoOpTask()
       throws TaskStorageException, IOException, GitAPIException, CriterionNotFoundException,
-          RetiredTaskException {
+          RetiredTaskException, InvalidTaskSpecificationException {
     Task task = taskFactory.createInstance();
     String taskId = task.getTaskId();
 
@@ -182,7 +183,10 @@ class TestEnvironment {
                               new Execution("template:java", "@SHARED@/run-validator.sh", null)))),
               ImmutableMap.of(
                   ACTION,
-                  new Action("Validate this solution", ImmutableList.of("compile", "harness", "validate"))),
+                  new Action(
+                      "Validate this solution",
+                      ImmutableList.of("compile", "harness", "validate"))),
+              null,
               null);
       TaskDetail.save(d, copyRoot);
       g.add().addFilepattern("task.json").call();
@@ -213,8 +217,7 @@ class TestEnvironment {
   }
 
   static String argListingScript() {
-    return ImmutableList.of("#!/bin/bash", "", "echo $@")
-        .stream()
+    return ImmutableList.of("#!/bin/bash", "", "echo $@").stream()
         .collect(Collectors.joining("\n"));
   }
 

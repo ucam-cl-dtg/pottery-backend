@@ -32,8 +32,7 @@ public class RepoInfo {
   private String taskId;
   private boolean usingTestingVersion;
 
-  @Nullable
-  private Date expiryDate;
+  @Nullable private Date expiryDate;
 
   private String variant;
 
@@ -47,8 +46,7 @@ public class RepoInfo {
   private int mutationId;
 
   /** The customised problemStatement for this repo. */
-  @Nullable
-  private String problemStatement;
+  @Nullable private String problemStatement;
 
   @JsonCreator
   public RepoInfo(
@@ -60,8 +58,7 @@ public class RepoInfo {
       @JsonProperty("remote") String remote,
       @JsonProperty("errorMessage") String errorMessage,
       @JsonProperty("mutationId") int mutationId,
-      @JsonProperty("problemStatement") String problemStatement
-      ) {
+      @JsonProperty("problemStatement") String problemStatement) {
     super();
     this.repoId = repoId;
     this.taskId = taskId;
@@ -117,27 +114,59 @@ public class RepoInfo {
   }
 
   public RepoInfo withExpiryDate(Date newExpiryDate) {
-    return new RepoInfo(repoId, taskId, usingTestingVersion, newExpiryDate, variant, remote,
-        errorMessage, mutationId, problemStatement);
+    return new RepoInfo(
+        repoId,
+        taskId,
+        usingTestingVersion,
+        newExpiryDate,
+        variant,
+        remote,
+        errorMessage,
+        mutationId,
+        problemStatement);
   }
 
   public RepoInfo withError(String message) {
-    return new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate, variant, remote, message,
-        mutationId, problemStatement);
+    return new RepoInfo(
+        repoId,
+        taskId,
+        usingTestingVersion,
+        expiryDate,
+        variant,
+        remote,
+        message,
+        mutationId,
+        problemStatement);
   }
 
   public RepoInfo withProblemStatement(String newProblemStatement) {
-    return new RepoInfo(repoId, taskId, usingTestingVersion, expiryDate, variant, remote,
-        errorMessage, mutationId, newProblemStatement);
+    return new RepoInfo(
+        repoId,
+        taskId,
+        usingTestingVersion,
+        expiryDate,
+        variant,
+        remote,
+        errorMessage,
+        mutationId,
+        newProblemStatement);
   }
 
   public RepoInfoWithStatus withStatus(boolean ready) {
-    boolean expired = this.getExpiryDate() != null
-        && new Date().after(this.getExpiryDate());
-    RepoStatus status = errorMessage != null ? RepoStatus.ERROR :
-        ready ? (expired ? RepoStatus.EXPIRED : RepoStatus.READY)
-        : RepoStatus.CREATING;
-    return new RepoInfoWithStatus(repoId, taskId, usingTestingVersion, status, expiryDate, variant,
-        remote, errorMessage, problemStatement);
+    boolean expired = this.getExpiryDate() != null && new Date().after(this.getExpiryDate());
+    RepoStatus status =
+        errorMessage != null
+            ? RepoStatus.ERROR
+            : ready ? (expired ? RepoStatus.EXPIRED : RepoStatus.READY) : RepoStatus.CREATING;
+    return new RepoInfoWithStatus(
+        repoId,
+        taskId,
+        usingTestingVersion,
+        status,
+        expiryDate,
+        variant,
+        remote,
+        errorMessage,
+        problemStatement);
   }
 }

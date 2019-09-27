@@ -18,6 +18,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.database;
 
 import java.sql.SQLException;
+import java.util.Optional;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.TransactionQueryRunner;
 
@@ -27,4 +28,20 @@ public interface Database extends Stoppable {
 
   @Override
   void stop();
+
+  default Optional<String> lookupConfigValue(String key, TransactionQueryRunner t)
+      throws SQLException {
+    return t.query(
+        "SELECT value from config where key=?",
+        resultSet -> resultSet.next() ? Optional.of(resultSet.getString(1)) : Optional.empty(),
+        key);
+  }
+
+  default void storeConfigValue(String key, String value, TransactionQueryRunner t)
+      throws SQLException {
+    int updates = t.update("UPDATE config set value =? where key=?", value, key);
+    if (updates == 0) {
+      t.insert("INSERT into config(key,value) values (?,?)", resultSet -> null, key, value);
+    }
+  }
 }

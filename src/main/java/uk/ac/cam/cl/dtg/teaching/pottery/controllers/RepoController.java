@@ -58,8 +58,10 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
 
   /** Create a new RepoController. */
   @Inject
-  public RepoController(RepoFactory repoFactory, TaskIndex taskIndex,
-                        @Named(Repo.PARAMETERISATION_WORKER_NAME) Worker worker) {
+  public RepoController(
+      RepoFactory repoFactory,
+      TaskIndex taskIndex,
+      @Named(Repo.PARAMETERISATION_WORKER_NAME) Worker worker) {
     super();
     this.repoFactory = repoFactory;
     this.taskIndex = taskIndex;
@@ -75,13 +77,12 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
       String remote,
       Integer seed)
       throws TaskNotFoundException, RepoStorageException, RetiredTaskException,
-      RepoNotFoundException, TaskMissingVariantException {
+          RepoNotFoundException, TaskMissingVariantException {
     if (taskId == null) {
       throw new TaskNotFoundException("No taskId specified");
     }
-    boolean usingTestingVersion = usingTestingVersionBoolean == null ? false
-        : usingTestingVersionBoolean;
-    int validityMinutes = validityMinutesInteger == null ? 60 : validityMinutesInteger;
+    boolean usingTestingVersion =
+        usingTestingVersionBoolean == null ? false : usingTestingVersionBoolean;
     if (remote == null) {
       throw new TaskNotFoundException("No remote specified");
     }
@@ -91,14 +92,16 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
     }
     int mutationId;
     try (TaskCopy c = usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
-      if (!c.getInfo().getVariants().contains(variant)) {
+      if (!c.getVariants().contains(variant)) {
         throw new TaskMissingVariantException("Variant " + variant + " is not defined");
       }
-      mutationId = Optional.ofNullable(c.getDetail().getParameterisation())
-          .map(p -> seed % p.getCount()).orElse(-1);
+      mutationId =
+          Optional.ofNullable(c.getDetail().getParameterisation())
+              .map(p -> seed % p.getCount())
+              .orElse(-1);
     }
-    Repo r = repoFactory.createInstance(taskId, usingTestingVersion, null, variant,
-        remote, mutationId);
+    Repo r =
+        repoFactory.createInstance(taskId, usingTestingVersion, null, variant, remote, mutationId);
     String repoId = r.getRepoId();
     worker.schedule(
         new Job() {
@@ -113,9 +116,12 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
               try (TaskCopy c =
                   usingTestingVersion ? t.acquireTestingCopy() : t.acquireRegisteredCopy()) {
                 LOG.info("Initialising instance for repo " + repoId);
+                int validityMinutes = validityMinutesInteger == null ? 60 : validityMinutesInteger;
                 repoFactory.initialiseInstance(c, worker, database, repoId, validityMinutes);
               }
-            } catch (TaskNotFoundException | RepoNotFoundException | RepoExpiredException
+            } catch (TaskNotFoundException
+                | RepoNotFoundException
+                | RepoExpiredException
                 | RepoStorageException e) {
               LOG.error("Failed to initialise repository", e);
               try {
@@ -137,10 +143,14 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public RepoInfoWithStatus makeRepo(String taskId, Boolean usingTestingVersion,
-                                     Integer validityMinutes, String variant, Integer seed)
-      throws TaskNotFoundException, RepoNotFoundException,
-          RetiredTaskException, RepoStorageException, TaskMissingVariantException {
+  public RepoInfoWithStatus makeRepo(
+      String taskId,
+      Boolean usingTestingVersion,
+      Integer validityMinutes,
+      String variant,
+      Integer seed)
+      throws TaskNotFoundException, RepoNotFoundException, RetiredTaskException,
+          RepoStorageException, TaskMissingVariantException {
     return makeRemoteRepo(
         taskId, usingTestingVersion, validityMinutes, variant, RepoInfo.REMOTE_UNSET, seed);
   }
@@ -163,18 +173,25 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public Response readFile(String repoId, String tag, String fileName)
+  public Response readFile(String repoId, String tag, String fileName, String altFileName)
       throws RepoStorageException, RepoFileNotFoundException, RepoNotFoundException,
           RepoTagNotFoundException {
+    if (altFileName != null) {
+      fileName = altFileName;
+    }
     byte[] result = repoFactory.getInstance(repoId).readFile(tag, fileName);
     StreamingOutput s = output -> output.write(result);
     return Response.ok(s, MediaType.APPLICATION_OCTET_STREAM).build();
   }
 
   @Override
-  public Response updateFile(String repoId, String tag, String fileName, FileData file)
+  public Response updateFile(
+      String repoId, String tag, String fileName, String altFileName, FileData file)
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException,
           RepoNotFoundException {
+    if (altFileName != null) {
+      fileName = altFileName;
+    }
     if (!Constants.HEAD.equals(tag)) {
       throw new RepoStorageException("Can only update files at HEAD revision");
     }
@@ -183,9 +200,12 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   }
 
   @Override
-  public Response deleteFile(String repoId, String tag, String fileName)
+  public Response deleteFile(String repoId, String tag, String fileName, String altFileName)
       throws RepoStorageException, RepoExpiredException, RepoFileNotFoundException,
           RepoNotFoundException {
+    if (altFileName != null) {
+      fileName = altFileName;
+    }
     if (!Constants.HEAD.equals(tag)) {
       throw new RepoFileNotFoundException("Can only delete files at HEAD revision");
     }

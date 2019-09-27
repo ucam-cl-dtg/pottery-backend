@@ -28,7 +28,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
+import java.util.Set;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.TwoPhaseLatch;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
@@ -75,7 +75,11 @@ public class TaskCopy implements AutoCloseable {
   }
 
   public TaskInfo getInfo() {
-    return detail.toTaskInfo();
+    return detail.toTaskInfo(config.getTaskCopyDir(copyId));
+  }
+
+  public Set<String> getVariants() {
+    return detail.getVariants();
   }
 
   public TaskDetail getDetail() {

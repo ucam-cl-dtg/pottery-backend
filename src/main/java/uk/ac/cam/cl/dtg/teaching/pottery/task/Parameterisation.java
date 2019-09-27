@@ -45,8 +45,7 @@ public class Parameterisation {
   }
 
   public Parameterisation withDefaultContainerRestrictions(ContainerRestrictions restrictions) {
-    return new Parameterisation(getCount(),
-        getGenerator().withDefaultContainerRestriction(restrictions));
+    return new Parameterisation(
+        getCount(), getGenerator().withDefaultContainerRestriction(restrictions));
   }
 }
-

@@ -39,6 +39,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
@@ -80,6 +81,17 @@ public class DockerContainerImpl extends DockerContainer implements ContainerBac
   @Override
   public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ApiUnavailableException, ContainerExecutionException {
+
+    // Make sure all the mount points exist, otherwise docker creates them for us with the wrong
+    // file permissions
+    for (PathSpecification specification : executionConfig.pathSpecification()) {
+      try {
+        FileUtil.mkdirIfNotExists(specification.host());
+      } catch (IOException e) {
+        throw new ContainerExecutionException(
+            "Failed to create mount point " + specification.host(), e);
+      }
+    }
 
     String containerName =
         this.config.getContainerPrefix() + containerNameCounter.incrementAndGet();

@@ -45,6 +45,9 @@ abstract class Binding {
   static final String SHARED_BINDING = "SHARED";
   static final String MUTATION_ID_BINDING = "MUTATION";
 
+  // e.g. /taskRoot/common - shared between all steps and variants
+  static final String COMMON_BINDING = "COMMON";
+
   private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
 
   static ExecutionConfig.Builder applyBindings(
@@ -178,8 +181,8 @@ abstract class Binding {
           throw new ContainerExecutionException(
               "Couldn't create temporary file for binding " + name, e);
         }
-        return builder.addPathSpecification(PathSpecification.create(stepFile, getMountPoint(name),
-            false));
+        return builder.addPathSpecification(
+            PathSpecification.create(stepFile, getMountPoint(name), false));
       } else {
         return builder;
       }
