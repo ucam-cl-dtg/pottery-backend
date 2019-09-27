@@ -99,7 +99,7 @@ public class ContainerManager implements Stoppable {
 
   /** Execute a command inside a container. */
   private ContainerExecResponse execute(@Nonnull Execution execution, ExecutionConfig.Builder bindingsBuilder,
-                                                           String cacheKey)
+                                                           String partialCacheKey)
       throws ApiUnavailableException, ContainerExecutionException {
     ExecutionConfig executionConfig = bindingsBuilder
         .setImageName(execution.getImage())
@@ -107,13 +107,13 @@ public class ContainerManager implements Stoppable {
         .setLocalUserId(config.getUid())
         .build();
 
-    if (cacheKey != null && !executionConfig.taint().isUserControlled()) {
-      cacheKey = executionConfig.imageName()
+    if (partialCacheKey != null && !executionConfig.taint().isUserControlled()) {
+      String fullCacheKey = executionConfig.imageName()
           + ":" + executionConfig.configurationHash()
           + ":" + executionConfig.taint().name() // Not identity; even if not user controlled, still user specific.
-          + ":" + cacheKey;
+          + ":" + partialCacheKey;
 
-      String result = executionCache.getIfPresent(cacheKey);
+      String result = executionCache.getIfPresent(fullCacheKey);
 
       if (result != null) {
         LOG.info("Returning from cache (" + executionConfig.taint() + "):" + executionConfig.command());
@@ -124,7 +124,7 @@ public class ContainerManager implements Stoppable {
       ContainerExecResponse response = containerBackend.executeContainer(executionConfig);
       if (response.status() == Status.COMPLETED) {
         // Only cache success
-        executionCache.put(cacheKey, response.response());
+        executionCache.put(fullCacheKey, response.response());
       }
       return response;
     } else {
