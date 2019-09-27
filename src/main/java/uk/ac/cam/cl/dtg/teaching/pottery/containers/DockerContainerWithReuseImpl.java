@@ -340,8 +340,8 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
         }
 
         LOG.debug("Container response: {}", attachListener.getOutput());
-        return ContainerExecResponse.create(
-            status, attachListener.getOutput(), System.currentTimeMillis() - startTime);
+        return ContainerExecResponse.create(status, attachListener.getOutput(),
+            System.currentTimeMillis() - startTime, executionConfig.taint());
       } finally {
         diskUsageKillerFuture.cancel(false);
       }

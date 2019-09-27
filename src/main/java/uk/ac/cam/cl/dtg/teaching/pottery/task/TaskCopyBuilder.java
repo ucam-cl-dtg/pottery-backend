@@ -31,7 +31,6 @@ import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponseWithTaint;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.InvalidTaskSpecificationException;
@@ -229,7 +228,7 @@ public class TaskCopyBuilder {
     builderInfo.setStatus(BuilderInfo.STATUS_COMPILING_TESTS);
 
     for (Execution compileStep : taskDetail.getTaskCompilation()) {
-      ContainerExecResponseWithTaint r =
+      ContainerExecResponse r =
           containerManager.execTaskCompilation(taskCopy.getLocation(), compileStep);
 
       switch (r.status()) {
@@ -305,7 +304,7 @@ public class TaskCopyBuilder {
                   }
 
                   @Override
-                  public void recordErrorReason(ContainerExecResponseWithTaint response, String stepName) {
+                  public void recordErrorReason(ContainerExecResponse response, String stepName) {
                     LOG.info(taskName + ": recordErrorReason " + response + " at " + stepName);
                     if (testExpectedFailureStep != null
                         && testExpectedFailureStep.equals(stepName)) {
