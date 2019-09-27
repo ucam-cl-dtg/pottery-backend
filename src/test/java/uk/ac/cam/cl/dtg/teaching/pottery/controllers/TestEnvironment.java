@@ -86,7 +86,7 @@ class TestEnvironment {
     this.repoFactory = new RepoFactory(repoConfig, database);
     this.taskIndex = new TaskIndex(taskFactory, database);
     ContainerEnvConfig containerEnvConfig = new ContainerEnvConfig(testRootDir);
-    this.containerBackend = new DockerContainerWithReuseImpl(containerEnvConfig);
+    this.containerBackend = new UncontainerImpl();
     ContainerManager containerManager = new ContainerManager(containerEnvConfig, containerBackend);
     this.worker = new BlockingWorker(taskIndex, repoFactory, containerManager, database);
   }

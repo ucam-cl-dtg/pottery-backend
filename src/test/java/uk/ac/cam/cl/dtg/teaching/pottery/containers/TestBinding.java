@@ -93,10 +93,11 @@ public class TestBinding {
     // ARRANGE
     File codeDirHost = new File("/code-dir-host");
     String command = String.format("before @%s@ after", Binding.SUBMISSION_BINDING);
-    ImmutableMap<String, Binding> bindings =
-        ImmutableMap.of(
-            Binding.SUBMISSION_BINDING,
-            new Binding.FileBinding(codeDirHost, /* readWrite = */ true, POTTERY_PREFIX_CONTAINER, true));
+    ImmutableMap<String, Binding> bindings = ImmutableMap.of(Binding.SUBMISSION_BINDING,
+        new Binding.FileBinding(codeDirHost,
+            true,
+            POTTERY_PREFIX_CONTAINER,
+            Binding.Control.USER_CONTROLLED));
     String expectedMountPointContainer =
         POTTERY_PREFIX_CONTAINER + "/" + Binding.SUBMISSION_BINDING;
 

@@ -46,7 +46,7 @@ public class Taint {
     return userControlled ?  "Tainted(" + name + ")" : "Untainted";
   }
 
-  public static Taint Compile = new Taint("compile", false);
+  public static final Taint Compile = new Taint("compile", false);
 
   public static Taint Parameterisation(String repoId) {
     return new Taint(repoId, false);

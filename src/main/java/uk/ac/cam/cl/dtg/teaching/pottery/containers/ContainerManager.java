@@ -139,7 +139,7 @@ public class ContainerManager implements Stoppable {
       throws ApiUnavailableException {
     ImmutableMap<String, Binding> bindings = baseImageBinding()
         .put(Binding.TASK_BINDING, new Binding.FileBinding(taskDirHost, true,
-            containerBackend.getInternalMountPath(), false))
+            containerBackend.getInternalMountPath(), Binding.Control.FROM_TASK))
         .build();
     try {
       return execute(execution, Binding.applyBindings(
@@ -165,19 +165,30 @@ public class ContainerManager implements Stoppable {
       Taint taint)
       throws ApiUnavailableException {
 
-    ImmutableMap<String, Binding> bindings = addRepoInfoToBinding(baseImageBinding(), repoInfo)
-        .put(Binding.SUBMISSION_BINDING, new Binding.FileBinding(codeDirHost, true,
-            containerBackend.getInternalMountPath(), true))
-        .put(Binding.STEP_BINDING, new Binding.FileBinding(
-            new File(taskStepsDirHost, repoInfo.getVariant()),
-            false,
-            containerBackend.getInternalMountPath(), false))
-        .put(Binding.SHARED_BINDING, new Binding.FileBinding(
-            new File(taskStepsDirHost, "shared"),
-            false,
-            containerBackend.getInternalMountPath(), false))
-        .build();
-
+    ImmutableMap<String, Binding> bindings =
+        addRepoInfoToBinding(baseImageBinding(), repoInfo)
+            .put(
+                Binding.SUBMISSION_BINDING,
+                new Binding.FileBinding(
+                    codeDirHost,
+                    true,
+                    containerBackend.getInternalMountPath(),
+                    Binding.Control.USER_CONTROLLED))
+            .put(
+                Binding.STEP_BINDING,
+                new Binding.FileBinding(
+                    new File(taskStepsDirHost, repoInfo.getVariant()),
+                    false,
+                    containerBackend.getInternalMountPath(),
+                    Binding.Control.FROM_TASK))
+            .put(
+                Binding.SHARED_BINDING,
+                new Binding.FileBinding(
+                    new File(taskStepsDirHost, "shared"),
+                    false,
+                    containerBackend.getInternalMountPath(),
+                    Binding.Control.FROM_TASK))
+            .build();
 
     File containerTempDir =
         new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
@@ -306,9 +317,9 @@ public class ContainerManager implements Stoppable {
 
     ImmutableMap<String, Binding> bindings = addRepoInfoToBinding(baseImageBinding(), repoInfo)
         .put(Binding.TASK_BINDING, new Binding.FileBinding(c.getLocation(), false,
-                containerBackend.getInternalMountPath(), false))
+                containerBackend.getInternalMountPath(), Binding.Control.FROM_TASK))
         .put(Binding.SUBMISSION_BINDING, new Binding.FileBinding(codeDir, true,
-            containerBackend.getInternalMountPath(), true))
+            containerBackend.getInternalMountPath(), Binding.Control.USER_CONTROLLED))
         .build();
     try {
       Taint taint = Taint.Parameterisation(repoInfo.getRepoId());

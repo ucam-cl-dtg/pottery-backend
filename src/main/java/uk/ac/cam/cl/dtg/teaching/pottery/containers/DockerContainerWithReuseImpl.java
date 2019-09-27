@@ -33,12 +33,10 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
-import uk.ac.cam.cl.dtg.teaching.pottery.UuidGenerator;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
@@ -56,50 +54,15 @@ import java.util.stream.Collectors;
 public class DockerContainerWithReuseImpl extends DockerContainer implements ContainerBackend {
   protected static final Logger LOG = LoggerFactory.getLogger(DockerContainerWithReuseImpl.class);
 
-  /** This object is used to generate new uuids for host directories. */
-  private UuidGenerator uuidGenerator = new UuidGenerator();
-
   private final AtomicInteger containerNameCounter = new AtomicInteger(0);
 
   private static final String POTTERY_EXECUTE = "__pottery_execute";
-
-  private static class ContainerSettings implements Comparable<ContainerSettings> {
-    String imageName;
-    String configurationHash;
-
-    public ContainerSettings(ExecutionConfig executionConfig) {
-      this.imageName = executionConfig.imageName();
-      this.configurationHash = executionConfig.configurationHash();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      ContainerSettings that = (ContainerSettings) o;
-      return Objects.equals(imageName, that.imageName) &&
-          Objects.equals(configurationHash, that.configurationHash);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(imageName, configurationHash);
-    }
-
-    @Override
-    public int compareTo(@Nonnull ContainerSettings o) {
-      int compare;
-      compare = this.imageName.compareTo(o.imageName);
-      if (compare != 0) return compare;
-      return this.configurationHash.compareTo(o.configurationHash);
-    }
-  }
 
   private static class ContainerStatus {
     /**
      * The repo id if user-controlled code run on this container.
      */
-    @Nullable String taint;
+    @Nullable String repoIdIfSet;
 
     /**
      * The container is currently being used for an execution.
@@ -114,7 +77,7 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
 
   private static class LockableMap {
     final Object lock = new Object();
-    Map<String, ContainerStatus> map = new HashMap<>();
+    final Map<String, ContainerStatus> map = new HashMap<>();
   }
 
   private final ConcurrentSkipListMap<ContainerSettings, LockableMap> containers = new ConcurrentSkipListMap<>();
@@ -155,37 +118,43 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
 
     // First, find if there is an available container
 
+    // Once we find a container that is suitable we'll put its ID here (we'll create one if needed.)
     String containerId = null;
+
     String containerName = null;
     Status status = Status.FAILED_UNKNOWN;
 
     File hostRw = null;
     File hostRo = null;
 
-    ContainerSettings containerSettings = new ContainerSettings(executionConfig);
+    ContainerSettings containerSettings = ContainerSettings.create(executionConfig);
 
     LockableMap possibleContainers = containers.computeIfAbsent(containerSettings,
         cs -> new LockableMap());
 
     try {
       synchronized (possibleContainers.lock) {
+        // If we find a container that is suitable and untainted, we'll store it's ID here.
         String untaintedContainerId = null;
 
         for (Map.Entry<String, ContainerStatus> entry : possibleContainers.map.entrySet()) {
           ContainerStatus containerStatus = entry.getValue();
-          if (containerStatus.inUse) continue;
-          if (containerStatus.taint == null) {
-            untaintedContainerId = entry.getKey();
+          if (containerStatus.inUse) {
+            continue;
           }
-          if (containerStatus.taint == null ? executionConfig.taint().identity() == null
-              : containerStatus.taint.equals(executionConfig.taint().identity())) {
+          if (Objects.equals(containerStatus.repoIdIfSet, executionConfig.taint().identity())) {
+            // This container matches the taint we're looking for, so we'll use it.
             containerId = entry.getKey();
             LOG.info("Using existing container {}", containerStatus.containerName);
             break;
           }
+          if (containerStatus.repoIdIfSet == null) {
+            // We could taint this container if we don't find a suitable one above.
+            untaintedContainerId = entry.getKey();
+          }
         }
         if (containerId == null) {
-          // Is there a container we can taint?
+          // Is there an untainted container we can taint?
           if (untaintedContainerId != null) {
             LOG.info("Tainting existing container {} with {}", untaintedContainerId, executionConfig.taint().identity());
             containerId = untaintedContainerId;
@@ -204,42 +173,48 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
         if (containerId != null) {
           ContainerStatus containerStatus = possibleContainers.map.get(containerId);
           containerStatus.inUse = true;
-          containerStatus.taint = executionConfig.taint().identity(); // Apply the taint
+          containerStatus.repoIdIfSet = executionConfig.taint().identity(); // Apply the taint
           containerName = containerStatus.containerName;
-
-          // Check container is not running
-          docker.waitContainer(containerId);
         }
+      }
 
-        File host = new File(config.getTempRoot() + "/" + containerName);
+      if (containerId != null) {
+        // Check container is not running
+        docker.waitContainer(containerId);
+      }
 
-        hostRw = new File(host, "rw");
-        FileUtil.mkdirIfNotExists(hostRw);
-        hostRo = new File(host, "ro");
-        FileUtil.mkdirIfNotExists(hostRo);
+      File host = new File(config.getTempRoot() + "/" + containerName);
 
-        if (containerId == null) {
-          LOG.info("Creating container {}", containerName);
+      hostRw = new File(host, "rw");
+      FileUtil.mkdirIfNotExists(hostRw);
+      hostRo = new File(host, "ro");
+      FileUtil.mkdirIfNotExists(hostRo);
 
-          // Prepare the executionConfig for swizzle
-          ExecutionConfig swizzledConfig = executionConfig.toBuilder()
-              .setCommand(ImmutableList.of(getInternalMountPath() + "/ro/" + POTTERY_EXECUTE))
-              .setPathSpecification(ImmutableList.of(
-                  PathSpecification.create(hostRw, getInternalMountPath() + "/rw", true),
-                  PathSpecification.create(hostRo, getInternalMountPath() + "/ro", false)
-              ))
-              .build();
+      if (containerId == null) {
+        LOG.info("Creating container {}", containerName);
 
-          ContainerConfig config = swizzledConfig.toContainerConfig();
-          ContainerResponse response = docker.createContainer(containerName, config);
-          containerId = response.getId();
-          ContainerStatus newContainerStatus = new ContainerStatus();
-          newContainerStatus.inUse = true;
-          newContainerStatus.taint = executionConfig.taint().identity();
-          newContainerStatus.containerName = containerName;
+        // Prepare the executionConfig for swizzle
+        ExecutionConfig swizzledConfig = executionConfig.toBuilder()
+            .setCommand(ImmutableList.of(getInternalMountPath() + "/ro/" + POTTERY_EXECUTE))
+            .setPathSpecification(ImmutableList.of(
+                PathSpecification.create(hostRw, getInternalMountPath() + "/rw", true),
+                PathSpecification.create(hostRo, getInternalMountPath() + "/ro", false)
+            ))
+            .build();
+
+        ContainerConfig config = swizzledConfig.toContainerConfig();
+        ContainerResponse response = docker.createContainer(containerName, config);
+        containerId = response.getId();
+        ContainerStatus newContainerStatus = new ContainerStatus();
+        newContainerStatus.inUse = true;
+        newContainerStatus.repoIdIfSet = executionConfig.taint().identity();
+        newContainerStatus.containerName = containerName;
+
+        synchronized (possibleContainers.lock) {
           possibleContainers.map.put(containerId, newContainerStatus);
         }
       }
+
 
       /// Swizzle directories
 

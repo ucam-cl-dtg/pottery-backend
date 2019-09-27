@@ -102,6 +102,15 @@ abstract class Binding {
     return builder;
   }
 
+  enum Control {
+    FROM_TASK,
+    USER_CONTROLLED;
+
+    boolean isUserControlled() {
+      return this == USER_CONTROLLED;
+    }
+  }
+
   static class FileBinding extends Binding {
     private final File file;
     private final boolean readWrite;
@@ -109,12 +118,12 @@ abstract class Binding {
     private final boolean userControlled;
     private boolean needsApplying;
 
-    FileBinding(File file, boolean readWrite, String internalMountPath, boolean userControlled) {
+    FileBinding(File file, boolean readWrite, String internalMountPath, Control control) {
       this.file = file;
       this.readWrite = readWrite;
       this.internalMountPath = internalMountPath;
       this.needsApplying = true;
-      this.userControlled = userControlled;
+      this.userControlled = control.isUserControlled();
     }
 
     @Override

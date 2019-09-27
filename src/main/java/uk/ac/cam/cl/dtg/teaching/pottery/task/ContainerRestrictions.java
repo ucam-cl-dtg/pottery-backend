@@ -22,15 +22,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ContainerRestrictions {
 
-  private Integer timeoutSec;
+  private final Integer timeoutSec;
 
-  private Integer diskWriteLimitMegabytes;
+  private final Integer diskWriteLimitMegabytes;
 
-  private Integer ramLimitMegabytes;
+  private final Integer ramLimitMegabytes;
 
-  private Integer outputLimitKilochars;
+  private final Integer outputLimitKilochars;
 
-  private Boolean networkDisabled;
+  private final Boolean networkDisabled;
 
   private final boolean fullySpecified;
 
