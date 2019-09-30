@@ -48,12 +48,14 @@ public class Taint {
 
   public static final Taint Compile = new Taint("compile", false);
 
-  public static Taint Parameterisation(String repoId) {
+  public static Taint parameterisation(String repoId) {
     return new Taint(repoId, false);
   }
 
-  public static Taint UserControlled(Taint taint) {
-    if (taint.isUserControlled()) return taint;
+  public static Taint userControlled(Taint taint) {
+    if (taint.isUserControlled()) {
+      return taint;
+    }
     return new Taint(taint.name, true);
   }
 }

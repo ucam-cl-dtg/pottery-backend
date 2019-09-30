@@ -372,7 +372,7 @@ public class ContainerManager implements Stoppable {
                     containerBackend.getInternalMountPath(),
                     Binding.Control.USER_CONTROLLED))
             .build();
-    Taint taint = Taint.Parameterisation(repoInfo.getRepoId());
+    Taint taint = Taint.parameterisation(repoInfo.getRepoId());
     try {
       return execute(
           execution,

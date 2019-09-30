@@ -83,7 +83,7 @@ abstract class Binding {
       previousMatchEnd = regexMatcher.end();
 
       if (binding.isUserControlled()) {
-        taint = Taint.UserControlled(taint);
+        taint = Taint.userControlled(taint);
       }
     }
     builder.setTaint(taint);

@@ -33,9 +33,10 @@ abstract class ContainerSettings implements Comparable<ContainerSettings> {
 
   @Override
   public int compareTo(@Nonnull ContainerSettings o) {
-    int compare;
-    compare = this.imageName().compareTo(o.imageName());
-    if (compare != 0) return compare;
+    int compare = this.imageName().compareTo(o.imageName());
+    if (compare != 0) {
+      return compare;
+    }
     return this.configurationHash().compareTo(o.configurationHash());
   }
 }
