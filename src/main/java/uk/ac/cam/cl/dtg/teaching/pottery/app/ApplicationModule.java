@@ -43,7 +43,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerBackend;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerImpl;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerWithReuseImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.GuiceDependencyController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.StatusController;
@@ -128,7 +128,7 @@ public class ApplicationModule implements Module {
     binder.install(new WorkerModule());
     binder.install(new WorkerModule(Repo.PARAMETERISATION_WORKER_NAME));
 
-    binder.bind(ContainerBackend.class).to(DockerContainerImpl.class).in(Singleton.class);
+    binder.bind(ContainerBackend.class).to(DockerContainerWithReuseImpl.class).in(Singleton.class);
 
     binder.bind(GuiceDependencyController.class);
 

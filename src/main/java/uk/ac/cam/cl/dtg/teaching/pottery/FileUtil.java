@@ -19,15 +19,13 @@ package uk.ac.cam.cl.dtg.teaching.pottery;
 
 import com.google.common.collect.ImmutableList;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import org.apache.commons.io.IOUtils;
 
 public class FileUtil {
 
@@ -118,17 +116,12 @@ public class FileUtil {
           public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
               throws IOException {
 
-            File originalFile = file.toFile();
             Path localLocation = sourceDir.toPath().relativize(file);
             copiedFiles.add(localLocation.toString());
             File newLocation = destinationDir.toPath().resolve(localLocation).toFile();
             File newDir = newLocation.getParentFile();
             mkdirIfNotExists(newDir);
-            try (FileOutputStream fos = new FileOutputStream(newLocation)) {
-              try (FileInputStream fis = new FileInputStream(originalFile)) {
-                IOUtils.copy(fis, fos);
-              }
-            }
+            Files.copy(file, newLocation.toPath(), StandardCopyOption.COPY_ATTRIBUTES);
             return FileVisitResult.CONTINUE;
           }
         });

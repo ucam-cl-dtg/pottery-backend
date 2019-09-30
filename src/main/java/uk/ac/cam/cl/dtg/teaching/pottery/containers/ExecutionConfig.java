@@ -23,8 +23,10 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.commons.codec.digest.DigestUtils;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerHostConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.ContainerRestrictions;
 
 @AutoValue
@@ -40,8 +42,22 @@ abstract class ExecutionConfig {
 
   abstract ContainerRestrictions containerRestrictions();
 
+  abstract Taint taint();
+
   static Builder builder() {
     return new AutoValue_ExecutionConfig.Builder();
+  }
+
+  abstract Builder toBuilder();
+
+  // This covers everything configured in the image except the command, path, and image name.
+  String configurationHash() {
+    return DigestUtils.shaHex(
+        localUserId()
+            + ":"
+            + containerRestrictions().getRamLimitMegabytes()
+            + ":"
+            + containerRestrictions().isNetworkDisabled());
   }
 
   ContainerConfig toContainerConfig() {
@@ -81,6 +97,8 @@ abstract class ExecutionConfig {
       return this;
     }
 
+    abstract Builder setPathSpecification(ImmutableList<PathSpecification> pathSpecification);
+
     abstract ImmutableList<PathSpecification> pathSpecification();
 
     abstract ImmutableList.Builder<String> commandBuilder();
@@ -90,6 +108,8 @@ abstract class ExecutionConfig {
       return this;
     }
 
+    abstract Builder setCommand(ImmutableList<String> command);
+
     abstract ImmutableList<String> command();
 
     abstract Builder setImageName(String imageName);
@@ -97,6 +117,8 @@ abstract class ExecutionConfig {
     abstract Builder setContainerRestrictions(ContainerRestrictions containerRestrictions);
 
     abstract Builder setLocalUserId(int localUserId);
+
+    abstract Builder setTaint(Taint taint);
 
     abstract ExecutionConfig build();
   }

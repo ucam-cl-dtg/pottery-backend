@@ -34,6 +34,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerBackend;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.UncontainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
@@ -72,7 +73,7 @@ class TestEnvironment {
   private final TaskIndex taskIndex;
   private final Worker worker;
   private final RepoConfig repoConfig;
-  private final UncontainerImpl containerBackend;
+  private final ContainerBackend containerBackend;
   private final Database database;
 
   TestEnvironment(String testRootDir)
@@ -100,10 +101,6 @@ class TestEnvironment {
 
   Database getDatabase() {
     return database;
-  }
-
-  UncontainerImpl getContainerBackend() {
-    return containerBackend;
   }
 
   Repo createRepo(Task task)

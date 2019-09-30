@@ -18,6 +18,8 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
@@ -37,6 +39,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.Stoppable;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.Submission;
 import uk.ac.cam.cl.dtg.teaching.pottery.repo.RepoInfo;
@@ -49,8 +52,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.worker.Job;
 
 @Singleton
 public class ContainerManager implements Stoppable {
-
-  private static final Logger logger = LoggerFactory.getLogger(ContainerManager.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(ContainerManager.class);
 
   static final String DEFAULT_EXECUTION = "default";
 
@@ -94,9 +96,11 @@ public class ContainerManager implements Stoppable {
     containerBackend.setTimeoutMultiplier(multiplier);
   }
 
+  private Cache<String, String> executionCache = CacheBuilder.newBuilder().softValues().build();
+
   /** Execute a command inside a container. */
   private ContainerExecResponse execute(
-      @Nonnull Execution execution, ExecutionConfig.Builder bindingsBuilder)
+      @Nonnull Execution execution, ExecutionConfig.Builder bindingsBuilder, String partialCacheKey)
       throws ApiUnavailableException, ContainerExecutionException {
     ExecutionConfig executionConfig =
         bindingsBuilder
@@ -104,8 +108,39 @@ public class ContainerManager implements Stoppable {
             .setContainerRestrictions(execution.getRestrictions())
             .setLocalUserId(config.getUid())
             .build();
-    logger.info("Starting container with config: " + executionConfig.toString());
-    return containerBackend.executeContainer(executionConfig);
+
+    if (partialCacheKey != null && !executionConfig.taint().isUserControlled()) {
+      String fullCacheKey =
+          executionConfig.imageName()
+              + ":"
+              + executionConfig.configurationHash()
+              + ":"
+              + executionConfig
+                  .taint()
+                  .name() // Not identity; even if not user controlled, still user specific.
+              + ":"
+              + partialCacheKey;
+
+      String result = executionCache.getIfPresent(fullCacheKey);
+
+      if (result != null) {
+        LOG.info(
+            "Returning from cache (" + executionConfig.taint() + "):" + executionConfig.command());
+        return ContainerExecResponse.create(Status.COMPLETED, result, 0, executionConfig.taint());
+      }
+
+      LOG.info(
+          "Running and caching (" + executionConfig.taint() + "):" + executionConfig.command());
+      ContainerExecResponse response = containerBackend.executeContainer(executionConfig);
+      if (response.status() == Status.COMPLETED) {
+        // Only cache success
+        executionCache.put(fullCacheKey, response.response());
+      }
+      return response;
+    } else {
+      LOG.info("Executing (" + executionConfig.taint() + "):" + executionConfig.command());
+      return containerBackend.executeContainer(executionConfig);
+    }
   }
 
   /** Run a compile task and get the response. */
@@ -115,67 +150,88 @@ public class ContainerManager implements Stoppable {
         baseImageBinding()
             .put(
                 Binding.TASK_BINDING,
-                new Binding.FileBinding(taskDirHost, true, containerBackend.getInternalMountPath()))
+                new Binding.FileBinding(
+                    taskDirHost,
+                    true,
+                    containerBackend.getInternalMountPath(),
+                    Binding.Control.FROM_TASK))
             .build();
     try {
       return execute(
-          execution, Binding.applyBindings(execution.getProgram(), bindings, stepName -> null));
+          execution,
+          Binding.applyBindings(execution.getProgram(), bindings, stepName -> null, Taint.Compile),
+          null);
     } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
+      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1, Taint.Compile);
     }
   }
 
   /** Run a step and get the response. */
-  public ContainerExecResponse execStep(
+  private ContainerExecResponse execStep(
+      String stepName,
       File taskStepsDirHost,
       File codeDirHost,
       File taskCommonDirHost,
       @Nonnull Execution execution,
       RepoInfo repoInfo,
-      Map<String, ContainerExecResponse> stepResults)
+      Map<String, ContainerExecResponse> stepResults,
+      Taint taint)
       throws ApiUnavailableException {
     ImmutableMap<String, Binding> bindings =
         addRepoInfoToBinding(baseImageBinding(), repoInfo)
             .put(
                 Binding.SUBMISSION_BINDING,
-                new Binding.FileBinding(codeDirHost, true, containerBackend.getInternalMountPath()))
+                new Binding.FileBinding(
+                    codeDirHost,
+                    true,
+                    containerBackend.getInternalMountPath(),
+                    Binding.Control.USER_CONTROLLED))
             .put(
                 Binding.STEP_BINDING,
                 new Binding.FileBinding(
                     new File(taskStepsDirHost, repoInfo.getVariant()),
                     false,
-                    containerBackend.getInternalMountPath()))
+                    containerBackend.getInternalMountPath(),
+                    Binding.Control.FROM_TASK))
             .put(
                 Binding.SHARED_BINDING,
                 new Binding.FileBinding(
                     new File(taskStepsDirHost, "shared"),
                     false,
-                    containerBackend.getInternalMountPath()))
+                    containerBackend.getInternalMountPath(),
+                    Binding.Control.FROM_TASK))
             .put(
                 Binding.COMMON_BINDING,
                 new Binding.FileBinding(
-                    taskCommonDirHost, false, containerBackend.getInternalMountPath()))
+                    taskCommonDirHost,
+                    false,
+                    containerBackend.getInternalMountPath(),
+                    Binding.Control.FROM_TASK))
             .build();
 
     File containerTempDir =
         new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
     try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
-      return execute(
-          execution,
+      ExecutionConfig.Builder executionConfig =
           Binding.applyBindings(
               execution.getProgram(),
               bindings,
-              stepName -> {
-                if (stepResults.containsKey(stepName)) {
+              step -> {
+                if (stepResults.containsKey(step)) {
+                  ContainerExecResponse stepResult = stepResults.get(step);
+                  Taint stepTaint = stepResult.taint();
                   return new Binding.TemporaryFileBinding(
                       containerTempDir,
-                      stepResults.get(stepName).response(),
-                      containerBackend.getInternalMountPath());
+                      stepResult.response(),
+                      containerBackend.getInternalMountPath(),
+                      stepTaint.isUserControlled());
                 }
                 return null;
-              }));
+              },
+              taint);
+      return execute(execution, executionConfig, stepName);
     } catch (ContainerExecutionException | IOException e) {
-      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
+      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1, taint);
     }
   }
 
@@ -244,7 +300,7 @@ public class ContainerManager implements Stoppable {
       callback.setStatus(Submission.STATUS_FAILED);
       callback.recordErrorReason(
           ContainerExecResponse.create(
-              Status.FAILED_EXITCODE, "Failed to find action named " + action, 0),
+              Status.FAILED_EXITCODE, "Failed to find action named " + action, 0, null),
           "SETUP");
       return Job.STATUS_FAILED;
     }
@@ -252,7 +308,6 @@ public class ContainerManager implements Stoppable {
     List<String> steps = actionDetails.getSteps();
 
     for (String stepName : steps) {
-
       Step step = taskDetail.getSteps().get(stepName);
       Execution execution = getExecution(repoInfo, step);
       if (execution == null) {
@@ -262,12 +317,14 @@ public class ContainerManager implements Stoppable {
       try {
         ContainerExecResponse response =
             execStep(
+                stepName,
                 c.getStepLocation(stepName),
                 codeDir,
                 commonDirHost,
                 execution,
                 repoInfo,
-                stepResults);
+                stepResults,
+                new Taint(repoInfo.getRepoId(), false));
         stepResults.put(stepName, response);
         callback.finishStep(
             stepName,
@@ -303,16 +360,26 @@ public class ContainerManager implements Stoppable {
             .put(
                 Binding.TASK_BINDING,
                 new Binding.FileBinding(
-                    c.getLocation(), false, containerBackend.getInternalMountPath()))
+                    c.getLocation(),
+                    false,
+                    containerBackend.getInternalMountPath(),
+                    Binding.Control.FROM_TASK))
             .put(
                 Binding.SUBMISSION_BINDING,
-                new Binding.FileBinding(codeDir, true, containerBackend.getInternalMountPath()))
+                new Binding.FileBinding(
+                    codeDir,
+                    true,
+                    containerBackend.getInternalMountPath(),
+                    Binding.Control.USER_CONTROLLED))
             .build();
+    Taint taint = Taint.Parameterisation(repoInfo.getRepoId());
     try {
       return execute(
-          execution, Binding.applyBindings(execution.getProgram(), bindings, stepName -> null));
+          execution,
+          Binding.applyBindings(execution.getProgram(), bindings, stepName -> null, taint),
+          null);
     } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
+      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1, taint);
     }
   }
 

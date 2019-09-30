@@ -523,6 +523,11 @@ public class Repo {
                                     builder.addErrorMessage(
                                         "Output failed, execution time limit exceeded"));
                                 break;
+                              case FAILED_OUTPUT:
+                                updateSubmission(
+                                    builder.addErrorMessage(
+                                        "Output failed, output length limit exceeded"));
+                                break;
                               case FAILED_EXITCODE:
                                 updateSubmission(
                                     builder.addErrorMessage("Output failed, bad exit code"));

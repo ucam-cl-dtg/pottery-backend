@@ -18,40 +18,24 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
-import uk.ac.cam.cl.dtg.teaching.pottery.containers.taint.Taint;
+import javax.annotation.Nonnull;
 
 @AutoValue
-public abstract class ContainerExecResponse {
+abstract class ContainerSettings implements Comparable<ContainerSettings> {
+  abstract String imageName();
 
-  public enum Status {
-    COMPLETED,
-    FAILED_EXITCODE,
-    FAILED_OOM,
-    FAILED_DISK,
-    FAILED_TIMEOUT,
-    FAILED_UNKNOWN,
-    FAILED_OUTPUT
+  abstract String configurationHash();
+
+  static ContainerSettings create(ExecutionConfig executionConfig) {
+    return new AutoValue_ContainerSettings(
+        executionConfig.imageName(), executionConfig.configurationHash());
   }
 
-  public abstract Status status();
-
-  public abstract String response();
-
-  public abstract long executionTimeMs();
-
-  @Nullable
-  public abstract Taint taint();
-
-  public static ContainerExecResponse create(
-      Status status, String response, long executionTimeMs, Taint taint) {
-    return new AutoValue_ContainerExecResponse(status, stripNull(response), executionTimeMs, taint);
-  }
-
-  private static String stripNull(String v) {
-    if (v == null) {
-      return v;
-    }
-    return v.replace('\0', '?');
+  @Override
+  public int compareTo(@Nonnull ContainerSettings o) {
+    int compare;
+    compare = this.imageName().compareTo(o.imageName());
+    if (compare != 0) return compare;
+    return this.configurationHash().compareTo(o.configurationHash());
   }
 }
