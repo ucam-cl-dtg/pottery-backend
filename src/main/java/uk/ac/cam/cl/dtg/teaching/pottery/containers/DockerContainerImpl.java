@@ -272,7 +272,7 @@ public class DockerContainerImpl implements ContainerBackend {
   }
 
   private synchronized DockerApi initializeDockerApi() throws ApiUnavailableException {
-    DockerApi docker = new Docker("localhost", 2375, 1).api(new ApiPerformanceListener());
+    DockerApi docker = new Docker("localhost", 2375, 100).api(new ApiPerformanceListener());
     if (LOG.isInfoEnabled()) {
       Version v = docker.getVersion();
       LOG.info("Connected to docker, API version: {}", v.getApiVersion());
