@@ -19,8 +19,12 @@ package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
@@ -144,8 +148,12 @@ abstract class Binding {
         needsApplying = false;
 
         File stepFile = new File(containerTempDir, name);
-        try {
-          Files.asCharSink(stepFile, Charset.defaultCharset()).write(content);
+        try (FileOutputStream fos = new FileOutputStream(stepFile)) {
+            try(BufferedWriter w = new BufferedWriter(new OutputStreamWriter(fos,Charset.defaultCharset()))) {
+                w.write(content);
+                w.flush();
+                fos.getFD().sync();
+            }
         } catch (IOException e) {
           throw new ContainerExecutionException(
               "Couldn't create temporary file for binding " + name, e);
