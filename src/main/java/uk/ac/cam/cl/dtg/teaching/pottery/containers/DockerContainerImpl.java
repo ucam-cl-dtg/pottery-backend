@@ -17,11 +17,15 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
+import autovalue.shaded.com.google.common.common.collect.Sets;
 import com.google.inject.Inject;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -124,6 +128,8 @@ public class DockerContainerImpl implements ContainerBackend {
     return "/mnt/pottery";
   }
 
+  private final Set<String> seenIds = Sets.newSetFromMap(new ConcurrentHashMap<>());
+
   @Override
   public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ApiUnavailableException, ContainerExecutionException {
@@ -139,6 +145,11 @@ public class DockerContainerImpl implements ContainerBackend {
       ContainerConfig config = executionConfig.toContainerConfig();
       ContainerResponse response = docker.createContainer(containerName, config);
       final String containerId = response.getId();
+      if (seenIds.contains(containerId)) {
+          LOG.error("REUSED DOCKER CONTAINER ID");
+          throw new Error("REUSED DOCKER CONTAINER ID");
+      }
+      seenIds.add(containerId);
       runningContainers.add(containerId);
       try {
         retryStartContainer(containerId, docker);
