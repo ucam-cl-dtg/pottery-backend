@@ -141,7 +141,8 @@ public class DockerContainerImpl implements ContainerBackend {
       final String containerId = response.getId();
       runningContainers.add(containerId);
       try {
-        docker.startContainer(containerId);
+        retryStartContainer(containerId, docker);
+
         AttachListener attachListener = new AttachListener();
 
         ScheduledFuture<Boolean> timeoutKiller =
@@ -308,7 +309,31 @@ public class DockerContainerImpl implements ContainerBackend {
     return Arrays.stream(i.getNames()).filter(name -> name.startsWith(prefix)).findAny();
   }
 
-  private class ApiPerformanceListener implements ApiListener {
+  private static boolean startContainer(String containerId, DockerApi docker)
+      throws ApiUnavailableException {
+    try {
+      docker.startContainer(containerId);
+      return true;
+    } catch (RuntimeException e) {
+      if (e.getMessage().contains("container process is already dead")) {
+        LOG.warn("Caught Docker race condition in container start - will retry");
+        return false;
+      }
+      throw e;
+    }
+  }
+
+  private static void retryStartContainer(String containerId, DockerApi docker)
+      throws ApiUnavailableException {
+    for (int i = 0; i < 5; ++i) {
+      if (startContainer(containerId, docker)) {
+        return;
+      }
+    }
+    throw new RuntimeException("Failed to start docker container after 5 retries");
+  }
+
+    private class ApiPerformanceListener implements ApiListener {
     @Override
     public void callCompleted(boolean apiAvailable, long timeTaken, String methodName) {
       long callTime = smoothedCallTime.get();
