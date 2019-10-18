@@ -17,15 +17,11 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
-import autovalue.shaded.com.google.common.common.collect.Sets;
 import com.google.inject.Inject;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -37,6 +33,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +49,7 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.docker.model.SystemInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Version;
+import uk.ac.cam.cl.dtg.teaching.pottery.ContainerRetryNeededException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
@@ -128,11 +126,27 @@ public class DockerContainerImpl implements ContainerBackend {
     return "/mnt/pottery";
   }
 
-  private final Set<String> seenIds = Sets.newSetFromMap(new ConcurrentHashMap<>());
-
   @Override
   public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
       throws ApiUnavailableException, ContainerExecutionException {
+    for (int i = 0; i < 5; ++i) {
+      try {
+        return executeContainerInner(executionConfig);
+      } catch (ContainerExecutionException e) {
+        if (e.getMessage().contains("container process is already dead")) {
+          LOG.warn("Caught Docker race condition in container start - will retry");
+        } else {
+          throw e;
+        }
+      } catch (ContainerRetryNeededException e) {
+        LOG.warn("Detected container retry required - will retry");
+      }
+    }
+    throw new ContainerExecutionException("Failed to execute container");
+  }
+
+  private ContainerExecResponse executeContainerInner(ExecutionConfig executionConfig)
+      throws ApiUnavailableException, ContainerExecutionException, ContainerRetryNeededException {
 
     String containerName =
         this.config.getContainerPrefix() + containerNameCounter.incrementAndGet();
@@ -145,14 +159,9 @@ public class DockerContainerImpl implements ContainerBackend {
       ContainerConfig config = executionConfig.toContainerConfig();
       ContainerResponse response = docker.createContainer(containerName, config);
       final String containerId = response.getId();
-      if (seenIds.contains(containerId)) {
-          LOG.error("REUSED DOCKER CONTAINER ID");
-          throw new Error("REUSED DOCKER CONTAINER ID");
-      }
-      seenIds.add(containerId);
       runningContainers.add(containerId);
       try {
-        retryStartContainer(containerId, docker);
+        docker.startContainer(containerId);
 
         AttachListener attachListener = new AttachListener();
 
@@ -198,6 +207,9 @@ public class DockerContainerImpl implements ContainerBackend {
           if (!knownStopped) {
             containerInfo = docker.inspectContainer(containerId, false);
             if (containerInfo.getState().getRunning()) {
+              LOG.info(
+                  "Container {} still running despite receiving a close from it - killing",
+                  containerId);
               DockerUtil.killContainer(containerId, docker);
               containerInfo = docker.inspectContainer(containerId, false);
             }
@@ -238,8 +250,17 @@ public class DockerContainerImpl implements ContainerBackend {
           }
 
           LOG.debug("Container response: {}", attachListener.getOutput());
+
+          Pattern p = Pattern.compile("CONTAINER COMPLETED\\s*$");
+          if (status == Status.COMPLETED) {
+            if (!p.matcher(attachListener.getOutput()).find()) {
+              throw new ContainerRetryNeededException();
+            }
+          }
           return ContainerExecResponse.create(
-              status, attachListener.getOutput(), System.currentTimeMillis() - startTime);
+              status,
+              p.matcher(attachListener.getOutput()).replaceAll(""),
+              System.currentTimeMillis() - startTime);
         } finally {
           diskUsageKillerFuture.cancel(false);
         }
@@ -264,6 +285,7 @@ public class DockerContainerImpl implements ContainerBackend {
     return scheduler.schedule(
         () -> {
           try {
+            LOG.info("Killing container {} - timeout", containerId);
             DockerUtil.killContainer(containerId, getDockerApi());
             attachListener.notifyClose();
             return true;
@@ -320,31 +342,7 @@ public class DockerContainerImpl implements ContainerBackend {
     return Arrays.stream(i.getNames()).filter(name -> name.startsWith(prefix)).findAny();
   }
 
-  private static boolean startContainer(String containerId, DockerApi docker)
-      throws ApiUnavailableException {
-    try {
-      docker.startContainer(containerId);
-      return true;
-    } catch (RuntimeException e) {
-      if (e.getMessage().contains("container process is already dead")) {
-        LOG.warn("Caught Docker race condition in container start - will retry");
-        return false;
-      }
-      throw e;
-    }
-  }
-
-  private static void retryStartContainer(String containerId, DockerApi docker)
-      throws ApiUnavailableException {
-    for (int i = 0; i < 5; ++i) {
-      if (startContainer(containerId, docker)) {
-        return;
-      }
-    }
-    throw new RuntimeException("Failed to start docker container after 5 retries");
-  }
-
-    private class ApiPerformanceListener implements ApiListener {
+  private class ApiPerformanceListener implements ApiListener {
     @Override
     public void callCompleted(boolean apiAvailable, long timeTaken, String methodName) {
       long callTime = smoothedCallTime.get();
