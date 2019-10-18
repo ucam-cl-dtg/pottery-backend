@@ -30,7 +30,9 @@ public class RepoInfos {
         "SELECT repoid,taskid,using_testing_version,expiryDate,variant,remote,errormessage,"
             + " mutationid,problemstatement from repos where repoid=?",
         rs -> {
-          rs.next();
+          if (!rs.next()) {
+            throw new SQLException("Repo with ID " + repoId + " not found in database.");
+          }
           Timestamp expiryDate = rs.getTimestamp("expiryDate");
           return new RepoInfo(
               rs.getString("repoid"),
