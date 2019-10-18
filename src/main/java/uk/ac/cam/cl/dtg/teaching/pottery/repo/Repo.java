@@ -308,7 +308,7 @@ public class Repo {
                     successCallback.run();
                     return Job.STATUS_OK;
                   } catch (RepoStorageException | RepoExpiredException | IOException e) {
-                    LOG.error("Fault recording task is ready", e);
+                    LOG.error("Fault recording task is ready "+response.response(), e);
                     failureCallback.accept(e.getMessage());
                     return STATUS_FAILED;
                   }
@@ -1068,7 +1068,7 @@ public class Repo {
     }
   }
 
-  private String getSubmissionKey(String tag, String action) {
+  private static String getSubmissionKey(String tag, String action) {
     return tag + "," + action;
   }
 }
