@@ -25,7 +25,7 @@ class AttachListener implements WebSocketListener {
   private final StringBuilder output = new StringBuilder();
   private boolean closed = false;
 
-  public String getOutput() {
+  public synchronized String getOutput() {
     return output.toString();
   }
 
@@ -48,13 +48,17 @@ class AttachListener implements WebSocketListener {
   }
 
   @Override
-  public void onWebSocketBinary(byte[] payload, int offset, int len) {
-    output.append(new String(payload, offset, len));
+  public synchronized void onWebSocketBinary(byte[] payload, int offset, int len) {
+    if (!closed) {
+      output.append(new String(payload, offset, len));
+    }
   }
 
   @Override
-  public void onWebSocketText(String message) {
-    output.append(message);
+  public synchronized void onWebSocketText(String message) {
+    if (!closed) {
+      output.append(message);
+    }
   }
 
   synchronized boolean waitForClose(long timeoutMs) {
