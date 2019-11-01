@@ -63,7 +63,8 @@ CREATE TABLE outputs (
     step character varying(255) NOT NULL,
     status character varying(255) NOT NULL,
     timems bigint DEFAULT '-1'::integer NOT NULL,
-    output text
+    output text,
+    containerName character varying(255)
 );
 
 

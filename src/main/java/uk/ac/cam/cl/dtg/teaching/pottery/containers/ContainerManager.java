@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
@@ -114,7 +113,8 @@ public class ContainerManager implements Stoppable {
       return execute(
           execution, Binding.applyBindings(execution.getProgram(), bindings, stepName -> null));
     } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
+      return ContainerExecResponse.create(
+          Status.FAILED_UNKNOWN, e.getMessage(), -1, e.getContainerName());
     }
   }
 
@@ -161,8 +161,11 @@ public class ContainerManager implements Stoppable {
                 }
                 return null;
               }));
-    } catch (ContainerExecutionException | IOException e) {
-      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
+    } catch (ContainerExecutionException e) {
+      return ContainerExecResponse.create(
+          Status.FAILED_UNKNOWN, e.getMessage(), -1, e.getContainerName());
+    } catch (IOException e) {
+      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1, "");
     }
   }
 
@@ -185,7 +188,7 @@ public class ContainerManager implements Stoppable {
 
     void startStep(String stepName);
 
-    void finishStep(String stepName, String status, long msec, String output);
+    void finishStep(String stepName, String status, long msec, String output, String containerName);
   }
 
   public interface ErrorHandlingStepRunnerCallback extends StepRunnerCallback {
@@ -241,7 +244,8 @@ public class ContainerManager implements Stoppable {
                 ? Submission.STATUS_COMPLETE
                 : Submission.STATUS_FAILED,
             response.executionTimeMs(),
-            response.response());
+            response.response(),
+            response.containerName());
         if (response.status() != Status.COMPLETED) {
           callback.setStatus(Submission.STATUS_FAILED);
           callback.recordErrorReason(response, stepName);
@@ -278,7 +282,8 @@ public class ContainerManager implements Stoppable {
       return execute(
           execution, Binding.applyBindings(execution.getProgram(), bindings, stepName -> null));
     } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1);
+      return ContainerExecResponse.create(
+          Status.FAILED_UNKNOWN, e.getMessage(), -1, e.getContainerName());
     }
   }
 

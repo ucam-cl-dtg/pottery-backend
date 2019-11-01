@@ -252,15 +252,16 @@ public class Repo {
   /** Recursively copy all files from the given sourceLocation and add them to the repository. */
   public void copyAndCommitSkeletonFiles(TaskCopy task)
       throws RepoStorageException, RepoExpiredException {
-    commitFiles("Copied files", () ->
-        task.copySkeleton(repoDirectory, repoInfo.getVariant()));
+    commitFiles("Copied files", () -> task.copySkeleton(repoDirectory, repoInfo.getVariant()));
   }
 
   /** Parameterise this task. */
-  public void doParameterisation(Worker w, Database database,
-                                 TaskCopy c,
-                                 Runnable successCallback,
-                                 Consumer<String> failureCallback)
+  public void doParameterisation(
+      Worker w,
+      Database database,
+      TaskCopy c,
+      Runnable successCallback,
+      Consumer<String> failureCallback)
       throws RepoStorageException, RepoExpiredException {
     LOG.info("Doing parameterisation with " + c.getDetail().getParameterisation());
     if (c.getDetail().getParameterisation() != null) {
@@ -282,17 +283,14 @@ public class Repo {
               }
               ContainerExecResponse response;
               try (TaskCopy c =
-                       repoInfo.isUsingTestingVersion()
-                           ? t.acquireTestingCopy()
-                           : t.acquireRegisteredCopy()) {
+                  repoInfo.isUsingTestingVersion()
+                      ? t.acquireTestingCopy()
+                      : t.acquireRegisteredCopy()) {
                 try (AutoCloseableLock ignored = lock.takeFileWritingLock()) {
-                  response = containerManager.runParameterisation(
-                      c,
-                      repoDirectory,
-                      repoInfo);
+                  response = containerManager.runParameterisation(c, repoDirectory, repoInfo);
                   if (response.status() != ContainerExecResponse.Status.COMPLETED) {
-                    failureCallback.accept("Failed to run parameterisation. Error was: "
-                        + response.response());
+                    failureCallback.accept(
+                        "Failed to run parameterisation. Error was: " + response.response());
                     return STATUS_FAILED;
                   }
                   try {
@@ -308,7 +306,7 @@ public class Repo {
                     successCallback.run();
                     return Job.STATUS_OK;
                   } catch (RepoStorageException | RepoExpiredException | IOException e) {
-                    LOG.error("Fault recording task is ready "+response.response(), e);
+                    LOG.error("Fault recording task is ready " + response.response(), e);
                     failureCallback.accept(e.getMessage());
                     return STATUS_FAILED;
                   }
@@ -339,8 +337,7 @@ public class Repo {
   private void saveProblemStatement(Database database, String problemStatement)
       throws RepoStorageException {
     synchronized (lockFields) {
-      this.repoInfo = this.repoInfo
-          .withProblemStatement(problemStatement);
+      this.repoInfo = this.repoInfo.withProblemStatement(problemStatement);
       try (TransactionQueryRunner t = database.getQueryRunner()) {
         RepoInfos.update(repoInfo, t);
         t.commit();
@@ -350,8 +347,7 @@ public class Repo {
     }
   }
 
-  void markReady(Database database, int validityMinutes)
-      throws RepoStorageException {
+  void markReady(Database database, int validityMinutes) throws RepoStorageException {
     synchronized (lockFields) {
       this.ready = true;
       Calendar cal = Calendar.getInstance();
@@ -361,8 +357,7 @@ public class Repo {
         cal.add(Calendar.MINUTE, validityMinutes);
       }
       Date expiryDate = cal.getTime();
-      this.repoInfo = this.repoInfo
-          .withExpiryDate(expiryDate);
+      this.repoInfo = this.repoInfo.withExpiryDate(expiryDate);
       try (TransactionQueryRunner t = database.getQueryRunner()) {
         RepoInfos.update(repoInfo, t);
         t.commit();
@@ -528,8 +523,13 @@ public class Repo {
                                     builder.addErrorMessage(
                                         "Output failed, execution time limit exceeded"));
                                 break;
-                              default:
+                              case FAILED_EXITCODE:
+                                updateSubmission(
+                                    builder.addErrorMessage("Output failed, bad exit code"));
                                 break;
+                              default:
+                                updateSubmission(
+                                    builder.addErrorMessage("Output failed: " + response.status()));
                             }
                           }
 
@@ -540,8 +540,14 @@ public class Repo {
 
                           @Override
                           public void finishStep(
-                              String stepName, String status, long msec, String output) {
-                            updateSubmission(builder.completeStep(stepName, status, msec, output));
+                              String stepName,
+                              String status,
+                              long msec,
+                              String output,
+                              String containerName) {
+                            updateSubmission(
+                                builder.completeStep(
+                                    stepName, status, msec, output, containerName));
                           }
                         });
                 builder.setStatus(
@@ -592,9 +598,7 @@ public class Repo {
     try {
       return Git.lsRemoteRepository()
           .setRemote(repoInfo.isRemote() ? repoInfo.getRemote() : repoDirectory.getPath())
-          .setHeads(true)
-          .call()
-          .stream()
+          .setHeads(true).call().stream()
           .filter(ref -> ref.getName().equals("refs/heads/master"))
           .map(Ref::getObjectId)
           .map(ObjectId::getName)
@@ -776,9 +780,7 @@ public class Repo {
     String prefix = Constants.R_TAGS + webtagPrefix;
     try (AutoCloseableLock ignored = lock.takeGitDbOpLock()) {
       try (Git g = Git.open(repoDirectory)) {
-        return g.tagList()
-            .call()
-            .stream()
+        return g.tagList().call().stream()
             .filter(t -> t.getName().startsWith(prefix))
             .map(t -> t.getName().substring(Constants.R_TAGS.length()))
             .collect(Collectors.toList());
@@ -1038,8 +1040,7 @@ public class Repo {
     synchronized (lockFields) {
       Submission s = activeSubmissions.get(getSubmissionKey(tag, action));
       if (s != null) {
-        return s.getSteps()
-            .stream()
+        return s.getSteps().stream()
             .filter(stepResult -> step.equals(stepResult.getName()))
             .findFirst()
             .orElseThrow(SubmissionNotFoundException::new)

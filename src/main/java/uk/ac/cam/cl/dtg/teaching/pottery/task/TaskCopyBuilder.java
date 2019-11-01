@@ -295,8 +295,7 @@ public class TaskCopyBuilder {
                 testCodeFolder,
                 taskDetail,
                 testcase.getAction(),
-                new RepoInfo("", "", false, new Date(), variant,
-                    null, null, 0, null),
+                new RepoInfo("", "", false, new Date(), variant, null, null, 0, null),
                 new ContainerManager.StepRunnerCallback() {
                   @Override
                   public void setStatus(String status) {
@@ -360,7 +359,12 @@ public class TaskCopyBuilder {
                   }
 
                   @Override
-                  public void finishStep(String stepName, String status, long msec, String output) {
+                  public void finishStep(
+                      String stepName,
+                      String status,
+                      long msec,
+                      String output,
+                      String containerName) {
                     // Don't care about the actual operation of steps or the output
                   }
                 });

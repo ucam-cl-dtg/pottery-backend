@@ -42,7 +42,10 @@ public class Submissions {
               while (srs.next()) {
                 stepResults.add(
                     new StepResult(
-                        srs.getString("step"), srs.getString("status"), srs.getLong("timems")));
+                        srs.getString("step"),
+                        srs.getString("status"),
+                        srs.getLong("timems"),
+                        srs.getString("containerName")));
               }
               return stepResults;
             },
@@ -99,8 +102,9 @@ public class Submissions {
               + "step,"
               + "status,"
               + "timems,"
-              + "output"
-              + ") VALUES (?,?,?,?,?,?,?,?)",
+              + "output,"
+              + "containerName"
+              + ") VALUES (?,?,?,?,?,?,?,?,?)",
           submission.getRepoId(),
           submission.getTag(),
           submission.getAction(),
@@ -108,7 +112,8 @@ public class Submissions {
           step.getName(),
           step.getStatus(),
           step.getMsec(),
-          step.getOutput());
+          step.getOutput(),
+          step.getContainerName());
     }
     q.commit();
   }

@@ -18,11 +18,9 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Files;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
@@ -50,9 +48,7 @@ abstract class Binding {
   private static Pattern bindingRegex = Pattern.compile("@([a-zA-Z_][-a-zA-Z_0-9]*)@");
 
   static ExecutionConfig.Builder applyBindings(
-      String command,
-      ImmutableMap<String, Binding> bindings,
-      Function<String, Binding> getBinding)
+      String command, ImmutableMap<String, Binding> bindings, Function<String, Binding> getBinding)
       throws ContainerExecutionException {
     ExecutionConfig.Builder builder = ExecutionConfig.builder();
     StringBuilder finalCommand = new StringBuilder();
@@ -72,7 +68,7 @@ abstract class Binding {
           mutableBindings.put(name, binding);
         } else {
           throw new ContainerExecutionException(
-              "Couldn't find a binding called " + name + " for command " + command);
+              "Couldn't find a binding called " + name + " for command " + command, "");
         }
       }
       binding.applyBinding(builder, name);
@@ -149,17 +145,18 @@ abstract class Binding {
 
         File stepFile = new File(containerTempDir, name);
         try (FileOutputStream fos = new FileOutputStream(stepFile)) {
-            try(BufferedWriter w = new BufferedWriter(new OutputStreamWriter(fos,Charset.defaultCharset()))) {
-                w.write(content);
-                w.flush();
-                fos.getFD().sync();
-            }
+          try (BufferedWriter w =
+              new BufferedWriter(new OutputStreamWriter(fos, Charset.defaultCharset()))) {
+            w.write(content);
+            w.flush();
+            fos.getFD().sync();
+          }
         } catch (IOException e) {
           throw new ContainerExecutionException(
-              "Couldn't create temporary file for binding " + name, e);
+              "Couldn't create temporary file for binding " + name, "", e);
         }
-        return builder.addPathSpecification(PathSpecification.create(stepFile, getMountPoint(name),
-            false));
+        return builder.addPathSpecification(
+            PathSpecification.create(stepFile, getMountPoint(name), false));
       } else {
         return builder;
       }

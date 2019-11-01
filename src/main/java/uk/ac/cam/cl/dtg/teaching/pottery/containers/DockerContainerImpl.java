@@ -142,7 +142,7 @@ public class DockerContainerImpl implements ContainerBackend {
         LOG.warn("Detected container retry required - will retry");
       }
     }
-    throw new ContainerExecutionException("Failed to execute container");
+    throw new ContainerExecutionException("Failed to execute container", "");
   }
 
   private ContainerExecResponse executeContainerInner(ExecutionConfig executionConfig)
@@ -249,31 +249,35 @@ public class DockerContainerImpl implements ContainerBackend {
             LOG.error("Time occurred collecting the websocket session from the future", e);
           }
 
-          LOG.debug("Container response: {}", attachListener.getOutput());
+          String recordedResponse = attachListener.getOutput();
+
+          LOG.debug("Container response: {}", recordedResponse);
 
           Pattern p = Pattern.compile("CONTAINER COMPLETED\\s*$");
-          if (status == Status.COMPLETED) {
-            if (!p.matcher(attachListener.getOutput()).find()) {
+          if (status == Status.COMPLETED || status == Status.FAILED_EXITCODE) {
+            if (!p.matcher(recordedResponse).find()) {
               throw new ContainerRetryNeededException();
             }
           }
           return ContainerExecResponse.create(
               status,
-              p.matcher(attachListener.getOutput()).replaceAll(""),
-              System.currentTimeMillis() - startTime);
+              p.matcher(recordedResponse).replaceAll(""),
+              System.currentTimeMillis() - startTime,
+              containerName);
         } finally {
           diskUsageKillerFuture.cancel(false);
         }
       } finally {
         runningContainers.remove(containerId);
-        DockerPatch.deleteContainer(docker, containerId, true, true);
+//        DockerPatch.deleteContainer(docker, containerId, true, true);
       }
     } catch (RuntimeException e) {
       LOG.error("Error executing container", e);
       throw new ContainerExecutionException(
           String.format(
               "An error (%s) occurred when executing container: %s",
-              e.getClass().getName(), e.getMessage()));
+              e.getClass().getName(), e.getMessage()),
+          containerName);
     }
   }
 
@@ -306,7 +310,7 @@ public class DockerContainerImpl implements ContainerBackend {
   }
 
   private synchronized DockerApi initializeDockerApi() throws ApiUnavailableException {
-    DockerApi docker = new Docker("localhost", 2375, 100).api(new ApiPerformanceListener());
+    DockerApi docker = new Docker("localhost", 2375, 200).api(new ApiPerformanceListener());
     if (LOG.isInfoEnabled()) {
       Version v = docker.getVersion();
       LOG.info("Connected to docker, API version: {}", v.getApiVersion());
