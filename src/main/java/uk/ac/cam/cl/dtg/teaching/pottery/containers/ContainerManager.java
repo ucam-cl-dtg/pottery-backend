@@ -309,8 +309,22 @@ public class ContainerManager implements Stoppable {
 
     for (String stepName : steps) {
       Step step = taskDetail.getSteps().get(stepName);
+      if (step == null) {
+        callback.recordErrorReason(
+            ContainerExecResponse.create(
+                Status.FAILED_UNKNOWN, "Failed to find step details for step " + stepName, 0, null),
+            stepName);
+        return Job.STATUS_FAILED;
+      }
       Execution execution = getExecution(repoInfo, step);
       if (execution == null) {
+        callback.recordErrorReason(
+            ContainerExecResponse.create(
+                Status.FAILED_UNKNOWN,
+                "Failed to find execution details for step " + stepName,
+                0,
+                null),
+            stepName);
         continue;
       }
       callback.startStep(stepName);
@@ -352,6 +366,10 @@ public class ContainerManager implements Stoppable {
     Preconditions.checkNotNull(c.getDetail().getParameterisation());
 
     Step step = c.getDetail().getParameterisation().getGenerator();
+    if (step == null) {
+      return ContainerExecResponse.create(
+          Status.FAILED_UNKNOWN, "Failed to find step details for parameterisation step", 0, null);
+    }
     Execution execution = getExecution(repoInfo, step);
     Preconditions.checkNotNull(execution);
 
