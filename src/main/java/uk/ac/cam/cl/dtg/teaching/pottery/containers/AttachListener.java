@@ -30,7 +30,7 @@ class AttachListener implements WebSocketListener {
     this.outputLimitChars = outputLimitChars;
   }
 
-  public String getOutput() {
+  public synchronized String getOutput() {
     return output.toString();
   }
 
@@ -52,13 +52,17 @@ class AttachListener implements WebSocketListener {
 
   @Override
   public void onWebSocketBinary(byte[] payload, int offset, int len) {
-    output.append(new String(payload, offset, len));
-    checkLength();
+    if (!closed) {
+      output.append(new String(payload, offset, len));
+      checkLength();
+    }
   }
 
   @Override
   public void onWebSocketText(String message) {
-    output.append(message);
+    if (!closed) {
+      output.append(message);
+    }
     checkLength();
   }
 

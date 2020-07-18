@@ -122,7 +122,7 @@ public class TestBinding {
         ImmutableMap.of(
             previousStepName,
             ContainerExecResponse.create(
-                ContainerExecResponse.Status.COMPLETED, previousStepResponse, 0L, null));
+                ContainerExecResponse.Status.COMPLETED, previousStepResponse, 0L, null, ""));
     String command = String.format("before @%s@ after", previousStepName);
     String expectedMountPointContainer = POTTERY_PREFIX_CONTAINER + "/" + previousStepName;
     File expectedTempFileHost = new File(tempDirHost, previousStepName);

@@ -43,9 +43,12 @@ public abstract class ContainerExecResponse {
   @Nullable
   public abstract Taint taint();
 
+  public abstract String containerName();
+
   public static ContainerExecResponse create(
-      Status status, String response, long executionTimeMs, Taint taint) {
-    return new AutoValue_ContainerExecResponse(status, stripNull(response), executionTimeMs, taint);
+      Status status, String response, long executionTimeMs, Taint taint, String containerName) {
+    return new AutoValue_ContainerExecResponse(
+        status, stripNull(response), executionTimeMs, taint, containerName);
   }
 
   private static String stripNull(String v) {

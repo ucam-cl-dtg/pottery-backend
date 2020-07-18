@@ -18,15 +18,27 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.xml.bind.DatatypeConverter;
+import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiListener;
@@ -35,10 +47,13 @@ import uk.ac.cam.cl.dtg.teaching.docker.Docker;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Container;
+import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.SystemInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.Version;
+import uk.ac.cam.cl.dtg.teaching.pottery.ContainerRetryNeededException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
 public abstract class DockerContainer implements ContainerBackend {
 
@@ -48,6 +63,7 @@ public abstract class DockerContainer implements ContainerBackend {
   protected final AtomicReference<ApiStatus> apiStatus =
       new AtomicReference<>(ApiStatus.UNINITIALISED);
   protected final AtomicLong smoothedCallTime = new AtomicLong(0);
+  protected final AtomicInteger timeoutMultiplier = new AtomicInteger(1);
   // Lazy initialized - use getDockerApi to access this
   private DockerApi dockerApi;
 
@@ -150,6 +166,169 @@ public abstract class DockerContainer implements ContainerBackend {
         },
         timeoutSec,
         TimeUnit.SECONDS);
+  }
+
+  @Override
+  public void setTimeoutMultiplier(int multiplier) {
+    timeoutMultiplier.set(multiplier);
+  }
+
+  @Override
+  public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
+      throws ApiUnavailableException, ContainerExecutionException {
+    for (int i = 0; i < 5; ++i) {
+      try {
+        return executeContainerInner(executionConfig);
+      } catch (ContainerExecutionException e) {
+        if (e.getMessage().contains("container process is already dead")) {
+          LOG.warn("Caught Docker race condition in container start - will retry");
+        } else {
+          throw e;
+        }
+      } catch (ContainerRetryNeededException e) {
+        LOG.warn("Detected container retry required - will retry");
+      }
+    }
+    throw new ContainerExecutionException("Failed to execute container", "");
+  }
+
+  protected abstract ContainerExecResponse executeContainerInner(ExecutionConfig executionConfig)
+      throws ApiUnavailableException, ContainerExecutionException, ContainerRetryNeededException;
+
+  protected ContainerExecResponse startContainer(
+      ExecutionConfig executionConfig, String containerName, String containerId, DockerApi docker)
+      throws ApiUnavailableException, ContainerRetryNeededException, ContainerExecutionException {
+    long startTime = System.currentTimeMillis();
+    docker.startContainer(containerId);
+    AttachListener attachListener =
+        new AttachListener(
+            executionConfig.containerRestrictions().getOutputLimitKilochars() * 1000);
+
+    ScheduledFuture<Boolean> timeoutKiller =
+        scheduleTimeoutKiller(
+            executionConfig.containerRestrictions().getTimeoutSec() * timeoutMultiplier.get(),
+            containerId,
+            attachListener);
+
+    DiskUsageKiller diskUsageKiller =
+        new DiskUsageKiller(
+            containerId,
+            this,
+            executionConfig.containerRestrictions().getDiskWriteLimitMegabytes() * 1024 * 1024,
+            attachListener);
+    ScheduledFuture<?> diskUsageKillerFuture =
+        scheduler.scheduleAtFixedRate(diskUsageKiller, 10L, 10L, TimeUnit.SECONDS);
+
+    try {
+      Future<Session> session =
+          docker.attach(containerId, true, true, true, true, true, attachListener);
+
+      // Wait for container to finish (or be killed)
+      ContainerExecResponse.Status status = ContainerExecResponse.Status.FAILED_UNKNOWN;
+      boolean knownStopped = false;
+      boolean closed = false;
+      ContainerInfo containerInfo = null;
+      while (!closed) {
+        closed = attachListener.waitForClose(60 * 1000);
+        containerInfo = docker.inspectContainer(containerId, false);
+        if (!containerInfo.getState().getRunning()) {
+          knownStopped = true;
+          closed = true;
+          if (containerInfo.getState().getExitCode() == 0) {
+            status = ContainerExecResponse.Status.COMPLETED;
+          } else {
+            status = ContainerExecResponse.Status.FAILED_EXITCODE;
+          }
+        }
+      }
+
+      // Check to make sure its really stopped the container
+      if (!knownStopped) {
+        containerInfo = docker.inspectContainer(containerId, false);
+        if (containerInfo.getState().getRunning()) {
+          DockerContainerImpl.LOG.info(
+              "Container {} still running despite receiving a close from it - killing",
+              containerId);
+          DockerUtil.killContainer(containerId, docker);
+          containerInfo = docker.inspectContainer(containerId, false);
+        }
+        if (containerInfo.getState().getExitCode() == 0) {
+          status = ContainerExecResponse.Status.COMPLETED;
+        } else {
+          status = ContainerExecResponse.Status.FAILED_EXITCODE;
+        }
+      }
+
+      if (containerInfo.getState().getOomKilled()) {
+        status = ContainerExecResponse.Status.FAILED_OOM;
+      }
+
+      timeoutKiller.cancel(false);
+      try {
+        if (timeoutKiller.get()) {
+          status = ContainerExecResponse.Status.FAILED_TIMEOUT;
+        }
+      } catch (InterruptedException | ExecutionException | CancellationException e) {
+        // ignore
+      }
+
+      if (diskUsageKiller.isKilled()) {
+        status = ContainerExecResponse.Status.FAILED_DISK;
+      }
+
+      if (attachListener.hasOverflowed()) {
+        status = ContainerExecResponse.Status.FAILED_OUTPUT;
+      }
+
+      try {
+        session.get(5, TimeUnit.SECONDS).close();
+      } catch (InterruptedException e) {
+        // ignore
+      } catch (ExecutionException e) {
+        DockerContainerImpl.LOG.error(
+            "An exception occurred collecting the websocket session from the future", e.getCause());
+      } catch (TimeoutException e) {
+        DockerContainerImpl.LOG.error(
+            "Time occurred collecting the websocket session from the future", e);
+      }
+
+      String recordedResponse = attachListener.getOutput();
+
+      DockerContainerImpl.LOG.debug("Container response: {}", recordedResponse);
+
+      Pattern p = Pattern.compile("^([a-z0-9]+)  -\n\\z", Pattern.MULTILINE);
+      if (status == ContainerExecResponse.Status.COMPLETED
+          || status == ContainerExecResponse.Status.FAILED_EXITCODE) {
+        Matcher matcher = p.matcher(recordedResponse);
+        if (!matcher.find()) {
+          DockerContainerImpl.LOG.warn("Response {} failed to match", recordedResponse);
+          throw new ContainerRetryNeededException();
+        }
+        String checksum = matcher.group(1);
+        recordedResponse = matcher.replaceAll("");
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        md.update(recordedResponse.getBytes(StandardCharsets.UTF_8));
+        byte[] digest = md.digest();
+        String myHash = DatatypeConverter.printHexBinary(digest).toLowerCase();
+        if (!checksum.equals(myHash)) {
+          DockerContainerImpl.LOG.warn(
+              "Response {} failed to match {}", recordedResponse, checksum);
+          throw new ContainerRetryNeededException();
+        }
+      }
+      return ContainerExecResponse.create(
+          status,
+          attachListener.getOutput(),
+          System.currentTimeMillis() - startTime,
+          executionConfig.taint(),
+          containerName);
+    } catch (NoSuchAlgorithmException e) {
+      LOG.error("Error executing container", e);
+      throw new ContainerExecutionException(
+          "Failed to load MD5 digest algorithm when executing container: %s", containerName);
+    } finally {
+      diskUsageKillerFuture.cancel(false);
+    }
   }
 
   private class ApiPerformanceListener implements ApiListener {

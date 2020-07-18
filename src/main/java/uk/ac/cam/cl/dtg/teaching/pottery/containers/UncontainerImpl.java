@@ -115,7 +115,8 @@ public class UncontainerImpl implements ContainerBackend {
               : ContainerExecResponse.Status.FAILED_EXITCODE,
           output,
           0,
-          executionConfig.taint());
+          executionConfig.taint(),
+          "no-container");
     } catch (IOException | InterruptedException e) {
       throw new ApiUnavailableException(e);
     }

@@ -306,7 +306,7 @@ public class Repo {
                     successCallback.run();
                     return Job.STATUS_OK;
                   } catch (RepoStorageException | RepoExpiredException | IOException e) {
-                    LOG.error("Fault recording task is ready", e);
+                    LOG.error("Fault recording task is ready " + response.response(), e);
                     failureCallback.accept(e.getMessage());
                     return STATUS_FAILED;
                   }
@@ -533,7 +533,8 @@ public class Repo {
                                     builder.addErrorMessage("Output failed, bad exit code"));
                                 break;
                               default:
-                                break;
+                                updateSubmission(
+                                    builder.addErrorMessage("Output failed: " + response.status()));
                             }
                           }
 
@@ -544,8 +545,14 @@ public class Repo {
 
                           @Override
                           public void finishStep(
-                              String stepName, String status, long msec, String output) {
-                            updateSubmission(builder.completeStep(stepName, status, msec, output));
+                              String stepName,
+                              String status,
+                              long msec,
+                              String output,
+                              String containerName) {
+                            updateSubmission(
+                                builder.completeStep(
+                                    stepName, status, msec, output, containerName));
                           }
                         });
                 builder.setStatus(
@@ -1067,7 +1074,7 @@ public class Repo {
     }
   }
 
-  private String getSubmissionKey(String tag, String action) {
+  private static String getSubmissionKey(String tag, String action) {
     return tag + "," + action;
   }
 }

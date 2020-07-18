@@ -25,6 +25,7 @@ CREATE TABLE outputs (
     status character varying(255) NOT NULL,
     timems bigint DEFAULT '-1'::integer NOT NULL,
     output text,
+    containerName character varying(255),
     primary key (repoid,tag,action,position)
 );
 

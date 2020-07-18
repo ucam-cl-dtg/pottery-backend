@@ -26,8 +26,12 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FileUtil {
+
+  protected static final Logger LOG = LoggerFactory.getLogger(FileUtil.class);
 
   /** Create the chosen directory (and any missing parent directories) if it doesn't exist. */
   public static void mkdirIfNotExists(File dir) throws IOException {
@@ -99,6 +103,10 @@ public class FileUtil {
     return new AutoDelete(dir);
   }
 
+  public static AutoDelete tmpdirWithAutoDelete(File parent) throws IOException {
+    return new FileUtil.AutoDelete(Files.createTempDirectory(parent.toPath(), "").toFile());
+  }
+
   /**
    * Copies all the files in sourceDir to destinationDir recursively and returns a list of
    * (relative) filenames copied.
@@ -136,6 +144,10 @@ public class FileUtil {
     AutoDelete(File parent) {
       this.parent = parent;
       this.persist = false;
+    }
+
+    public File getFile() {
+      return parent;
     }
 
     public void persist() {

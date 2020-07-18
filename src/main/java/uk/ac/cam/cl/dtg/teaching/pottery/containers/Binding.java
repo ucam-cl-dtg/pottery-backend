@@ -73,7 +73,7 @@ abstract class Binding {
           mutableBindings.put(name, binding);
         } else {
           throw new ContainerExecutionException(
-              "Couldn't find a binding called " + name + " for command " + command);
+              "Couldn't find a binding called " + name + " for command " + command, "");
         }
       }
       binding.applyBinding(builder, name);
@@ -179,7 +179,7 @@ abstract class Binding {
           Files.asCharSink(stepFile, Charset.defaultCharset()).write(content);
         } catch (IOException e) {
           throw new ContainerExecutionException(
-              "Couldn't create temporary file for binding " + name, e);
+              "Couldn't create temporary file for binding " + name, "", e);
         }
         return builder.addPathSpecification(
             PathSpecification.create(stepFile, getMountPoint(name), false));

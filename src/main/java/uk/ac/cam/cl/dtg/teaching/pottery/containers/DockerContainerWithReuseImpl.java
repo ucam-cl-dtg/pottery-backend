@@ -29,27 +29,19 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.commons.io.FileUtils;
-import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.docker.DockerPatch;
-import uk.ac.cam.cl.dtg.teaching.docker.DockerUtil;
 import uk.ac.cam.cl.dtg.teaching.docker.api.DockerApi;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerConfig;
-import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerInfo;
 import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
+import uk.ac.cam.cl.dtg.teaching.pottery.ContainerRetryNeededException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
@@ -82,8 +74,6 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
   private final ConcurrentSkipListMap<ContainerSettings, LockableMap> containers =
       new ConcurrentSkipListMap<>();
 
-  private final AtomicInteger timeoutMultiplier = new AtomicInteger(1);
-
   @Inject
   public DockerContainerWithReuseImpl(ContainerEnvConfig config) throws IOException {
     super(config);
@@ -103,18 +93,13 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
   }
 
   @Override
-  public void setTimeoutMultiplier(int multiplier) {
-    timeoutMultiplier.set(multiplier);
-  }
-
-  @Override
   public String getInternalMountPath() {
     return "/mnt/pottery";
   }
 
   @Override
-  public ContainerExecResponse executeContainer(ExecutionConfig executionConfig)
-      throws ApiUnavailableException, ContainerExecutionException {
+  public ContainerExecResponse executeContainerInner(ExecutionConfig executionConfig)
+      throws ApiUnavailableException, ContainerExecutionException, ContainerRetryNeededException {
 
     DockerApi docker = getDockerApi();
 
@@ -264,114 +249,18 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
       java.nio.file.Files.setPosixFilePermissions(
           hostExecutable.toPath(), PosixFilePermissions.fromString("rwxr-xr-x"));
 
-      long startTime = System.currentTimeMillis();
-
-      AttachListener attachListener =
-          new AttachListener(
-              executionConfig.containerRestrictions().getOutputLimitKilochars() * 1000);
-
-      ScheduledFuture<Boolean> timeoutKiller =
-          scheduleTimeoutKiller(
-              executionConfig.containerRestrictions().getTimeoutSec() * timeoutMultiplier.get(),
-              containerId,
-              attachListener);
-
-      DiskUsageKiller diskUsageKiller =
-          new DiskUsageKiller(
-              containerId,
-              this,
-              executionConfig.containerRestrictions().getDiskWriteLimitMegabytes() * 1024 * 1024,
-              attachListener);
-      ScheduledFuture<?> diskUsageKillerFuture =
-          scheduler.scheduleAtFixedRate(diskUsageKiller, 10L, 10L, TimeUnit.SECONDS);
-
-      try {
-        Future<Session> session =
-            docker.attach(containerId, false, true, true, true, true, attachListener);
-
-        docker.startContainer(containerId);
-
-        // Wait for container to finish (or be killed)
-        boolean knownStopped = false;
-        boolean closed = false;
-        ContainerInfo containerInfo = null;
-        while (!closed) {
-          closed = attachListener.waitForClose(60 * 1000);
-          containerInfo = docker.inspectContainer(containerId, false);
-          if (!containerInfo.getState().getRunning()) {
-            knownStopped = true;
-            closed = true;
-            if (containerInfo.getState().getExitCode() == 0) {
-              status = Status.COMPLETED;
-            } else {
-              status = Status.FAILED_EXITCODE;
-            }
-          }
-        }
-
-        // Check to make sure its really stopped the container
-        if (!knownStopped) {
-          containerInfo = docker.inspectContainer(containerId, false);
-          if (containerInfo.getState().getRunning()) {
-            DockerUtil.killContainer(containerId, docker);
-            containerInfo = docker.inspectContainer(containerId, false);
-          }
-          if (containerInfo.getState().getExitCode() == 0) {
-            status = Status.COMPLETED;
-          } else {
-            status = Status.FAILED_EXITCODE;
-          }
-        }
-
-        if (containerInfo.getState().getOomKilled()) {
-          status = Status.FAILED_OOM;
-        }
-
-        timeoutKiller.cancel(false);
-        try {
-          if (timeoutKiller.get()) {
-            status = Status.FAILED_TIMEOUT;
-          }
-        } catch (InterruptedException | ExecutionException | CancellationException e) {
-          // ignore
-        }
-
-        if (diskUsageKiller.isKilled()) {
-          status = Status.FAILED_DISK;
-        }
-
-        if (attachListener.hasOverflowed()) {
-          status = Status.FAILED_OUTPUT;
-        }
-
-        try {
-          session.get(5, TimeUnit.SECONDS).close();
-        } catch (InterruptedException e) {
-          // ignore
-        } catch (ExecutionException e) {
-          LOG.error(
-              "An exception occurred collecting the websocket session from the future",
-              e.getCause());
-        } catch (TimeoutException e) {
-          LOG.error("Time occurred collecting the websocket session from the future", e);
-        }
-
-        LOG.debug("Container response: {}", attachListener.getOutput());
-        return ContainerExecResponse.create(
-            status,
-            attachListener.getOutput(),
-            System.currentTimeMillis() - startTime,
-            executionConfig.taint());
-      } finally {
-        diskUsageKillerFuture.cancel(false);
-      }
+      ContainerExecResponse response =
+          startContainer(executionConfig, containerName, containerId, docker);
+      status = response.status();
+      return response;
     } catch (IOException | RuntimeException e) {
       destroyContainer(docker, possibleContainers, containerId);
       LOG.error("Error executing container", e);
       throw new ContainerExecutionException(
           String.format(
               "An error (%s) occurred when executing container: %s",
-              e.getClass().getName(), e.getMessage()));
+              e.getClass().getName(), e.getMessage()),
+          containerName);
     } finally {
       try {
         // Copy files out and delete copies

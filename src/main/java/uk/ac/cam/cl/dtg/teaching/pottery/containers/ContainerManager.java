@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -58,16 +57,17 @@ public class ContainerManager implements Stoppable {
 
   private final ContainerEnvConfig config;
   private final ContainerBackend containerBackend;
-  private final AtomicInteger tempDirCounter = new AtomicInteger(0);
 
   /**
    * Construct a new container manager and worker pool. The connection to the container backend is
    * created lazily as needed.
    */
   @Inject
-  public ContainerManager(ContainerEnvConfig config, ContainerBackend containerBackend) {
+  public ContainerManager(ContainerEnvConfig config, ContainerBackend containerBackend)
+      throws IOException {
     this.config = config;
     this.containerBackend = containerBackend;
+    FileUtil.mkdirIfNotExists(config.getTempRoot());
   }
 
   @Override
@@ -126,7 +126,8 @@ public class ContainerManager implements Stoppable {
       if (result != null) {
         LOG.info(
             "Returning from cache (" + executionConfig.taint() + "):" + executionConfig.command());
-        return ContainerExecResponse.create(Status.COMPLETED, result, 0, executionConfig.taint());
+        return ContainerExecResponse.create(
+            Status.COMPLETED, result, 0, executionConfig.taint(), "");
       }
 
       LOG.info(
@@ -162,7 +163,8 @@ public class ContainerManager implements Stoppable {
           Binding.applyBindings(execution.getProgram(), bindings, stepName -> null, Taint.Compile),
           null);
     } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1, Taint.Compile);
+      return ContainerExecResponse.create(
+          Status.FAILED_UNKNOWN, e.getMessage(), -1, Taint.Compile, e.getContainerName());
     }
   }
 
@@ -209,9 +211,8 @@ public class ContainerManager implements Stoppable {
                     Binding.Control.FROM_TASK))
             .build();
 
-    File containerTempDir =
-        new File(config.getTempRoot(), String.valueOf(tempDirCounter.incrementAndGet()));
-    try (FileUtil.AutoDelete ignored = FileUtil.mkdirWithAutoDelete(containerTempDir)) {
+    try (FileUtil.AutoDelete containerTempDir =
+        FileUtil.tmpdirWithAutoDelete(config.getTempRoot())) {
       ExecutionConfig.Builder executionConfig =
           Binding.applyBindings(
               execution.getProgram(),
@@ -221,7 +222,7 @@ public class ContainerManager implements Stoppable {
                   ContainerExecResponse stepResult = stepResults.get(step);
                   Taint stepTaint = stepResult.taint();
                   return new Binding.TemporaryFileBinding(
-                      containerTempDir,
+                      containerTempDir.getFile(),
                       stepResult.response(),
                       containerBackend.getInternalMountPath(),
                       stepTaint.isUserControlled());
@@ -230,8 +231,11 @@ public class ContainerManager implements Stoppable {
               },
               taint);
       return execute(execution, executionConfig, stepName);
-    } catch (ContainerExecutionException | IOException e) {
-      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1, taint);
+    } catch (ContainerExecutionException e) {
+      return ContainerExecResponse.create(
+          Status.FAILED_UNKNOWN, e.getMessage(), -1, taint, e.getContainerName());
+    } catch (IOException e) {
+      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1, taint, "");
     }
   }
 
@@ -254,7 +258,7 @@ public class ContainerManager implements Stoppable {
 
     void startStep(String stepName);
 
-    void finishStep(String stepName, String status, long msec, String output);
+    void finishStep(String stepName, String status, long msec, String output, String containerName);
   }
 
   public interface ErrorHandlingStepRunnerCallback extends StepRunnerCallback {
@@ -300,7 +304,7 @@ public class ContainerManager implements Stoppable {
       callback.setStatus(Submission.STATUS_FAILED);
       callback.recordErrorReason(
           ContainerExecResponse.create(
-              Status.FAILED_EXITCODE, "Failed to find action named " + action, 0, null),
+              Status.FAILED_EXITCODE, "Failed to find action named " + action, 0, null, ""),
           "SETUP");
       return Job.STATUS_FAILED;
     }
@@ -312,7 +316,11 @@ public class ContainerManager implements Stoppable {
       if (step == null) {
         callback.recordErrorReason(
             ContainerExecResponse.create(
-                Status.FAILED_UNKNOWN, "Failed to find step details for step " + stepName, 0, null),
+                Status.FAILED_UNKNOWN,
+                "Failed to find step details for step " + stepName,
+                0,
+                null,
+                ""),
             stepName);
         return Job.STATUS_FAILED;
       }
@@ -323,7 +331,8 @@ public class ContainerManager implements Stoppable {
                 Status.FAILED_UNKNOWN,
                 "Failed to find execution details for step " + stepName,
                 0,
-                null),
+                null,
+                ""),
             stepName);
         continue;
       }
@@ -346,7 +355,8 @@ public class ContainerManager implements Stoppable {
                 ? Submission.STATUS_COMPLETE
                 : Submission.STATUS_FAILED,
             response.executionTimeMs(),
-            response.response());
+            response.response(),
+            response.containerName());
         if (response.status() != Status.COMPLETED) {
           callback.setStatus(Submission.STATUS_FAILED);
           callback.recordErrorReason(response, stepName);
@@ -368,7 +378,11 @@ public class ContainerManager implements Stoppable {
     Step step = c.getDetail().getParameterisation().getGenerator();
     if (step == null) {
       return ContainerExecResponse.create(
-          Status.FAILED_UNKNOWN, "Failed to find step details for parameterisation step", 0, null);
+          Status.FAILED_UNKNOWN,
+          "Failed to find step details for parameterisation step",
+          0,
+          null,
+          "");
     }
     Execution execution = getExecution(repoInfo, step);
     Preconditions.checkNotNull(execution);
@@ -397,7 +411,8 @@ public class ContainerManager implements Stoppable {
           Binding.applyBindings(execution.getProgram(), bindings, stepName -> null, taint),
           null);
     } catch (ContainerExecutionException e) {
-      return ContainerExecResponse.create(Status.FAILED_UNKNOWN, e.getMessage(), -1, taint);
+      return ContainerExecResponse.create(
+          Status.FAILED_UNKNOWN, e.getMessage(), -1, taint, e.getContainerName());
     }
   }
 
