@@ -19,6 +19,9 @@ package uk.ac.cam.cl.dtg.teaching.pottery.containers;
 
 import com.google.inject.Inject;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -33,7 +36,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.xml.bind.DatatypeConverter;
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -253,25 +258,34 @@ public class DockerContainerImpl implements ContainerBackend {
 
           LOG.debug("Container response: {}", recordedResponse);
 
-          Pattern p = Pattern.compile("CONTAINER COMPLETED\\s*$");
+          Pattern p = Pattern.compile("^([a-z0-9]+)  -\n\\z", Pattern.MULTILINE);
           if (status == Status.COMPLETED || status == Status.FAILED_EXITCODE) {
-            if (!p.matcher(recordedResponse).find()) {
+            Matcher matcher = p.matcher(recordedResponse);
+            if (!matcher.find()) {
+              LOG.warn("Response {} failed to match", recordedResponse);
+              throw new ContainerRetryNeededException();
+            }
+            String checksum = matcher.group(1);
+            recordedResponse = matcher.replaceAll("");
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            md.update(recordedResponse.getBytes(StandardCharsets.UTF_8));
+            byte[] digest = md.digest();
+            String myHash = DatatypeConverter.printHexBinary(digest).toLowerCase();
+            if (!checksum.equals(myHash)) {
+              LOG.warn("Response {} failed to match {}", recordedResponse, checksum);
               throw new ContainerRetryNeededException();
             }
           }
           return ContainerExecResponse.create(
-              status,
-              p.matcher(recordedResponse).replaceAll(""),
-              System.currentTimeMillis() - startTime,
-              containerName);
+              status, recordedResponse, System.currentTimeMillis() - startTime, containerName);
         } finally {
           diskUsageKillerFuture.cancel(false);
         }
       } finally {
         runningContainers.remove(containerId);
-//        DockerPatch.deleteContainer(docker, containerId, true, true);
+        DockerPatch.deleteContainer(docker, containerId, true, true);
       }
-    } catch (RuntimeException e) {
+    } catch (RuntimeException | NoSuchAlgorithmException e) {
       LOG.error("Error executing container", e);
       throw new ContainerExecutionException(
           String.format(
@@ -310,7 +324,7 @@ public class DockerContainerImpl implements ContainerBackend {
   }
 
   private synchronized DockerApi initializeDockerApi() throws ApiUnavailableException {
-    DockerApi docker = new Docker("localhost", 2375, 200).api(new ApiPerformanceListener());
+    DockerApi docker = new Docker("localhost", 2375, 20).api(new ApiPerformanceListener());
     if (LOG.isInfoEnabled()) {
       Version v = docker.getVersion();
       LOG.info("Connected to docker, API version: {}", v.getApiVersion());
