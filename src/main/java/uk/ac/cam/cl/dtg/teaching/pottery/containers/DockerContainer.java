@@ -57,7 +57,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
 public abstract class DockerContainer implements ContainerBackend {
 
-  protected static final Logger LOG = LoggerFactory.getLogger(DockerContainer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DockerContainer.class);
   protected final ContainerEnvConfig config;
   protected final ScheduledExecutorService scheduler;
   protected final AtomicReference<ApiStatus> apiStatus =
@@ -246,7 +246,7 @@ public abstract class DockerContainer implements ContainerBackend {
       if (!knownStopped) {
         containerInfo = docker.inspectContainer(containerId, false);
         if (containerInfo.getState().getRunning()) {
-          DockerContainerImpl.LOG.info(
+          LOG.info(
               "Container {} still running despite receiving a close from it - killing",
               containerId);
           DockerUtil.killContainer(containerId, docker);
@@ -294,25 +294,25 @@ public abstract class DockerContainer implements ContainerBackend {
 
       String recordedResponse = attachListener.getOutput();
 
-      DockerContainerImpl.LOG.debug("Container response: {}", recordedResponse);
+      LOG.debug("Container response: {}", recordedResponse);
 
       Pattern p = Pattern.compile("^([a-z0-9]+)  -\n\\z", Pattern.MULTILINE);
       if (status == ContainerExecResponse.Status.COMPLETED
           || status == ContainerExecResponse.Status.FAILED_EXITCODE) {
         Matcher matcher = p.matcher(recordedResponse);
         if (!matcher.find()) {
-          DockerContainerImpl.LOG.warn("Response {} failed to match", recordedResponse);
+          LOG.warn("Response {} failed to match", recordedResponse);
           throw new ContainerRetryNeededException();
         }
         String checksum = matcher.group(1);
+        LOG.debug("Extracted checksum {}", checksum);
         recordedResponse = matcher.replaceAll("");
         MessageDigest md = MessageDigest.getInstance("MD5");
         md.update(recordedResponse.getBytes(StandardCharsets.UTF_8));
         byte[] digest = md.digest();
         String myHash = DatatypeConverter.printHexBinary(digest).toLowerCase();
         if (!checksum.equals(myHash)) {
-          DockerContainerImpl.LOG.warn(
-              "Response {} failed to match {}", recordedResponse, checksum);
+          LOG.warn("The checksum for response {} is not equal to {}", recordedResponse, checksum);
           throw new ContainerRetryNeededException();
         }
       }

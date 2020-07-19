@@ -36,7 +36,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
 /** Docker implementation of container backend. */
 public class DockerContainerImpl extends DockerContainer implements ContainerBackend {
-  protected static final Logger LOG = LoggerFactory.getLogger(DockerContainerImpl.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DockerContainerImpl.class);
 
   private final AtomicInteger containerNameCounter = new AtomicInteger(0);
 
