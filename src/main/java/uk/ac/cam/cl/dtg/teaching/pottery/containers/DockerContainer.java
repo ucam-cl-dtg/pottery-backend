@@ -27,7 +27,6 @@ import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -198,8 +197,8 @@ public abstract class DockerContainer implements ContainerBackend {
   protected ContainerExecResponse startContainer(
       ExecutionConfig executionConfig, String containerName, String containerId, DockerApi docker)
       throws ApiUnavailableException, ContainerRetryNeededException, ContainerExecutionException {
+    LOG.debug("Starting container: {}", executionConfig.toString());
     long startTime = System.currentTimeMillis();
-    docker.startContainer(containerId);
     AttachListener attachListener =
         new AttachListener(
             executionConfig.containerRestrictions().getOutputLimitKilochars() * 1000);
@@ -220,8 +219,29 @@ public abstract class DockerContainer implements ContainerBackend {
         scheduler.scheduleAtFixedRate(diskUsageKiller, 10L, 10L, TimeUnit.SECONDS);
 
     try {
-      Future<Session> session =
-          docker.attach(containerId, true, true, true, true, true, attachListener);
+      // attach without logs enabled so that we don't get previous output if we are reusing the
+      // container. To make this safe we need to make sure the attach has finished before we start
+      // the container. We do this by immediately trying to collect the future.
+
+      Session session;
+      try {
+        session =
+            docker
+                .attach(containerId, false, true, true, true, true, attachListener)
+                .get(5, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new ContainerExecutionException(
+            "Interrupted waiting for attach", containerName, e.getCause());
+      } catch (ExecutionException e) {
+        throw new ContainerExecutionException(
+            "An exception occurred whilst attaching to the container", containerName, e.getCause());
+      } catch (TimeoutException e) {
+        throw new ContainerExecutionException(
+            "Timeout occurred trying to attach to the container", containerName, e);
+      }
+
+      docker.startContainer(containerId);
 
       // Wait for container to finish (or be killed)
       ContainerExecResponse.Status status = ContainerExecResponse.Status.FAILED_UNKNOWN;
@@ -259,6 +279,8 @@ public abstract class DockerContainer implements ContainerBackend {
         }
       }
 
+      session.close();
+
       if (containerInfo.getState().getOomKilled()) {
         status = ContainerExecResponse.Status.FAILED_OOM;
       }
@@ -278,18 +300,6 @@ public abstract class DockerContainer implements ContainerBackend {
 
       if (attachListener.hasOverflowed()) {
         status = ContainerExecResponse.Status.FAILED_OUTPUT;
-      }
-
-      try {
-        session.get(5, TimeUnit.SECONDS).close();
-      } catch (InterruptedException e) {
-        // ignore
-      } catch (ExecutionException e) {
-        DockerContainerImpl.LOG.error(
-            "An exception occurred collecting the websocket session from the future", e.getCause());
-      } catch (TimeoutException e) {
-        DockerContainerImpl.LOG.error(
-            "Time occurred collecting the websocket session from the future", e);
       }
 
       String recordedResponse = attachListener.getOutput();
