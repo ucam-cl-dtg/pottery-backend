@@ -36,6 +36,7 @@ public class AuthenticationPrincipalInterceptor implements ContainerRequestFilte
 
   @Override
   public void filter(ContainerRequestContext requestContext) {
+    LOG.debug("Request: {}", requestContext.getUriInfo().getRequestUri().toString());
     SecurityContext securityContext = requestContext.getSecurityContext();
     if (securityContext != null) {
       Principal userPrincipal = securityContext.getUserPrincipal();
