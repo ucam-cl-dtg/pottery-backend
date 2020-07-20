@@ -57,10 +57,11 @@ public class ThreadPoolWorker implements Worker {
       RepoFactory repoFactory,
       ContainerManager containerManager,
       Database database,
-      @Named(Worker.WORKER_NAME) String workerName) {
+      @Named(Worker.WORKER_NAME) String workerName,
+      @Named(Worker.INITIAL_POOL_SIZE) int initialPoolSize) {
     super();
     this.threadPool = Executors.newFixedThreadPool(1);
-    this.numThreads = 1;
+    this.numThreads = initialPoolSize;
     this.taskIndex = taskIndex;
     this.repoFactory = repoFactory;
     this.containerManager = containerManager;

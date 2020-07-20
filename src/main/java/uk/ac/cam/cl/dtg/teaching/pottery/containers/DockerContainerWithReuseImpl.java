@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import javax.inject.Named;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +45,8 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.ContainerRetryNeededException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.ContextKeys;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.DockerConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerExecResponse.Status;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
@@ -75,8 +78,12 @@ public class DockerContainerWithReuseImpl extends DockerContainer implements Con
       new ConcurrentSkipListMap<>();
 
   @Inject
-  public DockerContainerWithReuseImpl(ContainerEnvConfig config) throws IOException {
-    super(config);
+  public DockerContainerWithReuseImpl(
+      ContainerEnvConfig config,
+      DockerConfig dockerConfig,
+      @Named(ContextKeys.CONTAINER_TIMEOUT_MULTIPLIER) int containerTimeoutMultiplier)
+      throws IOException {
+    super(config, dockerConfig, containerTimeoutMultiplier);
   }
 
   @Override

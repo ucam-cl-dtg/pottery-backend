@@ -38,7 +38,7 @@ public class ContainerEnvConfig {
   private File tempDir;
 
   @Inject
-  public ContainerEnvConfig(@Named("localStoragePrefix") String prefix) {
+  public ContainerEnvConfig(@Named(ContextKeys.LOCAL_STORAGE_PREFIX) String prefix) {
     this.userName = System.getProperty("user.name");
     this.uid = getUidForUserName(userName);
     this.libDir = new File(prefix, "lib");

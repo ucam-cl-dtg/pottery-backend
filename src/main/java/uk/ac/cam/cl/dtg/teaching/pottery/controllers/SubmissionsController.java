@@ -18,6 +18,7 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 
 import com.google.inject.Inject;
+import javax.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
@@ -44,7 +45,8 @@ public class SubmissionsController
 
   /** Create a new SubmissionController. */
   @Inject
-  public SubmissionsController(Worker worker, Database database, RepoFactory repoFactory) {
+  public SubmissionsController(
+      @Named(Repo.GENERAL_WORKER) Worker worker, Database database, RepoFactory repoFactory) {
     super();
     this.worker = worker;
     this.database = database;

@@ -26,7 +26,7 @@ public class TaskConfig {
   private File taskPrefix;
 
   @Inject
-  public TaskConfig(@Named("localStoragePrefix") String prefix) {
+  public TaskConfig(@Named(ContextKeys.LOCAL_STORAGE_PREFIX) String prefix) {
     this.taskPrefix = new File(prefix, "tasks");
   }
 

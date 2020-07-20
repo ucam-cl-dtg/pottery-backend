@@ -17,36 +17,41 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.config;
 
-import com.google.inject.Inject;
-import java.io.File;
+import javax.inject.Inject;
 import javax.inject.Named;
 
-public class RepoConfig {
+public class DockerConfig {
 
-  private File repoPrefix;
+  private final String server;
+  private final int port;
+  private final int maxConnections;
+  private final boolean md5SumContainerOutput;
 
   @Inject
-  public RepoConfig(@Named(ContextKeys.LOCAL_STORAGE_PREFIX) String prefix) {
-    this.repoPrefix = new File(prefix, "repos");
+  public DockerConfig(
+      @Named(ContextKeys.DOCKER_API_SERVER) String server,
+      @Named(ContextKeys.DOCKER_API_PORT) int port,
+      @Named(ContextKeys.DOCKER_API_MAX_CONNECTIONS) int maxConnections,
+      @Named(ContextKeys.DOCKER_MD5SUM_CONTAINER_OUTPUT) boolean md5SumContainerOutput) {
+    this.server = server;
+    this.port = port;
+    this.maxConnections = maxConnections;
+    this.md5SumContainerOutput = md5SumContainerOutput;
   }
 
-  public File getRepoRoot() {
-    return new File(repoPrefix, "repos");
+  public boolean validateMd5SumContainerOutput() {
+    return md5SumContainerOutput;
   }
 
-  public File getRepoTestingRoot() {
-    return new File(repoPrefix, "repo-testing");
+  public String getServer() {
+    return server;
   }
 
-  public String getWebtagPrefix() {
-    return "online-";
+  public int getPort() {
+    return port;
   }
 
-  public File getRepoDir(String repoId) {
-    return new File(getRepoRoot(), repoId);
-  }
-
-  public File getRepoTestingDir(String repoId) {
-    return new File(getRepoTestingRoot(), repoId);
+  public int getMaxConnections() {
+    return maxConnections;
   }
 }

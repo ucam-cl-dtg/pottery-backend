@@ -42,8 +42,8 @@ public class WorkerController implements uk.ac.cam.cl.dtg.teaching.pottery.api.W
   /** Create a new WorkerController. */
   @Inject
   public WorkerController(
-      Worker worker,
-      @Named(Repo.PARAMETERISATION_WORKER_NAME) Worker parameterisationWorker,
+      @Named(Repo.GENERAL_WORKER) Worker worker,
+      @Named(Repo.PARAMETERISATION_WORKER) Worker parameterisationWorker,
       ContainerManager containerManager) {
     super();
     this.worker = worker;

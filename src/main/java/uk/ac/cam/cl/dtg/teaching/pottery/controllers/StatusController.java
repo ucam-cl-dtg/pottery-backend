@@ -20,11 +20,13 @@ package uk.ac.cam.cl.dtg.teaching.pottery.controllers;
 import com.google.inject.Inject;
 import java.util.Map;
 import java.util.TreeMap;
+import javax.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.ssh.SshManager;
 import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
@@ -40,7 +42,7 @@ public class StatusController implements uk.ac.cam.cl.dtg.teaching.pottery.api.S
   /** Create a new StatusController. */
   @Inject
   public StatusController(
-      Worker worker,
+      @Named(Repo.GENERAL_WORKER) Worker worker,
       ContainerEnvConfig containerEnvConfig,
       ContainerManager containerManager,
       SshManager sshManager) {

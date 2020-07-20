@@ -52,25 +52,31 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.Version;
 import uk.ac.cam.cl.dtg.teaching.pottery.ContainerRetryNeededException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.DockerConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
 public abstract class DockerContainer implements ContainerBackend {
 
   private static final Logger LOG = LoggerFactory.getLogger(DockerContainer.class);
   protected final ContainerEnvConfig config;
+  private final DockerConfig dockerConfig;
   protected final ScheduledExecutorService scheduler;
   protected final AtomicReference<ApiStatus> apiStatus =
       new AtomicReference<>(ApiStatus.UNINITIALISED);
   protected final AtomicLong smoothedCallTime = new AtomicLong(0);
-  protected final AtomicInteger timeoutMultiplier = new AtomicInteger(1);
+  protected final AtomicInteger timeoutMultiplier;
   // Lazy initialized - use getDockerApi to access this
   private DockerApi dockerApi;
 
   protected abstract Collection<String> getRunningContainers();
 
-  public DockerContainer(ContainerEnvConfig config) throws IOException {
+  public DockerContainer(
+      ContainerEnvConfig config, DockerConfig dockerConfig, int containerTimeoutMuliplier)
+      throws IOException {
     this.config = config;
+    this.dockerConfig = dockerConfig;
     this.scheduler = Executors.newSingleThreadScheduledExecutor();
+    this.timeoutMultiplier = new AtomicInteger(containerTimeoutMuliplier);
     FileUtil.mkdirIfNotExists(config.getLibRoot());
     FileUtil.mkdirIfNotExists(config.getTempRoot());
   }
@@ -121,7 +127,10 @@ public abstract class DockerContainer implements ContainerBackend {
   }
 
   private synchronized DockerApi initializeDockerApi() throws ApiUnavailableException {
-    DockerApi docker = new Docker("localhost", 2375, 1).api(new ApiPerformanceListener());
+    DockerApi docker =
+        new Docker(
+                dockerConfig.getServer(), dockerConfig.getPort(), dockerConfig.getMaxConnections())
+            .api(new ApiPerformanceListener());
     if (LOG.isInfoEnabled()) {
       Version v = docker.getVersion();
       LOG.info("Connected to docker, API version: {}", v.getApiVersion());
@@ -306,24 +315,26 @@ public abstract class DockerContainer implements ContainerBackend {
 
       LOG.debug("Container response: {}", recordedResponse);
 
-      Pattern p = Pattern.compile("^([a-z0-9]+)  -\n\\z", Pattern.MULTILINE);
-      if (status == ContainerExecResponse.Status.COMPLETED
-          || status == ContainerExecResponse.Status.FAILED_EXITCODE) {
-        Matcher matcher = p.matcher(recordedResponse);
-        if (!matcher.find()) {
-          LOG.warn("Response {} failed to match", recordedResponse);
-          throw new ContainerRetryNeededException();
-        }
-        String checksum = matcher.group(1);
-        LOG.debug("Extracted checksum {}", checksum);
-        recordedResponse = matcher.replaceAll("");
-        MessageDigest md = MessageDigest.getInstance("MD5");
-        md.update(recordedResponse.getBytes(StandardCharsets.UTF_8));
-        byte[] digest = md.digest();
-        String myHash = DatatypeConverter.printHexBinary(digest).toLowerCase();
-        if (!checksum.equals(myHash)) {
-          LOG.warn("The checksum for response {} is not equal to {}", recordedResponse, checksum);
-          throw new ContainerRetryNeededException();
+      if (dockerConfig.validateMd5SumContainerOutput()) {
+        Pattern p = Pattern.compile("^([a-z0-9]+)  -\n\\z", Pattern.MULTILINE);
+        if (status == ContainerExecResponse.Status.COMPLETED
+            || status == ContainerExecResponse.Status.FAILED_EXITCODE) {
+          Matcher matcher = p.matcher(recordedResponse);
+          if (!matcher.find()) {
+            LOG.warn("Response {} failed to match", recordedResponse);
+            throw new ContainerRetryNeededException();
+          }
+          String checksum = matcher.group(1);
+          LOG.debug("Extracted checksum {}", checksum);
+          recordedResponse = matcher.replaceAll("");
+          MessageDigest md = MessageDigest.getInstance("MD5");
+          md.update(recordedResponse.getBytes(StandardCharsets.UTF_8));
+          byte[] digest = md.digest();
+          String myHash = DatatypeConverter.printHexBinary(digest).toLowerCase();
+          if (!checksum.equals(myHash)) {
+            LOG.warn("The checksum for response {} is not equal to {}", recordedResponse, checksum);
+            throw new ContainerRetryNeededException();
+          }
         }
       }
       return ContainerExecResponse.create(

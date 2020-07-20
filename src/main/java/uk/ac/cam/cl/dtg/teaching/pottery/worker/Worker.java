@@ -23,7 +23,8 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.JobStatus;
 
 public interface Worker extends Stoppable {
 
-  public static final String WORKER_NAME = "WORKER_NAME";
+  String WORKER_NAME = "WORKER_NAME";
+  String INITIAL_POOL_SIZE = "INITIAL_POOL_SIZE";
 
   void rebuildThreadPool(int numThreads);
 

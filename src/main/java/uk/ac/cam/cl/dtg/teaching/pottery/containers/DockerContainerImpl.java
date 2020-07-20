@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.cam.cl.dtg.teaching.docker.ApiUnavailableException;
@@ -32,6 +33,8 @@ import uk.ac.cam.cl.dtg.teaching.docker.model.ContainerResponse;
 import uk.ac.cam.cl.dtg.teaching.pottery.ContainerRetryNeededException;
 import uk.ac.cam.cl.dtg.teaching.pottery.FileUtil;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.ContextKeys;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.DockerConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.exceptions.ContainerExecutionException;
 
 /** Docker implementation of container backend. */
@@ -43,8 +46,12 @@ public class DockerContainerImpl extends DockerContainer implements ContainerBac
   private final ConcurrentSkipListSet<String> runningContainers = new ConcurrentSkipListSet<>();
 
   @Inject
-  public DockerContainerImpl(ContainerEnvConfig config) throws IOException {
-    super(config);
+  public DockerContainerImpl(
+      ContainerEnvConfig config,
+      DockerConfig dockerConfig,
+      @Named(ContextKeys.CONTAINER_TIMEOUT_MULTIPLIER) int containerTimeoutMultiplier)
+      throws IOException {
+    super(config, dockerConfig, containerTimeoutMultiplier);
   }
 
   @Override

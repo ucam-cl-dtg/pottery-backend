@@ -18,6 +18,39 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -->
+
+<!-- Available names are defined in uk.ac.cam.cl.dtg.teaching.pottery.config.ContextKeys -->
 <Context path="/">
+
+    <!-- location on local disk of parent directory for all pottery data and temp storage -->
     <Parameter name="localStoragePrefix" value="/opt/pottery"/>
+
+    <!-- boolean to indicate if we should use the container reuse implementation or create a new container for every
+    execution -->
+    <Parameter name="reuseContainers" value="true"/>
+
+    <!-- connection details to the docker API -->
+    <Parameter name="dockerApiServer" value="localhost"/>
+    <Parameter name="dockerApiPort" value="2375"/>
+
+    <!-- integer maximum number of simultaneous connections to permit to the docker API. This should be larger than the
+    number of threads in your worker pool. -->
+    <Parameter name="dockerApiMaxConnections" value="10"/>
+
+    <!-- boolean to enable parsing a md5sum from the end of the container output and checking that the remaining output
+    matches it. Outputs without an md5sum or with a mismatch will be retried automatically. This requires support in the
+    container images. Enabling this setting without updating your container images will mean that every execution will
+    be retried and eventually fail. -->
+    <Parameter name="dockerMd5sumContainerOutput" value="true"/>
+
+    <!-- integer for the initial number of threads to use in the general worker pool -->
+    <Parameter name="generalPoolInitialThreads" value="1"/>
+
+    <!-- integer for the initial number of threads to use in the parameterisation worker pool -->
+    <Parameter name="parameterisationPoolInitialThreads" value="1"/>
+
+    <!-- integer multiplier to apply to container timeouts. If you run with a large number of threads in the worker pool
+     then you might start to increase the time containers take to run due to resource contention. This flag can be used
+     to scale all container timeouts by a fixed multiplier. -->
+    <Parameter name="containerTimeoutMultiplier" value="1"/>
 </Context>

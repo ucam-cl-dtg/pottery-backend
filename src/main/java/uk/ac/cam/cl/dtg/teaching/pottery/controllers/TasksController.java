@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import javax.inject.Named;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -39,6 +40,7 @@ import uk.ac.cam.cl.dtg.teaching.pottery.model.BuilderInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskInfo;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskLocation;
 import uk.ac.cam.cl.dtg.teaching.pottery.model.TaskStatus;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.Task;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskCopy;
 import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskFactory;
@@ -60,7 +62,10 @@ public class TasksController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Ta
   /** Create a new TasksController. */
   @Inject
   public TasksController(
-      TaskFactory taskFactory, TaskIndex taskIndex, Worker worker, Database database) {
+      TaskFactory taskFactory,
+      TaskIndex taskIndex,
+      @Named(Repo.GENERAL_WORKER) Worker worker,
+      Database database) {
     super();
     this.taskFactory = taskFactory;
     this.taskIndex = taskIndex;

@@ -61,7 +61,7 @@ public class RepoController implements uk.ac.cam.cl.dtg.teaching.pottery.api.Rep
   public RepoController(
       RepoFactory repoFactory,
       TaskIndex taskIndex,
-      @Named(Repo.PARAMETERISATION_WORKER_NAME) Worker worker) {
+      @Named(Repo.PARAMETERISATION_WORKER) Worker worker) {
     super();
     this.repoFactory = repoFactory;
     this.taskIndex = taskIndex;

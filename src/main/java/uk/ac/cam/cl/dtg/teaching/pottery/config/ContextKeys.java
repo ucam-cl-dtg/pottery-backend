@@ -17,36 +17,16 @@
  */
 package uk.ac.cam.cl.dtg.teaching.pottery.config;
 
-import com.google.inject.Inject;
-import java.io.File;
-import javax.inject.Named;
+public class ContextKeys {
+  public static final String GENERAL_POOL_INITIAL_THREADS = "generalPoolInitialThreads";
+  public static final String PARAMETERISATION_POOL_INITIAL_THREADS =
+      "parameterisationPoolInitialThreads";
+  public static final String REUSE_CONTAINERS = "reuseContainers";
+  public static final String LOCAL_STORAGE_PREFIX = "localStoragePrefix";
+  public static final String DOCKER_API_SERVER = "dockerApiServer";
+  public static final String DOCKER_API_PORT = "dockerApiPort";
+  public static final String DOCKER_API_MAX_CONNECTIONS = "dockerApiMaxConnections";
 
-public class RepoConfig {
-
-  private File repoPrefix;
-
-  @Inject
-  public RepoConfig(@Named(ContextKeys.LOCAL_STORAGE_PREFIX) String prefix) {
-    this.repoPrefix = new File(prefix, "repos");
-  }
-
-  public File getRepoRoot() {
-    return new File(repoPrefix, "repos");
-  }
-
-  public File getRepoTestingRoot() {
-    return new File(repoPrefix, "repo-testing");
-  }
-
-  public String getWebtagPrefix() {
-    return "online-";
-  }
-
-  public File getRepoDir(String repoId) {
-    return new File(getRepoRoot(), repoId);
-  }
-
-  public File getRepoTestingDir(String repoId) {
-    return new File(getRepoTestingRoot(), repoId);
-  }
+  public static final String DOCKER_MD5SUM_CONTAINER_OUTPUT = "dockerMd5sumContainerOutput";
+  public static final String CONTAINER_TIMEOUT_MULTIPLIER = "containerTimeoutMultiplier";
 }

@@ -39,10 +39,13 @@ import uk.ac.cam.cl.dtg.teaching.cors.CorsRequestFilter;
 import uk.ac.cam.cl.dtg.teaching.cors.CorsResponseFilter;
 import uk.ac.cam.cl.dtg.teaching.exceptions.ExceptionHandler;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.ContainerEnvConfig;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.ContextKeys;
+import uk.ac.cam.cl.dtg.teaching.pottery.config.DockerConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.RepoConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.config.TaskConfig;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerBackend;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.containers.DockerContainerWithReuseImpl;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.GuiceDependencyController;
 import uk.ac.cam.cl.dtg.teaching.pottery.controllers.RepoController;
@@ -77,21 +80,19 @@ public class ApplicationModule implements Module {
   private static class WorkerModule extends PrivateModule {
 
     private final String workerName;
+    private final int initialThreads;
     private final Key<Worker> workerKey;
 
-    WorkerModule() {
-      this.workerName = "Default worker";
-      this.workerKey = Key.get(Worker.class);
-    }
-
-    WorkerModule(String workerName) {
+    WorkerModule(String workerName, int initialThreads) {
       this.workerName = workerName;
+      this.initialThreads = initialThreads;
       this.workerKey = Key.get(Worker.class, Names.named(workerName));
     }
 
     @Override
     protected void configure() {
       bindConstant().annotatedWith(Names.named(Worker.WORKER_NAME)).to(workerName);
+      bindConstant().annotatedWith(Names.named(Worker.INITIAL_POOL_SIZE)).to(initialThreads);
       bind(workerKey).to(ThreadPoolWorker.class).in(Singleton.class);
       expose(workerKey);
     }
@@ -120,15 +121,28 @@ public class ApplicationModule implements Module {
     binder.bind(TaskConfig.class).in(Singleton.class);
     binder.bind(RepoConfig.class).in(Singleton.class);
     binder.bind(ContainerEnvConfig.class).in(Singleton.class);
+    binder.bind(DockerConfig.class).in(Singleton.class);
 
     binder.bind(Database.class).to(PostgresDatabase.class).in(Singleton.class);
 
     binder.bind(SshManager.class).in(Singleton.class);
 
-    binder.install(new WorkerModule());
-    binder.install(new WorkerModule(Repo.PARAMETERISATION_WORKER_NAME));
+    binder.install(
+        new WorkerModule(
+            Repo.GENERAL_WORKER,
+            Integer.parseInt(context.getInitParameter(ContextKeys.GENERAL_POOL_INITIAL_THREADS))));
+    binder.install(
+        new WorkerModule(
+            Repo.PARAMETERISATION_WORKER,
+            Integer.parseInt(
+                context.getInitParameter(ContextKeys.PARAMETERISATION_POOL_INITIAL_THREADS))));
 
-    binder.bind(ContainerBackend.class).to(DockerContainerWithReuseImpl.class).in(Singleton.class);
+    boolean reuseContainers =
+        Boolean.parseBoolean(context.getInitParameter(ContextKeys.REUSE_CONTAINERS));
+    binder
+        .bind(ContainerBackend.class)
+        .to(reuseContainers ? DockerContainerWithReuseImpl.class : DockerContainerImpl.class)
+        .in(Singleton.class);
 
     binder.bind(GuiceDependencyController.class);
 
