@@ -328,7 +328,7 @@ public abstract class DockerContainer implements ContainerBackend {
       }
       return ContainerExecResponse.create(
           status,
-          attachListener.getOutput(),
+          recordedResponse,
           System.currentTimeMillis() - startTime,
           executionConfig.taint(),
           containerName);
