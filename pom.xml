@@ -62,7 +62,7 @@
         <dependency>
             <groupId>uk.ac.cam.cl.dtg.web</groupId>
             <artifactId>resteasy-exception-chains</artifactId>
-            <version>1.0.7-SNAPSHOT</version>
+            <version>1.0.10</version>
         </dependency>
 
         <!-- Resteasy framework, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
@@ -157,14 +157,14 @@
         <dependency>
             <groupId>uk.ac.cam.cl.dtg.web</groupId>
             <artifactId>resteasy-docker</artifactId>
-            <version>1.0.9-SNAPSHOT</version>
+            <version>1.0.10</version>
         </dependency>
 
         <!-- Resteasy CORS filter, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
         <dependency>
             <groupId>uk.ac.cam.cl.dtg.web</groupId>
             <artifactId>resteasy-cors</artifactId>
-            <version>1.0.1-SNAPSHOT</version>
+            <version>1.0.2</version>
         </dependency>
 
         <!-- JGit, Eclipse Distribution License 1.0 http://www.eclipse.org/org/documents/edl-v10.php -->

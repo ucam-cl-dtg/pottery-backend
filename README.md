@@ -14,11 +14,7 @@ Development dependencies
 Some dependencies are not in maven central and so should be built
 locally and installed into your local maven repository.
 
- * pottery-container-interface: repository at https://github.com/ucam-cl-dtg/pottery-container-interface.git
  * pottery-backend-interface: repository at https://github.com/ucam-cl-dtg/pottery-backend-interface.git
- * resteasy-exception-chains: repository at https://github.com/ucam-cl-dtg/resteasy-exception-chains.git
- * resteasy-docker: repository at https://github.com/ucam-cl-dtg/resteasy-docker.git
- * resteasy-cors: repository at https://github.com/ucam-cl-dtg/resteasy-cors.git
 
 For each of the above you need to:
 
