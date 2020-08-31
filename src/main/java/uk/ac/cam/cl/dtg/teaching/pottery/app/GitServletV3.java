@@ -62,12 +62,8 @@ public class GitServletV3 extends GitServlet {
                 (rp, commands) -> {
                   String repoName = req.getPathInfo().substring(1);
                   LOG.info("Received push to {}", repoName);
-                  TaskIndex t =
-                      GuiceResteasyBootstrapServletContextListenerV3.getInjector()
-                          .getInstance(TaskIndex.class);
-                  Worker w =
-                      GuiceResteasyBootstrapServletContextListenerV3.getInjector()
-                          .getInstance(Worker.class);
+                  TaskIndex t = GuiceResteasyBootstrapServletContextListenerV3.getTaskIndex();
+                  Worker w = GuiceResteasyBootstrapServletContextListenerV3.getGeneralWorker();
                   try (PrintWriter output = new PrintWriter(pack.getMessageOutputStream(), true)) {
                     try {
                       Task task = t.getTask(repoName);

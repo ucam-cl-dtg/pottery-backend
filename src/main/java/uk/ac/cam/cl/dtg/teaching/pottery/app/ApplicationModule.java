@@ -18,11 +18,9 @@
 package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
 import com.google.inject.Binder;
-import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.PrivateModule;
-import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
 import com.wordnik.swagger.jaxrs.config.BeanConfig;
 import com.wordnik.swagger.jaxrs.listing.ApiDeclarationProvider;
@@ -30,7 +28,6 @@ import com.wordnik.swagger.jaxrs.listing.ApiListingResource;
 import com.wordnik.swagger.jaxrs.listing.ApiListingResourceJSON;
 import com.wordnik.swagger.jaxrs.listing.ResourceListingProvider;
 import java.util.Enumeration;
-import java.util.Objects;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Singleton;
@@ -155,52 +152,12 @@ public class ApplicationModule implements Module {
 
   @PostConstruct
   public void startSshManager() {
-    Injector injector = GuiceResteasyBootstrapServletContextListenerV3.getInjector();
-    injector.getInstance(SshManager.class).init();
+    GuiceResteasyBootstrapServletContextListenerV3.getSshManager().init();
   }
 
   /** Stop the various worker and manager threads. */
   @PreDestroy
   public void preDestroy() {
-    Injector injector = GuiceResteasyBootstrapServletContextListenerV3.getInjector();
-    injector.findBindingsByType(TypeLiteral.get(Worker.class)).stream()
-        .map(binding -> binding.getProvider().get())
-        .filter(Objects::nonNull)
-        .forEach(Worker::stop);
-    injector.getInstance(ContainerManager.class).stop();
-    injector.getInstance(Database.class).stop();
-
-    // TODO: this is plausible but needs one of two possible fixes:
-    // 1) we need to avoid instantiating things that are not instanatiated already
-    // or 2) we need to tear things down in a sensible order, objects should be closed before their
-    // dependents
-    // Currently the issue is that we close e.g. Database and then instantiate e.g. Worker which in
-    // turn dependes on something with a constructor that needs a working database
-    /*
-    for (Map.Entry<Key<?>, Binding<?>> e : injector.getAllBindings().entrySet()) {
-      Class<?> rawType = e.getKey().getTypeLiteral().getRawType();
-      Binding<?> binding = e.getValue();
-      if (Stoppable.class.isAssignableFrom(rawType)) {
-        binding.acceptScopingVisitor(
-            new DefaultBindingScopingVisitor<Void>() {
-
-              @Override
-              public Void visitScope(Scope scope) {
-                if (scope == Scopes.SINGLETON) {
-                  // TODO: this instantiates the singleton if it hasn't been already ;-(
-                  ((Stoppable) (binding.getProvider().get())).stop();
-                }
-                return null;
-              }
-
-              @Override
-              public Void visitEagerSingleton() {
-                ((Stoppable) (binding.getProvider().get())).stop();
-                return null;
-              }
-            });
-      }
-    }
-    */
+    GuiceResteasyBootstrapServletContextListenerV3.stop();
   }
 }

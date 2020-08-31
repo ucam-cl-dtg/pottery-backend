@@ -19,12 +19,22 @@ package uk.ac.cam.cl.dtg.teaching.pottery.app;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
+import com.google.inject.TypeLiteral;
+import com.google.inject.name.Names;
 import java.util.List;
+import java.util.Objects;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.annotation.WebListener;
 import org.jboss.resteasy.plugins.guice.GuiceResteasyBootstrapServletContextListener;
+import uk.ac.cam.cl.dtg.teaching.pottery.containers.ContainerManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.database.Database;
+import uk.ac.cam.cl.dtg.teaching.pottery.repo.Repo;
+import uk.ac.cam.cl.dtg.teaching.pottery.ssh.SshManager;
+import uk.ac.cam.cl.dtg.teaching.pottery.task.TaskIndex;
+import uk.ac.cam.cl.dtg.teaching.pottery.worker.Worker;
 
 @WebListener
 public class GuiceResteasyBootstrapServletContextListenerV3
@@ -32,8 +42,29 @@ public class GuiceResteasyBootstrapServletContextListenerV3
 
   private static Injector injector;
 
-  public static Injector getInjector() {
+  private static Injector getInjector() {
     return injector;
+  }
+
+  public static TaskIndex getTaskIndex() {
+    return getInjector().getInstance(TaskIndex.class);
+  }
+
+  public static SshManager getSshManager() {
+    return getInjector().getInstance(SshManager.class);
+  }
+
+  public static Worker getGeneralWorker() {
+    return getInjector().getInstance(Key.get(Worker.class, Names.named(Repo.GENERAL_WORKER)));
+  }
+
+  public static void stop() {
+    injector.findBindingsByType(TypeLiteral.get(Worker.class)).stream()
+        .map(binding -> binding.getProvider().get())
+        .filter(Objects::nonNull)
+        .forEach(Worker::stop);
+    injector.getInstance(ContainerManager.class).stop();
+    injector.getInstance(Database.class).stop();
   }
 
   @Override
