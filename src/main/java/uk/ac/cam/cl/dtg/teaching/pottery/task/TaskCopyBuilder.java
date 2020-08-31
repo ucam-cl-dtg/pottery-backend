@@ -318,6 +318,8 @@ public class TaskCopyBuilder {
                               new InvalidTaskSpecificationException(
                                   "Failed when testing "
                                       + taskName
+                                      + " at step "
+                                      + stepName
                                       + " during registration. "
                                       + "Compiler response was: "
                                       + response.response()));
@@ -327,6 +329,8 @@ public class TaskCopyBuilder {
                               new InvalidTaskSpecificationException(
                                   "Insufficient disk quota when testing "
                                       + taskName
+                                      + " at step "
+                                      + stepName
                                       + " during registration. "
                                       + "Compiler response was: "
                                       + response.response()));
@@ -336,6 +340,8 @@ public class TaskCopyBuilder {
                               new InvalidTaskSpecificationException(
                                   "Insufficient memory when testing "
                                       + taskName
+                                      + " at step "
+                                      + stepName
                                       + " during registration. "
                                       + "Compiler response was: "
                                       + response.response()));
@@ -345,6 +351,8 @@ public class TaskCopyBuilder {
                               new InvalidTaskSpecificationException(
                                   "Timeout when testing "
                                       + taskName
+                                      + " at step "
+                                      + stepName
                                       + " during registration. "
                                       + "Compiler response was: "
                                       + response.response()));
@@ -354,6 +362,8 @@ public class TaskCopyBuilder {
                               new InvalidTaskSpecificationException(
                                   "Bad exit code for "
                                       + taskName
+                                      + " at step "
+                                      + stepName
                                       + " during registration. "
                                       + "Compiler response was: "
                                       + response.response()));
