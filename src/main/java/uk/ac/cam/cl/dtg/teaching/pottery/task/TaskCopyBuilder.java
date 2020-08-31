@@ -266,6 +266,13 @@ public class TaskCopyBuilder {
               new InvalidTaskSpecificationException(
                   "Compiler returned an error code. " + "Compiler response was: " + r.response()));
           break;
+        case FAILED_OUTPUT:
+          builderInfo.setException(
+              new InvalidTaskSpecificationException(
+                  "Output limit exceeded when compiling testing code in task. "
+                      + "Compiler response was: "
+                      + r.response()));
+          break;
         default:
           break;
       }
@@ -361,6 +368,17 @@ public class TaskCopyBuilder {
                           builderInfo.setException(
                               new InvalidTaskSpecificationException(
                                   "Bad exit code for "
+                                      + taskName
+                                      + " at step "
+                                      + stepName
+                                      + " during registration. "
+                                      + "Compiler response was: "
+                                      + response.response()));
+                          break;
+                        case FAILED_OUTPUT:
+                          builderInfo.setException(
+                              new InvalidTaskSpecificationException(
+                                  "Output limit exceeded when testing "
                                       + taskName
                                       + " at step "
                                       + stepName
