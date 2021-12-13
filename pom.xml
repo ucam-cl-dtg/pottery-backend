@@ -9,7 +9,7 @@
 
     <properties>
         <resteasy.version>3.0.8.Final</resteasy.version>
-        <log4j.version>1.2.17</log4j.version>
+        <log4j.version>2.15.0</log4j.version>
         <slf4j.version>1.7.5</slf4j.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -133,13 +133,13 @@
         </dependency>
 
         <!-- Log4j, Apache license http://www.apache.org/licenses/LICENSE-2.0 -->
+        <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
         <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
             <version>${log4j.version}</version>
             <scope>runtime</scope>
         </dependency>
-
         <!-- Slf4j, MIT license http://www.slf4j.org/license.html -->
         <dependency>
             <groupId>org.slf4j</groupId>
