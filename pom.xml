@@ -9,7 +9,7 @@
 
     <properties>
         <resteasy.version>3.0.8.Final</resteasy.version>
-        <log4j.version>2.15.0</log4j.version>
+        <log4j.version>2.16.0</log4j.version>
         <slf4j.version>1.7.5</slf4j.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
